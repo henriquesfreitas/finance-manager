@@ -1,0 +1,13 @@
+{
+  "enabled": true,
+  "name": "Run Tests After Task",
+  "description": "Runs the full test suite (unit + E2E) after each spec task is completed to catch regressions immediately.",
+  "version": "1",
+  "when": {
+    "type": "postTaskExecution"
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "A task was just completed. Run the full test suite to verify nothing is broken. Run unit tests first (npm run test --prefix client and npm run test --prefix server), then run E2E tests (npm run test:e2e --prefix client). If any tests fail, investigate and fix the issue before moving on."
+  }
+}
