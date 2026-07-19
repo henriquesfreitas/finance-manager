@@ -1,0 +1,13 @@
+{
+  "enabled": true,
+  "name": "Update PROJECT_RULES.md",
+  "description": "After a task completes, reminds the agent to check if any new patterns, conventions, services, or architectural decisions were introduced that should be documented in PROJECT_RULES.md.",
+  "version": "1",
+  "when": {
+    "type": "agentStop"
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "Review the changes made in this session. If you introduced new architectural patterns, services, conventions, API endpoints, database models, or domain concepts that are NOT already documented in PROJECT_RULES.md, update that file now. Only add what's genuinely new — don't rewrite existing sections. If nothing new was introduced, skip this step."
+  }
+}

@@ -14,11 +14,12 @@ This workflow applies to **new features, architectural changes, or multi-file re
 
 Before writing any code:
 
-1. **Analyze the request.** Do not jump into code generation.
-2. **Read existing code** in the affected area to understand current patterns and constraints.
-3. **Scenario Breakdown.** Identify the main user-flow scenarios: happy path, edge cases, error/failure states.
-4. **Discovery Questions.** Ask targeted clarification questions to resolve ambiguities. Group them clearly so I can answer in one pass.
-5. **Summarize requirements** as a numbered list once all questions are answered.
+1. **Read `PROJECT_RULES.md`** to understand current architecture, patterns, and conventions before analyzing anything.
+2. **Analyze the request.** Do not jump into code generation.
+3. **Read existing code** in the affected area to understand current patterns and constraints.
+4. **Scenario Breakdown.** Identify the main user-flow scenarios: happy path, edge cases, error/failure states.
+5. **Discovery Questions.** Ask targeted clarification questions to resolve ambiguities. Group them clearly so I can answer in one pass.
+6. **Summarize requirements** as a numbered list once all questions are answered.
 
 **Exit gate:** Present the requirements summary and ask: *"Requirements look complete — shall we move to the Tech Design phase?"*
 

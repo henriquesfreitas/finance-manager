@@ -131,18 +131,22 @@ The division-by-zero guard in `calculateTotalVariation` is intentional — retur
 
 ## API Client Pattern
 
-`client/src/services/investment-api-client.ts` is the single place that calls `fetch`. No other file imports `fetch` directly.
+`client/src/services/api-client.ts` exports the shared `request<T>` helper. Domain-specific clients import it:
+
+- `investment-api-client.ts` — investments CRUD + archive
+- `order-api-client.ts` — order CRUD per investment + global order list
+- `comment-api-client.ts` — comments CRUD per investment
 
 ```ts
 const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3000';
 ```
 
-All requests go through the private `request<T>` helper, which:
+The `request<T>` helper:
 - Injects `Content-Type: application/json` on every call.
 - Throws an `Error` with the server's `error` message on non-2xx responses.
 - Returns `undefined` (cast to `T`) for `204 No Content`.
 
-The four exported functions (`fetchInvestments`, `createInvestment`, `updateInvestment`, `deleteInvestment`) are named after their intent — not HTTP verbs — so call sites read like English.
+Functions are named after their intent — not HTTP verbs — so call sites read like English.
 
 **Env var:** set `VITE_API_BASE_URL` in `client/.env`. During development the Vite dev server proxies `/api` to `localhost:3000` (configured in `vite.config.ts`), so the env var is optional locally.
 
@@ -150,17 +154,15 @@ The four exported functions (`fetchInvestments`, `createInvestment`, `updateInve
 
 ## Custom Hooks Pattern
 
-`client/src/hooks/useInvestments.ts` wraps every API call in a TanStack Query hook. Hooks are the only layer that imports from `services/`.
+Each domain has its own hook file in `client/src/hooks/`. Hooks are the only layer that imports from `services/`.
 
-```ts
-// Query hook
-export function useInvestments(): UseQueryResult<EnrichedInvestment[], Error>
+| Hook file | Queries | Mutations |
+|-----------|---------|-----------|
+| `useInvestments.ts` | `useActiveInvestments`, `useArchivedInvestments` | `useCreateInvestment`, `useArchiveInvestment`, `useUnarchiveInvestment` |
+| `useOrders.ts` | `useOrders(investmentId)`, `useAllOrders` | `useCreateOrder`, `useUpdateOrder` |
+| `useComments.ts` | `useComments(investmentId)` | `useCreateComment`, `useUpdateComment`, `useDeleteComment` |
 
-// Mutation hooks — each invalidates INVESTMENTS_QUERY_KEY on success
-export function useCreateInvestment(): UseMutationResult<...>
-export function useUpdateInvestment(): UseMutationResult<...>
-export function useDeleteInvestment(): UseMutationResult<...>
-```
+On mutation success, hooks invalidate the relevant query keys so lists refresh automatically — no manual cache writes.
 
 Pages call `mutateAsync` (not `mutate`) so they can `await` and close the modal only after success.
 
@@ -174,7 +176,16 @@ Pages call `mutateAsync` (not `mutate`) so they can `await` and close the modal 
 
 ### Service factory (dependency injection)
 
-`createInvestmentService(db: PrismaClient)` takes the Prisma client as a parameter. Tests inject a fake; the real router injects the singleton from `lib/prisma-client.ts`.
+All services follow the same factory pattern with DI:
+
+| Factory | Responsibility |
+|---------|---------------|
+| `createInvestmentService(db)` | Investment CRUD, archive/unarchive, list enriched with quotes |
+| `createOrderService(db)` | Order CRUD, SELL validation, position computation |
+| `createCommentService(db)` | Comment CRUD with ownership checks |
+| `createWeightedAverageCalculator()` | Pure position computation (BUY/SELL/BONUS/SPLIT) |
+
+Tests inject fakes; the real routers inject the singleton from `lib/prisma-client.ts`.
 
 ```ts
 // Production
@@ -209,10 +220,18 @@ resolveYahooSymbol('AAPL')    // → 'AAPL.SA'  ← US tickers should use their 
 
 ### Zod validation on the server
 
-`server/src/validators/investment-validator.ts` wraps the Zod schema in `validateInvestmentInput(raw: unknown)` which returns a discriminated union:
+Each domain has its own validator in `server/src/validators/`:
+
+| Validator | Schemas |
+|-----------|---------|
+| `investment-validator.ts` | `createInvestmentSchema` (ticker + sector) |
+| `order-validator.ts` | `createOrderSchema`, `updateOrderSchema` |
+| `comment-validator.ts` | `createCommentSchema`, `updateCommentSchema` |
+
+All validators export a `validateXxxInput(raw: unknown)` function returning a discriminated union:
 
 ```ts
-{ success: true; data: InvestmentSchemaOutput }
+{ success: true; data: T }
 | { success: false; errors: Record<string, string[]> }
 ```
 
@@ -220,7 +239,102 @@ Route handlers check `validation.success` and return `400` with `{ error: 'Valid
 
 ### Prisma Decimal serialisation
 
-Prisma returns `Decimal` objects from the DB. The `toStoredInvestment` helper in `investment-service.ts` calls `.toString()` on `quantity` and `averagePrice` before returning them over JSON. The client types these as `string` (`"100.5"`) and `parseFloat`s them before arithmetic.
+Prisma returns `Decimal` objects from the DB. Services call `.toString()` on Decimal fields before returning them over JSON. The client types these as `string` (`"100.50000000"`) and `parseFloat`s them before arithmetic.
+
+---
+
+## Domain: Orders (v2 Architecture)
+
+Orders are the **source of truth** for investment positions. Quantity and weighted average price are computed at query time from order history — never stored directly.
+
+### Order Types
+
+| Type | Effect on Position |
+|------|-------------------|
+| `BUY` | Increases quantity, recalculates weighted average price |
+| `SELL` | Decreases quantity, average price unchanged |
+| `BONUS` | Same as BUY (e.g. stock bonuses from the company) |
+| `SPLIT` | Multiplies quantity by factor, divides average by factor. Total cost unchanged. |
+
+### Weighted Average Calculator
+
+`server/src/services/weighted-average-calculator.ts` is a pure function module:
+
+```ts
+const calculator = createWeightedAverageCalculator();
+const position = calculator.computePosition(orders); // → { quantity, averagePrice }
+```
+
+Key rules:
+- BUY/BONUS: `newAvg = (prevQty × prevAvg + orderQty × orderPrice) / totalQty`
+- SELL: quantity decreases, average price is preserved
+- SPLIT: `qty × factor`, `avg / factor` — total cost stays the same
+- Zero position resets average to 0; next BUY sets average to that order's price
+- All results rounded to 8 decimal places
+
+### Order Business Rules
+
+- SELL orders cannot exceed the current computed position
+- Orders cannot be created/updated on archived investments
+- Editing an order triggers full chronological re-validation (no negative positions at any point)
+- If an edit would produce an invalid state, the update is rolled back
+
+---
+
+## Domain: Comments
+
+Free-text notes attached to investments. Simple CRUD with ownership validation.
+
+- Max length: 2000 characters
+- Min length: 1 character (non-empty)
+- Comments belong to one investment; ownership is checked on update/delete
+- Sorted by `createdAt DESC` (newest first)
+
+---
+
+## Domain: Archive
+
+Investments can be archived (soft-delete). Archived investments:
+- Do not receive live market quotes
+- Cannot have new orders or edits to existing orders
+- Are displayed in a separate "Archive" section in the UI
+- Can be unarchived to restore full functionality
+
+The `archivedAt` field is either `null` (active) or a `DateTime` (archived).
+
+---
+
+## Domain: Sectors
+
+Each investment has an optional `sector` field from a predefined list (e.g. "Bancos", "Energia Elétrica", "FIIs", "ETFs").
+
+- Server validates against `INVESTMENT_SECTORS` constant in `investment-validator.ts`
+- Client has a matching copy in `client/src/lib/investment-sectors.ts` for the dropdown
+- **Server is the source of truth** for validation; client copy drives the UI only
+
+---
+
+## API Endpoints
+
+| Method | Path | Notes |
+|--------|------|-------|
+| GET | `/health` | Health check |
+| GET | `/api/investments` | List active investments (enriched with quotes + position) |
+| GET | `/api/investments/archived` | List archived investments (with final position) |
+| POST | `/api/investments` | Create investment (ticker + optional sector) |
+| PATCH | `/api/investments/:id/archive` | Archive an investment |
+| PATCH | `/api/investments/:id/unarchive` | Unarchive an investment |
+| PUT | `/api/investments/:id` | Deprecated — returns 405 |
+| DELETE | `/api/investments/:id` | Delete investment (204) |
+| GET | `/api/investments/:id/orders` | List orders for an investment |
+| POST | `/api/investments/:id/orders` | Create order, returns computed position |
+| PUT | `/api/investments/:id/orders/:orderId` | Update order, returns computed position |
+| GET | `/api/orders` | List all orders across all investments (with ticker) |
+| GET | `/api/investments/:id/comments` | List comments for an investment |
+| POST | `/api/investments/:id/comments` | Create comment |
+| PUT | `/api/investments/:id/comments/:commentId` | Update comment |
+| DELETE | `/api/investments/:id/comments/:commentId` | Delete comment |
+| POST | `/api/test/reset` | Dev/test only — wipes DB |
 
 ### Error response shape
 
@@ -326,17 +440,46 @@ When live price data is unavailable, render a muted span inside the cell:
 ```
 User input
   → React Hook Form (validates with Zod)
-    → investment-api-client.ts (fetch)
+    → api-client.ts (shared request helper)
       → Express route (validates with Zod again)
-        → investment-service.ts (calls Prisma)
+        → service (business logic + Prisma)
           → PostgreSQL
-        → yahoo-finance-quote-service.ts (in-memory cache → yahoo-finance-wrapper.ts)
+        → weighted-average-calculator.ts (pure position computation)
+        → yahoo-finance-quote-service.ts (5min cache → yahoo-finance-wrapper.ts)
           → Yahoo Finance API
-      ← { StoredInvestment | EnrichedInvestment }
+      ← { EnrichedInvestment | ComputedPosition | OrderRecord | CommentRecord }
     ← JSON response
   ← TanStack Query (caches, triggers re-render)
-    → investment-calculator.ts (pure functions, no side effects)
+    → investment-calculator.ts (pure UI-side calculations)
       → InvestmentTable renders calculated fields
+```
+
+### Database Model (Prisma)
+
+```
+Investment (investments)
+├── id: UUID PK
+├── ticker: String UNIQUE
+├── sector: String? (nullable for migration compat, required by app Zod schema)
+├── archivedAt: DateTime?
+├── createdAt / updatedAt
+├── → Order[] (1:N, onDelete: Restrict)
+└── → Comment[] (1:N, onDelete: Restrict)
+
+Order (orders)
+├── id: UUID PK
+├── investmentId: FK → Investment
+├── type: BUY | SELL | BONUS | SPLIT
+├── quantity: Decimal(18,8)
+├── price: Decimal(18,8)
+├── orderDate: Date
+└── createdAt / updatedAt
+
+Comment (comments)
+├── id: UUID PK
+├── investmentId: FK → Investment
+├── content: String
+└── createdAt / updatedAt
 ```
 
 ---
@@ -384,3 +527,8 @@ npm run db:studio    # opens Prisma Studio in browser
 | 2026-07-11 | Task 4 complete | 21 Playwright E2E tests (smoke, add, edit, delete, validation, color coding) |
 | 2026-07-11 | Added test-only reset endpoint | `POST /api/test/reset` — gated by `NODE_ENV !== 'production'` |
 | 2026-07-11 | Task 5 complete | Toast notifications (sonner), server-down error banner, README |
+| 2026-07-12 | V2 architecture | Orders as source of truth, weighted average calculator, computed positions |
+| 2026-07-16 | Added BONUS and SPLIT order types | Stock bonuses and splits support |
+| 2026-07-17 | Comments system | Free-text notes on investments |
+| 2026-07-19 | Sectors | Optional sector classification for investments |
+| 2026-07-19 | Updated PROJECT_RULES.md | Documented orders, comments, archive, sectors, weighted average calculator, updated API endpoints |
