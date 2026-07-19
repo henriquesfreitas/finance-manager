@@ -232,5 +232,5 @@
 - [ ] Run full test suite (unit + E2E)
 - [ ] Run linters on both projects
 - [ ] Verify all acceptance criteria from requirements.md are met
-- [ ] Update PROJECT_RULES.md with any new patterns introduced during implementation
+- [x] Update PROJECT_RULES.md with any new patterns introduced during implementation
 - [ ] Confirm docker compose up + npm run dev reaches working app

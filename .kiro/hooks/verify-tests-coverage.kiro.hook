@@ -1,0 +1,13 @@
+{
+  "enabled": true,
+  "name": "Verify Tests After Task",
+  "description": "After a task is completed, reminds the agent to verify that unit tests and E2E tests were added or updated to cover the changes made.",
+  "version": "1",
+  "when": {
+    "type": "agentStop"
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "Before finishing, review the changes you made in this session and verify: 1) Did you add or update unit tests for any new/changed business logic? 2) Did you add or update Playwright E2E tests if a user flow was affected? 3) Did all tests pass? If any tests are missing, write them now. Do NOT skip this step."
+  }
+}

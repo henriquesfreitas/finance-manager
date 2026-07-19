@@ -40,6 +40,7 @@
 - Optimize for performance and memory efficiency
 - Defensive programming: validation at boundaries, graceful error handling
 - If an approach fails twice, stop and try a fundamentally different approach
+- always adjust for mobile use too
 
 ## Infrastructure
 

@@ -1,0 +1,15 @@
+{
+  "name": "finance-manager",
+  "version": "1.0.0",
+  "description": "Finance Investment Manager — monorepo root convenience scripts",
+  "private": true,
+  "scripts": {
+    "dev:server": "npm run dev --prefix server",
+    "dev:client": "npm run dev --prefix client",
+    "test:server": "npm test --prefix server",
+    "test:client": "npm test --prefix client",
+    "test:e2e": "npm run test:e2e --prefix client",
+    "db:migrate": "npm run db:migrate --prefix server",
+    "db:studio": "npm run db:studio --prefix server"
+  }
+}

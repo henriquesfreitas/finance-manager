@@ -1,0 +1,57 @@
+// Prisma schema for Finance Investment Manager — v2 (order-based model)
+// Docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Investment {
+  id         String    @id @default(uuid())
+  ticker     String    @unique
+  // Nullable first so existing rows survive the migration; required at app layer via Zod.
+  sector     String?
+  archivedAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  orders     Order[]
+  comments   Comment[]
+
+  @@map("investments")
+}
+
+model Order {
+  id           String     @id @default(uuid())
+  investment   Investment @relation(fields: [investmentId], references: [id], onDelete: Restrict)
+  investmentId String
+  type         OrderType
+  quantity     Decimal    @db.Decimal(18, 8)
+  price        Decimal    @db.Decimal(18, 8)
+  orderDate    DateTime   @db.Date
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  @@map("orders")
+}
+
+model Comment {
+  id           String     @id @default(uuid())
+  investment   Investment @relation(fields: [investmentId], references: [id], onDelete: Restrict)
+  investmentId String
+  content      String
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  @@map("comments")
+}
+
+enum OrderType {
+  BUY
+  SELL
+  BONUS
+  SPLIT
+}
