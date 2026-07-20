@@ -256,6 +256,19 @@ Orders are the **source of truth** for investment positions. Quantity and weight
 | `BONUS` | Same as BUY (e.g. stock bonuses from the company) |
 | `SPLIT` | Multiplies quantity by factor, divides average by factor. Total cost unchanged. |
 
+### averagePriceAtSell — PM Snapshot
+
+When a SELL order is created, the service automatically snapshots the current weighted average price (preço médio) into `averagePriceAtSell` (Decimal 18,8, nullable). This enables per-sell profit/loss display without replaying full order history.
+
+- **Auto-populated** by `createOrder` at the computed PM at that moment
+- **Caller-override**: if `averagePriceAtSell` is supplied in `CreateOrderInput`, that value takes precedence
+- **Editable**: users can update it via the standard `PUT /api/investments/:id/orders/:orderId` endpoint
+- **Null** for BUY/BONUS/SPLIT orders and for historical SELL orders created before this field existed
+
+**Calculated fields** (frontend, never stored — in `investment-calculator.ts`):
+- `calculateSellTotalInvested(qty, pm)` → `qty × pm` or `null` when pm is null
+- `calculateSellProfit(totalSold, totalInvestedAtSell)` → `totalSold − totalInvestedAtSell` or `null`
+
 ### Weighted Average Calculator
 
 `server/src/services/weighted-average-calculator.ts` is a pure function module:
@@ -525,6 +538,8 @@ Order (orders)
 ├── quantity: Decimal(18,8)
 ├── price: Decimal(18,8)
 ├── orderDate: Date
+├── contractedRate: Decimal(5,2)? (treasury only)
+├── averagePriceAtSell: Decimal(18,8)? (auto-populated on SELL create; editable; null for BUY/BONUS/SPLIT)
 └── createdAt / updatedAt
 
 Comment (comments)
@@ -587,3 +602,4 @@ npm run db:studio    # opens Prisma Studio in browser
 | 2026-07-20 | Target prices | Added targetSellPrice/targetBuyPrice to investments table. Inline editable cells in InvestmentTable with color coding (green when current price hits target). PATCH /api/investments/:id/target-prices endpoint. EditablePriceCell reusable component. |
 | 2026-07-20 | Fix test infrastructure | Root cause: Vite 8 (client dep) hoisted into server node_modules broke Vitest v4 workers. Fix: pin vite ^6 in server devDependencies; switch both vitest configs to pool: vmForks + fileParallelism: false (vitest#8861). All 143 server + 29 client tests now pass. |
 | 2026-07-20 | Multi-asset support (v3) | Added AssetType enum (STOCK/TREASURY), TreasuryProduct catalog table, currentValue field. New endpoints: PATCH /api/investments/:id/current-value, GET /api/treasury-products. AddInvestmentForm now has type selector. InvestmentTable shows product name for treasury rows with editable currentValue cell. Portfolio % uses hybrid calculation. 166 server + 29 client tests pass. |
+| 2026-07-20 | SELL PM snapshot (averagePriceAtSell) | Added averagePriceAtSell field to orders table. Auto-populated from weighted average on SELL create. Editable via existing update endpoint. Order history table shows PM, Investido, Vendido, Lucro sub-row for SELL orders with PM recorded. New calculator functions: calculateSellTotalInvested, calculateSellProfit. 173 server + 37 client tests pass. |

@@ -15,6 +15,11 @@ export interface OrderListItem {
   orderDate: string;
   /** Contracted rate at purchase time — e.g. "6.50" for IPCA+ 6.5%. Null for stocks or when not recorded. */
   contractedRate: string | null;
+  /**
+   * Weighted average price (preço médio) snapshot at sell time.
+   * Null for BUY/BONUS/SPLIT and for historical SELL orders without a recorded PM.
+   */
+  averagePriceAtSell: string | null;
   createdAt: string;
 }
 
@@ -49,4 +54,6 @@ export interface UpdateOrderFormData {
   quantity?: number;
   price?: number;
   orderDate?: Date;
+  /** Pass null to clear the PM snapshot */
+  averagePriceAtSell?: number | null;
 }

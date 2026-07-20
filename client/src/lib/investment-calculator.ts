@@ -92,3 +92,33 @@ export function calculatePortfolioWeightByInvested(
   if (portfolioTotalInvested === 0) return null;
   return (positionTotalInvested / portfolioTotalInvested) * 100;
 }
+
+/**
+ * Total amount invested in a sell transaction = quantity × averagePriceAtSell.
+ * Returns null when averagePriceAtSell is null (PM not recorded for this sell).
+ *
+ * @example calculateSellTotalInvested(100, 28.35) → 2835
+ * @example calculateSellTotalInvested(100, null) → null
+ */
+export function calculateSellTotalInvested(
+  quantity: number,
+  averagePriceAtSell: number | null,
+): number | null {
+  if (averagePriceAtSell === null) return null;
+  return quantity * averagePriceAtSell;
+}
+
+/**
+ * Profit (or loss) from a completed sell = totalSold − totalInvestedAtSell.
+ * Returns null when totalInvestedAtSell is null (PM not recorded).
+ *
+ * @example calculateSellProfit(3000, 2835) → 165
+ * @example calculateSellProfit(3000, null) → null
+ */
+export function calculateSellProfit(
+  totalSold: number,
+  totalInvestedAtSell: number | null,
+): number | null {
+  if (totalInvestedAtSell === null) return null;
+  return totalSold - totalInvestedAtSell;
+}

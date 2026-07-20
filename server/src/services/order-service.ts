@@ -15,6 +15,7 @@ function toOrderRecord(record: {
   quantity: { toString(): string };
   price: { toString(): string };
   contractedRate?: { toString(): string } | null;
+  averagePriceAtSell?: { toString(): string } | null;
   orderDate: Date;
   createdAt: Date;
   updatedAt: Date;
@@ -26,6 +27,7 @@ function toOrderRecord(record: {
     quantity: record.quantity.toString(),
     price: record.price.toString(),
     contractedRate: record.contractedRate ? record.contractedRate.toString() : null,
+    averagePriceAtSell: record.averagePriceAtSell ? record.averagePriceAtSell.toString() : null,
     // orderDate is stored as date-only; slice to YYYY-MM-DD
     orderDate: record.orderDate.toISOString().slice(0, 10),
     createdAt: record.createdAt.toISOString(),
@@ -72,7 +74,9 @@ export function createOrderService(db: PrismaClient) {
         throw new Error(`Investment "${investment.ticker}" is already archived`);
       }
 
-      // 3. For SELL orders: fetch existing orders and validate against current position
+      // 3. For SELL orders: fetch existing orders, validate against current position,
+      //    and snapshot the current weighted average price (preço médio).
+      let averagePriceAtSell: number | null = null;
       if (input.type === 'SELL') {
         const existingOrders = await db.order.findMany({
           where: { investmentId },
@@ -92,6 +96,9 @@ export function createOrderService(db: PrismaClient) {
             `Sell quantity (${input.quantity}) exceeds available position (${currentPosition.quantity})`,
           );
         }
+
+        // Auto-populate PM snapshot — use caller-supplied value if provided, otherwise computed
+        averagePriceAtSell = input.averagePriceAtSell ?? currentPosition.averagePrice;
       }
 
       // 4. Persist the new order
@@ -102,6 +109,7 @@ export function createOrderService(db: PrismaClient) {
           quantity: input.quantity,
           price: input.price,
           contractedRate: input.contractedRate ?? null,
+          averagePriceAtSell,
           // Prisma expects a DateTime for @db.Date fields; noon UTC avoids TZ drift
           orderDate: new Date(`${input.orderDate}T12:00:00.000Z`),
         },
@@ -214,6 +222,7 @@ export function createOrderService(db: PrismaClient) {
           ...(validation.data.quantity !== undefined && { quantity: validation.data.quantity }),
           ...(validation.data.price !== undefined && { price: validation.data.price }),
           ...(validation.data.contractedRate !== undefined && { contractedRate: validation.data.contractedRate }),
+          ...(validation.data.averagePriceAtSell !== undefined && { averagePriceAtSell: validation.data.averagePriceAtSell }),
           ...(validation.data.orderDate !== undefined && {
             orderDate: new Date(`${validation.data.orderDate}T12:00:00.000Z`),
           }),

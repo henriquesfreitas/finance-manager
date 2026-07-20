@@ -23,6 +23,12 @@ export interface CreateOrderInput {
   orderDate: string;
   /** Contracted rate at purchase time — for TREASURY orders (e.g. 6.5 for IPCA+ 6.5%). Optional. */
   contractedRate?: number | null;
+  /**
+   * Weighted average price (preço médio) at sell time — only relevant for SELL orders.
+   * When omitted on create, the service auto-computes it from order history.
+   * Null for BUY/BONUS/SPLIT.
+   */
+  averagePriceAtSell?: number | null;
 }
 
 /**
@@ -39,6 +45,8 @@ export interface UpdateOrderInput {
   orderDate?: string;
   /** Contracted rate — pass null to clear it */
   contractedRate?: number | null;
+  /** Weighted average price snapshot at sell time — pass null to clear it */
+  averagePriceAtSell?: number | null;
 }
 
 /**
@@ -58,6 +66,11 @@ export interface OrderRecord {
   orderDate: string;
   /** Contracted rate at purchase time, e.g. "6.50". Null for STOCK orders or when not recorded. */
   contractedRate: string | null;
+  /**
+   * Weighted average price (preço médio) snapshot at the time this SELL order was created.
+   * Null for BUY/BONUS/SPLIT orders and for historical SELL orders without a recorded PM.
+   */
+  averagePriceAtSell: string | null;
   createdAt: string;
   updatedAt: string;
 }

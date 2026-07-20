@@ -84,6 +84,7 @@ export function updateOrder(
     ...(data.orderDate !== undefined && {
       orderDate: toLocalDateString(data.orderDate),
     }),
+    ...(data.averagePriceAtSell !== undefined && { averagePriceAtSell: data.averagePriceAtSell }),
   };
 
   return request<ComputedPosition>(`/api/investments/${investmentId}/orders/${orderId}`, {

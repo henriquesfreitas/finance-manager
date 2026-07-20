@@ -171,6 +171,87 @@ describe('createOrder', () => {
     expect(result.averagePrice).toBe('0');
   });
 
+  it('auto-populates averagePriceAtSell from computed position on SELL create', async () => {
+    const investment = makeInvestmentRow();
+    // Two BUY orders: avg = (100*10 + 100*20) / 200 = 15
+    const existingOrders = [
+      makeOrderRow({ id: 'o1', type: 'BUY', quantity: 100, price: 10 }),
+      makeOrderRow({ id: 'o2', type: 'BUY', quantity: 100, price: 20 }),
+    ];
+    const afterSellOrders = [
+      ...existingOrders,
+      makeOrderRow({ id: 'o3', type: 'SELL', quantity: 50, price: 25 }),
+    ];
+    const orderCreate = vi.fn().mockResolvedValue({});
+    const db = makeFakePrisma({
+      investmentFindUnique: vi.fn().mockResolvedValue(investment),
+      orderCreate,
+      orderFindMany: vi.fn()
+        .mockResolvedValueOnce(existingOrders)  // for SELL validation + PM computation
+        .mockResolvedValueOnce(afterSellOrders), // for updated position
+    });
+
+    const svc = createOrderService(db);
+    await svc.createOrder('inv-1', {
+      type: 'SELL',
+      quantity: 50,
+      price: 25,
+      orderDate: '2025-06-01',
+    });
+
+    // averagePriceAtSell should be the weighted average: 15
+    const createCall = orderCreate.mock.calls[0]?.[0] as { data: { averagePriceAtSell: number } };
+    expect(createCall.data.averagePriceAtSell).toBeCloseTo(15);
+  });
+
+  it('uses caller-supplied averagePriceAtSell when provided on SELL create', async () => {
+    const investment = makeInvestmentRow();
+    const existingBuy = makeOrderRow({ quantity: 100, price: 10 });
+    const afterSell = [existingBuy, makeOrderRow({ id: 'o2', type: 'SELL', quantity: 50, price: 15 })];
+    const orderCreate = vi.fn().mockResolvedValue({});
+    const db = makeFakePrisma({
+      investmentFindUnique: vi.fn().mockResolvedValue(investment),
+      orderCreate,
+      orderFindMany: vi.fn()
+        .mockResolvedValueOnce([existingBuy])
+        .mockResolvedValueOnce(afterSell),
+    });
+
+    const svc = createOrderService(db);
+    await svc.createOrder('inv-1', {
+      type: 'SELL',
+      quantity: 50,
+      price: 15,
+      orderDate: '2025-06-01',
+      averagePriceAtSell: 9.99, // user override
+    });
+
+    const createCall = orderCreate.mock.calls[0]?.[0] as { data: { averagePriceAtSell: number } };
+    expect(createCall.data.averagePriceAtSell).toBeCloseTo(9.99);
+  });
+
+  it('sets averagePriceAtSell to null for BUY orders', async () => {
+    const investment = makeInvestmentRow();
+    const newOrder = makeOrderRow({ quantity: 100, price: 28.35 });
+    const orderCreate = vi.fn().mockResolvedValue({});
+    const db = makeFakePrisma({
+      investmentFindUnique: vi.fn().mockResolvedValue(investment),
+      orderCreate,
+      orderFindMany: vi.fn().mockResolvedValue([newOrder]),
+    });
+
+    const svc = createOrderService(db);
+    await svc.createOrder('inv-1', {
+      type: 'BUY',
+      quantity: 100,
+      price: 28.35,
+      orderDate: '2025-01-15',
+    });
+
+    const createCall = orderCreate.mock.calls[0]?.[0] as { data: { averagePriceAtSell: null } };
+    expect(createCall.data.averagePriceAtSell).toBeNull();
+  });
+
   it('rejects invalid input (e.g. negative quantity)', async () => {
     const db = makeFakePrisma();
     const svc = createOrderService(db);

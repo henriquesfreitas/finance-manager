@@ -6,6 +6,8 @@ import {
   calculateTotalVariation,
   calculatePortfolioWeight,
   calculatePortfolioWeightByInvested,
+  calculateSellTotalInvested,
+  calculateSellProfit,
 } from '../lib/investment-calculator';
 
 // ─── calculateTotalInvested ───────────────────────────────────────────────────
@@ -146,5 +148,45 @@ describe('calculatePortfolioWeightByInvested', () => {
 
   it('handles fractional weights correctly', () => {
     expect(calculatePortfolioWeightByInvested(1000, 3000)).toBeCloseTo(33.333, 2);
+  });
+});
+
+// ─── calculateSellTotalInvested ───────────────────────────────────────────────
+
+describe('calculateSellTotalInvested', () => {
+  it('returns quantity × averagePriceAtSell for a valid PM', () => {
+    expect(calculateSellTotalInvested(100, 28.35)).toBeCloseTo(2835);
+  });
+
+  it('returns null when averagePriceAtSell is null (PM not recorded)', () => {
+    expect(calculateSellTotalInvested(100, null)).toBeNull();
+  });
+
+  it('handles fractional quantities', () => {
+    expect(calculateSellTotalInvested(0.5, 100)).toBeCloseTo(50);
+  });
+
+  it('returns 0 when quantity is 0', () => {
+    expect(calculateSellTotalInvested(0, 28.35)).toBe(0);
+  });
+});
+
+// ─── calculateSellProfit ─────────────────────────────────────────────────────
+
+describe('calculateSellProfit', () => {
+  it('returns positive profit when sold above PM', () => {
+    expect(calculateSellProfit(3000, 2835)).toBeCloseTo(165);
+  });
+
+  it('returns negative profit (loss) when sold below PM', () => {
+    expect(calculateSellProfit(2700, 2835)).toBeCloseTo(-135);
+  });
+
+  it('returns 0 for break-even (sold exactly at PM)', () => {
+    expect(calculateSellProfit(2835, 2835)).toBeCloseTo(0);
+  });
+
+  it('returns null when totalInvestedAtSell is null (PM not recorded)', () => {
+    expect(calculateSellProfit(3000, null)).toBeNull();
   });
 });

@@ -39,6 +39,14 @@ export const createOrderSchema = z.object({
     .positive('contractedRate must be greater than 0')
     .nullable()
     .optional(),
+
+  // PM snapshot at sell time — if omitted on create, the service auto-computes it.
+  // Accepted here so callers can override the auto-computed value if needed.
+  averagePriceAtSell: z
+    .number()
+    .positive('averagePriceAtSell must be greater than 0')
+    .nullable()
+    .optional(),
 }).superRefine((data, ctx) => {
   if (data.type !== 'SPLIT' && data.price <= 0) {
     ctx.addIssue({
@@ -116,6 +124,13 @@ export const updateOrderSchema = z.object({
   contractedRate: z
     .number()
     .positive('contractedRate must be greater than 0')
+    .nullable()
+    .optional(),
+
+  // PM snapshot — user can edit or clear after creation
+  averagePriceAtSell: z
+    .number()
+    .positive('averagePriceAtSell must be greater than 0')
     .nullable()
     .optional(),
 }).refine(

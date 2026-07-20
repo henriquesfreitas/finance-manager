@@ -9,6 +9,7 @@ import {
 } from '@/components/ui/table';
 import { useAllOrders } from '@/hooks/useOrders';
 import type { OrderWithTicker } from '@/types/order';
+import { calculateSellTotalInvested, calculateSellProfit } from '@/lib/investment-calculator';
 
 /** Returns Tailwind text-color class based on order type. */
 function orderTypeColorClass(type: string): string {
@@ -21,11 +22,6 @@ function orderTypeColorClass(type: string): string {
 /** Formats an "YYYY-MM-DD" string as dd/MM/yyyy (pt-BR). */
 function formatOrderDate(dateStr: string): string {
   return new Date(`${dateStr}T12:00:00`).toLocaleDateString('pt-BR');
-}
-
-/** Computes the order total from decimal string fields. */
-function computeTotal(quantity: string, price: string): string {
-  return (parseFloat(quantity) * parseFloat(price)).toFixed(2);
 }
 
 /**
@@ -81,39 +77,86 @@ export function AllOrdersSection(): React.JSX.Element {
               <OrdersTableHeaderRow />
             </TableHeader>
             <TableBody>
-              {orders.map((order: OrderWithTicker) => (
-                <TableRow key={order.id}>
-                  <TableCell className="font-medium">{order.ticker}</TableCell>
-                  <TableCell>
-                    <span className={`${orderTypeColorClass(order.type)} font-medium`}>
-                      {order.type}
-                    </span>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {order.type === 'SPLIT'
-                      ? `×${parseFloat(order.quantity).toFixed(2)}`
-                      : parseFloat(order.quantity).toFixed(2)}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {order.type === 'SPLIT'
-                      ? '—'
-                      : parseFloat(order.price).toFixed(2)}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {order.contractedRate
-                      ? `${parseFloat(order.contractedRate).toFixed(2)}%`
-                      : <span className="text-muted-foreground">—</span>}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {formatOrderDate(order.orderDate)}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {order.type === 'SPLIT'
-                      ? '—'
-                      : computeTotal(order.quantity, order.price)}
-                  </TableCell>
-                </TableRow>
-              ))}
+              {orders.map((order: OrderWithTicker) => {
+                const isSellWithPm = order.type === 'SELL' && order.averagePriceAtSell !== null;
+                const qty = parseFloat(order.quantity);
+                const sellPrice = parseFloat(order.price);
+                const pm = isSellWithPm ? parseFloat(order.averagePriceAtSell!) : null;
+                const totalSold = isSellWithPm ? qty * sellPrice : null;
+                const totalInvestedAtSell = calculateSellTotalInvested(qty, pm);
+                const profit = totalSold !== null ? calculateSellProfit(totalSold, totalInvestedAtSell) : null;
+                const profitColor =
+                  profit === null
+                    ? 'text-muted-foreground'
+                    : profit > 0
+                    ? 'text-green-600 dark:text-green-400'
+                    : profit < 0
+                    ? 'text-red-600 dark:text-red-400'
+                    : 'text-foreground';
+
+                return (
+                  <React.Fragment key={order.id}>
+                    <TableRow>
+                      <TableCell className="font-medium">{order.ticker}</TableCell>
+                      <TableCell>
+                        <span className={`${orderTypeColorClass(order.type)} font-medium`}>
+                          {order.type}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {order.type === 'SPLIT'
+                          ? `×${parseFloat(order.quantity).toFixed(2)}`
+                          : parseFloat(order.quantity).toFixed(2)}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {order.type === 'SPLIT'
+                          ? '—'
+                          : parseFloat(order.price).toFixed(2)}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {order.contractedRate
+                          ? `${parseFloat(order.contractedRate).toFixed(2)}%`
+                          : <span className="text-muted-foreground">—</span>}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {formatOrderDate(order.orderDate)}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {order.type === 'SPLIT'
+                          ? '—'
+                          : (parseFloat(order.quantity) * parseFloat(order.price)).toFixed(2)}
+                      </TableCell>
+                    </TableRow>
+                    {isSellWithPm && pm !== null && totalSold !== null && (
+                      <TableRow className="bg-muted/30 hover:bg-muted/40">
+                        <TableCell colSpan={7} className="py-1">
+                          <div className="flex flex-wrap gap-x-4 gap-y-0.5 pl-2 text-xs text-muted-foreground">
+                            <span>
+                              PM: <span className="font-medium text-foreground">R$ {pm.toFixed(2)}</span>
+                            </span>
+                            <span>
+                              Investido: <span className="font-medium text-foreground">
+                                R$ {totalInvestedAtSell !== null ? totalInvestedAtSell.toFixed(2) : '—'}
+                              </span>
+                            </span>
+                            <span>
+                              Vendido: <span className="font-medium text-foreground">R$ {totalSold.toFixed(2)}</span>
+                            </span>
+                            <span>
+                              Lucro:{' '}
+                              <span className={`font-semibold ${profitColor}`}>
+                                {profit !== null
+                                  ? `${profit >= 0 ? '+' : ''}R$ ${profit.toFixed(2)}`
+                                  : '—'}
+                              </span>
+                            </span>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </React.Fragment>
+                );
+              })}
             </TableBody>
           </Table>
         </div>

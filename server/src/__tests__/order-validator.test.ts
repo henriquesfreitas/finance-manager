@@ -226,6 +226,20 @@ describe('validateUpdateOrderInput', () => {
     expect(result.success).toBe(true);
   });
 
+  it('accepts averagePriceAtSell for a SELL order update', () => {
+    const result = validateUpdateOrderInput({ averagePriceAtSell: 28.35 });
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    expect(result.data.averagePriceAtSell).toBe(28.35);
+  });
+
+  it('accepts null averagePriceAtSell to clear the PM snapshot', () => {
+    const result = validateUpdateOrderInput({ averagePriceAtSell: null });
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    expect(result.data.averagePriceAtSell).toBeNull();
+  });
+
   // ─── Invalid inputs ───────────────────────────────────────────────────────
 
   it('rejects empty object (at least one field required)', () => {
@@ -245,6 +259,18 @@ describe('validateUpdateOrderInput', () => {
 
   it('rejects invalid type', () => {
     const result = validateUpdateOrderInput({ type: 'INVALID' });
+    expect(result.success).toBe(false);
+  });
+
+  it('rejects zero averagePriceAtSell (must be positive)', () => {
+    const result = validateUpdateOrderInput({ averagePriceAtSell: 0 });
+    expect(result.success).toBe(false);
+    if (result.success) return;
+    expect(result.errors['averagePriceAtSell']).toBeDefined();
+  });
+
+  it('rejects negative averagePriceAtSell', () => {
+    const result = validateUpdateOrderInput({ averagePriceAtSell: -5 });
     expect(result.success).toBe(false);
   });
 });

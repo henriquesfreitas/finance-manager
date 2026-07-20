@@ -24,6 +24,7 @@ import { Label } from '@/components/ui/label';
 import { useOrders, useCreateOrder, useUpdateOrder } from '@/hooks/useOrders';
 import type { InvestmentListItem } from '@/types/investment';
 import type { OrderListItem } from '@/types/order';
+import { calculateSellTotalInvested, calculateSellProfit } from '@/lib/investment-calculator';
 
 // ─── Validation schemas ───────────────────────────────────────────────────────
 
@@ -59,6 +60,7 @@ const editOrderSchema = z.object({
     },
     { message: 'Order date must not be in the future' },
   ),
+  averagePriceAtSell: z.number().positive('PM must be greater than 0').nullable().optional(),
 }).refine(
   (data) => data.type === 'SPLIT' || data.price > 0,
   { message: 'Price must be greater than 0', path: ['price'] },
@@ -308,6 +310,7 @@ function EditOrderRow({
     register,
     handleSubmit,
     control,
+    watch,
     formState: { errors },
   } = useForm<EditOrderFormValues>({
     resolver: zodResolver(editOrderSchema),
@@ -316,12 +319,26 @@ function EditOrderRow({
       quantity: parseFloat(order.quantity),
       price: parseFloat(order.price),
       orderDate: new Date(`${order.orderDate}T12:00:00`),
+      averagePriceAtSell:
+        order.averagePriceAtSell !== null && order.averagePriceAtSell !== undefined
+          ? parseFloat(order.averagePriceAtSell)
+          : null,
     },
   });
 
+  const selectedType = watch('type');
+
   function onSubmit(values: EditOrderFormValues): void {
     updateOrder.mutate(
-      { orderId: order.id, data: values },
+      {
+        orderId: order.id,
+        data: {
+          ...values,
+          // Only send averagePriceAtSell when editing a SELL order
+          averagePriceAtSell:
+            values.type === 'SELL' ? (values.averagePriceAtSell ?? null) : null,
+        },
+      },
       {
         onSuccess: () => {
           toast.success('Order updated successfully');
@@ -422,7 +439,26 @@ function EditOrderRow({
             </div>
           </div>
 
-          {/* Row 3: Actions */}
+          {/* Row 3: PM at sell — only for SELL orders */}
+          {selectedType === 'SELL' && (
+            <div className="grid gap-1">
+              <Input
+                type="number"
+                step="any"
+                placeholder="PM (preço médio)"
+                aria-label="Average price at sell (PM)"
+                aria-invalid={!!errors.averagePriceAtSell}
+                {...register('averagePriceAtSell', { valueAsNumber: true })}
+              />
+              {errors.averagePriceAtSell && (
+                <p className="text-xs text-destructive" role="alert">
+                  {errors.averagePriceAtSell.message}
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* Row 4: Actions */}
           <div className="flex justify-end gap-1">
             <Button
               type="submit"
@@ -497,8 +533,7 @@ function OrderHistory({ investmentId, isTreasury }: OrderHistoryProps): React.JS
             {isTreasury && <TableHead className="text-right">Rate (%)</TableHead>}
             <TableHead className="text-right">Date</TableHead>
             <TableHead className="text-right">Total (R$)</TableHead>
-            <TableHead className="text-right">Actions</TableHead>
-          </TableRow>
+            <TableHead className="text-right">Actions</TableHead>          </TableRow>
         </TableHeader>
         <TableBody>
           {orders.map((order: OrderListItem) =>
@@ -511,44 +546,90 @@ function OrderHistory({ investmentId, isTreasury }: OrderHistoryProps): React.JS
                 onSaved={() => setEditingOrderId(null)}
               />
             ) : (
-              <TableRow key={order.id}>
-                <TableCell>
-                  <span className={`${orderTypeColorClass(order.type)} font-medium`}>
-                    {order.type}
-                  </span>
-                </TableCell>
-                <TableCell className="text-right">
-                  {order.type === 'SPLIT'
-                    ? `×${parseFloat(order.quantity).toFixed(2)}`
-                    : parseFloat(order.quantity).toFixed(2)}
-                </TableCell>
-                <TableCell className="text-right">
-                  {order.type === 'SPLIT' ? '—' : parseFloat(order.price).toFixed(2)}
-                </TableCell>
-                {isTreasury && (
-                  <TableCell className="text-right">
-                    {order.contractedRate !== null && order.contractedRate !== undefined
-                      ? `${parseFloat(order.contractedRate).toFixed(2)}%`
-                      : <span className="text-muted-foreground">—</span>}
+              <React.Fragment key={order.id}>
+                <TableRow>
+                  <TableCell>
+                    <span className={`${orderTypeColorClass(order.type)} font-medium`}>
+                      {order.type}
+                    </span>
                   </TableCell>
-                )}
-                <TableCell className="text-right">
-                  {formatOrderDate(order.orderDate)}
-                </TableCell>
-                <TableCell className="text-right">
-                  {order.type === 'SPLIT' ? '—' : computeTotal(order.quantity, order.price)}
-                </TableCell>
-                <TableCell className="text-right">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setEditingOrderId(order.id)}
-                    aria-label={`Edit order from ${formatOrderDate(order.orderDate)}`}
-                  >
-                    <Pencil className="h-3.5 w-3.5" />
-                  </Button>
-                </TableCell>
-              </TableRow>
+                  <TableCell className="text-right">
+                    {order.type === 'SPLIT'
+                      ? `×${parseFloat(order.quantity).toFixed(2)}`
+                      : parseFloat(order.quantity).toFixed(2)}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    {order.type === 'SPLIT' ? '—' : parseFloat(order.price).toFixed(2)}
+                  </TableCell>
+                  {isTreasury && (
+                    <TableCell className="text-right">
+                      {order.contractedRate !== null && order.contractedRate !== undefined
+                        ? `${parseFloat(order.contractedRate).toFixed(2)}%`
+                        : <span className="text-muted-foreground">—</span>}
+                    </TableCell>
+                  )}
+                  <TableCell className="text-right">
+                    {formatOrderDate(order.orderDate)}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    {order.type === 'SPLIT' ? '—' : computeTotal(order.quantity, order.price)}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setEditingOrderId(order.id)}
+                      aria-label={`Edit order from ${formatOrderDate(order.orderDate)}`}
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
+                    </Button>
+                  </TableCell>
+                </TableRow>
+                {order.type === 'SELL' && order.averagePriceAtSell !== null && (() => {
+                  const qty = parseFloat(order.quantity);
+                  const sellPrice = parseFloat(order.price);
+                  const pm = parseFloat(order.averagePriceAtSell!);
+                  const totalSold = qty * sellPrice;
+                  const totalInvestedAtSell = calculateSellTotalInvested(qty, pm);
+                  const profit = calculateSellProfit(totalSold, totalInvestedAtSell);
+                  const profitColor =
+                    profit === null
+                      ? 'text-muted-foreground'
+                      : profit > 0
+                      ? 'text-green-600 dark:text-green-400'
+                      : profit < 0
+                      ? 'text-red-600 dark:text-red-400'
+                      : 'text-foreground';
+                  const colSpan = isTreasury ? 7 : 6;
+                  return (
+                    <TableRow key={`${order.id}-sell-detail`} className="bg-muted/30 hover:bg-muted/40">
+                      <TableCell colSpan={colSpan} className="py-1">
+                        <div className="flex flex-wrap gap-x-4 gap-y-0.5 pl-2 text-xs text-muted-foreground">
+                          <span>
+                            PM: <span className="font-medium text-foreground">R$ {pm.toFixed(2)}</span>
+                          </span>
+                          <span>
+                            Investido: <span className="font-medium text-foreground">
+                              R$ {totalInvestedAtSell !== null ? totalInvestedAtSell.toFixed(2) : '—'}
+                            </span>
+                          </span>
+                          <span>
+                            Vendido: <span className="font-medium text-foreground">R$ {totalSold.toFixed(2)}</span>
+                          </span>
+                          <span>
+                            Lucro:{' '}
+                            <span className={`font-semibold ${profitColor}`}>
+                              {profit !== null
+                                ? `${profit >= 0 ? '+' : ''}R$ ${profit.toFixed(2)}`
+                                : '—'}
+                            </span>
+                          </span>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })()}
+              </React.Fragment>
             ),
           )}
         </TableBody>
