@@ -4,13 +4,17 @@ import {
   validateInvestmentInput,
   validateUpdateSectorInput,
   validateUpdateTargetPricesInput,
+  validateCreateTreasuryInvestmentInput,
+  validateUpdateCurrentValueInput,
 } from '../validators/investment-validator.js';
 import { prisma } from '../lib/prisma-client.js';
 
 /**
- * Creates and returns the investments router (v2).
- * NOTE: This file is being rewritten in task 4.2. Until then it uses the
- * new service methods where possible and stubs removed endpoints.
+ * Creates and returns the investments router (v3).
+ * Supports both STOCK and TREASURY asset types.
+ * Creation is dispatched by the `type` field in the request body:
+ *   - type: "STOCK"    → requires ticker + sector
+ *   - type: "TREASURY" → requires treasuryProductId
  *
  * @example
  *   app.use('/api', createInvestmentRouter());
@@ -19,7 +23,7 @@ export function createInvestmentRouter(): Router {
   const router = Router();
   const service = createInvestmentService(prisma);
 
-  // GET /api/investments — list active investments enriched with quotes
+  // GET /api/investments — list active investments enriched with quotes/currentValue
   router.get('/investments', async (_req: Request, res: Response) => {
     const investments = await service.listActiveInvestments();
     res.json(investments);
@@ -31,14 +35,42 @@ export function createInvestmentRouter(): Router {
     res.json(investments);
   });
 
-  // POST /api/investments — create (ticker-only in v2)
+  // POST /api/investments — create a STOCK or TREASURY investment
+  // Body must include `type: "STOCK" | "TREASURY"` to select the creation path.
   router.post('/investments', async (req: Request, res: Response) => {
+    const { type } = req.body as { type?: unknown };
+
+    if (type === 'TREASURY') {
+      const validation = validateCreateTreasuryInvestmentInput(req.body);
+      if (!validation.success) {
+        res.status(400).json({ error: 'Validation failed', details: validation.errors });
+        return;
+      }
+      try {
+        const investment = await service.createTreasuryInvestment(validation.data);
+        res.status(201).json(investment);
+      } catch (err) {
+        if (err instanceof Error) {
+          if (err.message.includes('not found')) {
+            res.status(404).json({ error: err.message });
+            return;
+          }
+          if (err.message.includes('already registered')) {
+            res.status(409).json({ error: err.message });
+            return;
+          }
+        }
+        throw err;
+      }
+      return;
+    }
+
+    // Default path: STOCK (also handles missing type for backwards compatibility)
     const validation = validateInvestmentInput(req.body);
     if (!validation.success) {
       res.status(400).json({ error: 'Validation failed', details: validation.errors });
       return;
     }
-
     try {
       const investment = await service.createInvestment(validation.data);
       res.status(201).json(investment);
@@ -74,12 +106,9 @@ export function createInvestmentRouter(): Router {
 
   // PUT /api/investments/:id — removed in v2; return 405
   router.put('/investments/:id', (_req: Request, res: Response) => {
-    res
-      .status(405)
-      .json({
-        error:
-          'PUT method not allowed. Investments are now order-derived and cannot be manually updated',
-      });
+    res.status(405).json({
+      error: 'PUT method not allowed. Investments are now order-derived and cannot be manually updated',
+    });
   });
 
   // PATCH /api/investments/:id/target-prices — update target sell/buy prices
@@ -92,6 +121,26 @@ export function createInvestmentRouter(): Router {
     }
     try {
       const investment = await service.updateTargetPrices(id, validation.data);
+      res.json(investment);
+    } catch (err) {
+      if (err instanceof Error && err.message.includes('not found')) {
+        res.status(404).json({ error: err.message });
+        return;
+      }
+      throw err;
+    }
+  });
+
+  // PATCH /api/investments/:id/current-value — update manual current value (TREASURY)
+  router.patch('/investments/:id/current-value', async (req: Request, res: Response) => {
+    const id = req.params['id'] as string;
+    const validation = validateUpdateCurrentValueInput(req.body);
+    if (!validation.success) {
+      res.status(400).json({ error: 'Validation failed', details: validation.errors });
+      return;
+    }
+    try {
+      const investment = await service.updateCurrentValue(id, validation.data);
       res.json(investment);
     } catch (err) {
       if (err instanceof Error && err.message.includes('not found')) {

@@ -304,7 +304,43 @@ The `archivedAt` field is either `null` (active) or a `DateTime` (archived).
 
 ---
 
-## Domain: Sectors
+## Domain: Treasury Bonds (Tesouro Direto)
+
+Treasury investments are modeled as first-class investments with `type = TREASURY`.
+
+### Key differences from STOCK
+
+| Aspect | STOCK | TREASURY |
+|--------|-------|---------|
+| Identifier | Ticker (e.g. `ITUB3`) | Product slug (e.g. `TESOURO-IPCA-2026`) |
+| Price source | Yahoo Finance live quote | Manual `currentValue` field |
+| Daily change % | From Yahoo Finance | Not applicable — shown as `—` |
+| Target prices | Optional | Optional |
+| Orders | BUY/SELL/BONUS/SPLIT | Same — BUY per purchase, SELL if redeemed early |
+| Sector | Any from INVESTMENT_SECTORS | Auto-set to `"Renda Fixa"` |
+
+### Treasury Product Catalog
+
+Products are stored in `treasury_products` table — **not hardcoded**. New products can be added directly in the DB without a code deploy.
+
+- `name`: full display name, e.g. `"Tesouro IPCA+ 2026"`
+- `slug`: URL-safe unique ticker, e.g. `"TESOURO-IPCA-2026"`
+- Seeded via `prisma/seed.ts` (run with `npm run db:seed`)
+
+### Current Value (Manual Price)
+
+- Stored in `Investment.currentValue` (Decimal, nullable)
+- Editable inline in the table (same `EditablePriceCell` used for target prices)
+- Used in place of `quote.currentPrice` for all calculations (profit, variation, portfolio weight)
+- Null → UI shows "N/A"
+
+### Portfolio Weight — Hybrid Calculation
+
+Since treasury assets have no live quote, portfolio weight uses a hybrid total:
+- For each investment: use `currentTotal` if price is available (live quote or manual currentValue), otherwise fall back to `totalInvested`
+- This replaces the previous all-or-nothing approach that returned null if any investment lacked a price
+
+---
 
 Each investment has an optional `sector` field from a predefined list (e.g. "Bancos", "Energia Elétrica", "FIIs", "ETFs").
 
@@ -322,11 +358,12 @@ Each investment has an optional `sector` field from a predefined list (e.g. "Ban
 | PATCH | `/api/investments/:id/target-prices` | Update target sell/buy prices (nullable Decimal) |
 | GET | `/api/investments` | List active investments (enriched with quotes + position) |
 | GET | `/api/investments/archived` | List archived investments (with final position) |
-| POST | `/api/investments` | Create investment (ticker + optional sector) |
+| POST | `/api/investments` | Create investment — `type: "STOCK"` (ticker + sector) or `type: "TREASURY"` (treasuryProductId) |
 | PATCH | `/api/investments/:id/archive` | Archive an investment |
 | PATCH | `/api/investments/:id/unarchive` | Unarchive an investment |
 | PUT | `/api/investments/:id` | Deprecated — returns 405 |
 | DELETE | `/api/investments/:id` | Delete investment (204) |
+| PATCH | `/api/investments/:id/current-value` | Update manually-entered current value (TREASURY assets, nullable) |
 | GET | `/api/investments/:id/orders` | List orders for an investment |
 | POST | `/api/investments/:id/orders` | Create order, returns computed position |
 | PUT | `/api/investments/:id/orders/:orderId` | Update order, returns computed position |
@@ -335,6 +372,7 @@ Each investment has an optional `sector` field from a predefined list (e.g. "Ban
 | POST | `/api/investments/:id/comments` | Create comment |
 | PUT | `/api/investments/:id/comments/:commentId` | Update comment |
 | DELETE | `/api/investments/:id/comments/:commentId` | Delete comment |
+| GET | `/api/treasury-products` | List all treasury product catalog entries |
 | POST | `/api/test/reset` | Dev/test only — wipes DB |
 
 ### Error response shape
@@ -460,13 +498,22 @@ User input
 ### Database Model (Prisma)
 
 ```
+TreasuryProduct (treasury_products)
+├── id: UUID PK
+├── name: String UNIQUE  ("Tesouro IPCA+ 2026")
+├── slug: String UNIQUE  ("TESOURO-IPCA-2026" — used as Investment.ticker)
+└── createdAt
+
 Investment (investments)
 ├── id: UUID PK
 ├── ticker: String UNIQUE
+├── type: AssetType  (STOCK | TREASURY, default STOCK)
 ├── sector: String? (nullable for migration compat, required by app Zod schema)
 ├── archivedAt: DateTime?
 ├── targetSellPrice: Decimal(18,8)? (nullable — user-defined sell target)
 ├── targetBuyPrice: Decimal(18,8)? (nullable — user-defined buy target)
+├── currentValue: Decimal(18,8)? (nullable — manually-entered price for TREASURY assets)
+├── treasuryProductId: UUID? FK → TreasuryProduct (null for STOCK)
 ├── createdAt / updatedAt
 ├── → Order[] (1:N, onDelete: Restrict)
 └── → Comment[] (1:N, onDelete: Restrict)
@@ -539,3 +586,4 @@ npm run db:studio    # opens Prisma Studio in browser
 | 2026-07-19 | Updated PROJECT_RULES.md | Documented orders, comments, archive, sectors, weighted average calculator, updated API endpoints |
 | 2026-07-20 | Target prices | Added targetSellPrice/targetBuyPrice to investments table. Inline editable cells in InvestmentTable with color coding (green when current price hits target). PATCH /api/investments/:id/target-prices endpoint. EditablePriceCell reusable component. |
 | 2026-07-20 | Fix test infrastructure | Root cause: Vite 8 (client dep) hoisted into server node_modules broke Vitest v4 workers. Fix: pin vite ^6 in server devDependencies; switch both vitest configs to pool: vmForks + fileParallelism: false (vitest#8861). All 143 server + 29 client tests now pass. |
+| 2026-07-20 | Multi-asset support (v3) | Added AssetType enum (STOCK/TREASURY), TreasuryProduct catalog table, currentValue field. New endpoints: PATCH /api/investments/:id/current-value, GET /api/treasury-products. AddInvestmentForm now has type selector. InvestmentTable shows product name for treasury rows with editable currentValue cell. Portfolio % uses hybrid calculation. 166 server + 29 client tests pass. |

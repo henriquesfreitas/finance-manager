@@ -1,4 +1,4 @@
-// Prisma schema for Finance Investment Manager — v2 (order-based model)
+// Prisma schema for Finance Investment Manager — v3 (multi-asset model)
 // Docs: https://pris.ly/d/prisma-schema
 
 generator client {
@@ -10,17 +10,39 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// Catalog of available Tesouro Direto products.
+// New products can be added directly in the DB without a code deploy.
+model TreasuryProduct {
+  id          String       @id @default(uuid())
+  // Full display name, e.g. "Tesouro IPCA+ 2026"
+  name        String       @unique
+  // URL-safe slug used as the investment ticker, e.g. "TESOURO-IPCA-2026"
+  slug        String       @unique
+  createdAt   DateTime     @default(now())
+  investments Investment[]
+
+  @@map("treasury_products")
+}
+
 model Investment {
-  id              String    @id @default(uuid())
-  ticker          String    @unique
+  id              String           @id @default(uuid())
+  ticker          String           @unique
+  // Asset class — defaults to STOCK so all existing rows are unaffected by the migration.
+  type            AssetType        @default(STOCK)
   // Nullable first so existing rows survive the migration; required at app layer via Zod.
   sector          String?
   archivedAt      DateTime?
   // User-defined price targets for buy/sell decisions. Nullable — not set by default.
-  targetSellPrice Decimal?  @db.Decimal(18, 8)
-  targetBuyPrice  Decimal?  @db.Decimal(18, 8)
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  targetSellPrice Decimal?         @db.Decimal(18, 8)
+  targetBuyPrice  Decimal?         @db.Decimal(18, 8)
+  // Manually-entered current value — used for non-STOCK assets (e.g. Tesouro Direto).
+  // Null means "not set yet"; the UI shows N/A in that case.
+  currentValue    Decimal?         @db.Decimal(18, 8)
+  // FK to treasury product catalog — only populated when type = TREASURY.
+  treasuryProductId String?
+  treasuryProduct   TreasuryProduct? @relation(fields: [treasuryProductId], references: [id])
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
   orders          Order[]
   comments        Comment[]
 
@@ -35,6 +57,9 @@ model Order {
   quantity     Decimal    @db.Decimal(18, 8)
   price        Decimal    @db.Decimal(18, 8)
   orderDate    DateTime   @db.Date
+  // Contracted rate at purchase time — relevant for TREASURY orders (e.g. 6.5 for IPCA+ 6.5%).
+  // Null for STOCK orders or when not recorded.
+  contractedRate Decimal? @db.Decimal(5, 2)
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
 
@@ -57,4 +82,9 @@ enum OrderType {
   SELL
   BONUS
   SPLIT
+}
+
+enum AssetType {
+  STOCK
+  TREASURY
 }

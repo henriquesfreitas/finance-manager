@@ -73,8 +73,8 @@ describe('validateCreateInvestmentInput', () => {
 
   // ─── Invalid ticker — too long ───────────────────────────────────────────────
 
-  it('rejects ticker longer than 10 characters', () => {
-    const result = validateCreateInvestmentInput({ ticker: 'ABCDEFGHIJK' }); // 11 chars
+  it('rejects ticker longer than 20 characters', () => {
+    const result = validateCreateInvestmentInput({ ticker: 'ABCDEFGHIJKLMNOPQRSTU' }); // 21 chars
     expect(result.success).toBe(false);
     if (result.success) return;
     expect(result.errors['ticker']).toBeDefined();
@@ -96,12 +96,12 @@ describe('validateCreateInvestmentInput', () => {
     expect(result.errors['ticker']).toBeDefined();
   });
 
-  it('rejects ticker with hyphen', () => {
-    // Hyphens are not in the allowed set (letters, digits, dots only)
-    const result = validateCreateInvestmentInput({ ticker: 'BTC-USD' });
-    expect(result.success).toBe(false);
-    if (result.success) return;
-    expect(result.errors['ticker']).toBeDefined();
+  it('accepts ticker with hyphen (used by treasury slugs like TESOURO-IPCA-2026)', () => {
+    // Hyphens are now allowed — treasury products use slug format
+    const result = validateCreateInvestmentInput({ ticker: 'BTC-USD', sector: 'Criptomoedas' });
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    expect(result.data.ticker).toBe('BTC-USD');
   });
 
   // ─── Non-string input ────────────────────────────────────────────────────────
@@ -212,5 +212,86 @@ describe('validateUpdateTargetPricesInput', () => {
     expect(result.success).toBe(false);
     if (result.success) return;
     expect(result.errors['targetBuyPrice']).toBeDefined();
+  });
+});
+
+import {
+  validateCreateTreasuryInvestmentInput,
+  validateUpdateCurrentValueInput,
+} from '../validators/investment-validator.js';
+
+describe('validateCreateTreasuryInvestmentInput', () => {
+  it('accepts a valid UUID', () => {
+    const result = validateCreateTreasuryInvestmentInput({
+      treasuryProductId: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
+    });
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    expect(result.data.treasuryProductId).toBe('a1b2c3d4-e5f6-7890-abcd-ef1234567890');
+  });
+
+  it('rejects missing treasuryProductId', () => {
+    const result = validateCreateTreasuryInvestmentInput({});
+    expect(result.success).toBe(false);
+    if (result.success) return;
+    expect(result.errors['treasuryProductId']).toBeDefined();
+  });
+
+  it('rejects a non-UUID string', () => {
+    const result = validateCreateTreasuryInvestmentInput({ treasuryProductId: 'not-a-uuid' });
+    expect(result.success).toBe(false);
+    if (result.success) return;
+    expect(result.errors['treasuryProductId']).toBeDefined();
+  });
+
+  it('rejects a non-string value', () => {
+    const result = validateCreateTreasuryInvestmentInput({ treasuryProductId: 12345 });
+    expect(result.success).toBe(false);
+    if (result.success) return;
+    expect(result.errors['treasuryProductId']).toBeDefined();
+  });
+});
+
+describe('validateUpdateCurrentValueInput', () => {
+  it('accepts a positive number', () => {
+    const result = validateUpdateCurrentValueInput({ currentValue: 30882.59 });
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    expect(result.data.currentValue).toBe(30882.59);
+  });
+
+  it('accepts null to clear the value', () => {
+    const result = validateUpdateCurrentValueInput({ currentValue: null });
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    expect(result.data.currentValue).toBeNull();
+  });
+
+  it('rejects zero', () => {
+    const result = validateUpdateCurrentValueInput({ currentValue: 0 });
+    expect(result.success).toBe(false);
+    if (result.success) return;
+    expect(result.errors['currentValue']).toBeDefined();
+  });
+
+  it('rejects a negative number', () => {
+    const result = validateUpdateCurrentValueInput({ currentValue: -100 });
+    expect(result.success).toBe(false);
+    if (result.success) return;
+    expect(result.errors['currentValue']).toBeDefined();
+  });
+
+  it('rejects a non-numeric value', () => {
+    const result = validateUpdateCurrentValueInput({ currentValue: 'thirty' });
+    expect(result.success).toBe(false);
+    if (result.success) return;
+    expect(result.errors['currentValue']).toBeDefined();
+  });
+
+  it('rejects missing currentValue field', () => {
+    const result = validateUpdateCurrentValueInput({});
+    expect(result.success).toBe(false);
+    if (result.success) return;
+    expect(result.errors['currentValue']).toBeDefined();
   });
 });

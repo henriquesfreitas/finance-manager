@@ -2,6 +2,7 @@ import type {
   ArchivedInvestmentItem,
   InvestmentListItem,
   InvestmentRecord,
+  TreasuryProduct,
 } from '../types/investment';
 
 /**
@@ -100,5 +101,41 @@ export function updateTargetPrices(
   return request<InvestmentRecord>(`/api/investments/${id}/target-prices`, {
     method: 'PATCH',
     body: JSON.stringify(data),
+  });
+}
+
+/**
+ * Fetches the catalog of available Tesouro Direto products.
+ * GET /api/treasury-products
+ */
+export function fetchTreasuryProducts(): Promise<TreasuryProduct[]> {
+  return request<TreasuryProduct[]>('/api/treasury-products');
+}
+
+/**
+ * Creates a new TREASURY investment from a treasury product catalog entry.
+ * POST /api/investments (type: "TREASURY")
+ *
+ * @example createTreasuryInvestment('prod-uuid')
+ */
+export function createTreasuryInvestment(treasuryProductId: string): Promise<InvestmentRecord> {
+  return request<InvestmentRecord>('/api/investments', {
+    method: 'POST',
+    body: JSON.stringify({ type: 'TREASURY', treasuryProductId }),
+  });
+}
+
+/**
+ * Updates the manually-entered current value of a non-STOCK investment.
+ * Pass null to clear it (UI will show N/A).
+ * PATCH /api/investments/:id/current-value
+ *
+ * @example updateCurrentValue('some-uuid', 30882.59)
+ * @example updateCurrentValue('some-uuid', null)  // clears it
+ */
+export function updateCurrentValue(id: string, currentValue: number | null): Promise<InvestmentRecord> {
+  return request<InvestmentRecord>(`/api/investments/${id}/current-value`, {
+    method: 'PATCH',
+    body: JSON.stringify({ currentValue }),
   });
 }

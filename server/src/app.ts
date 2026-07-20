@@ -3,6 +3,7 @@ import cors from 'cors';
 import { createInvestmentRouter } from './routes/investment-routes.js';
 import { createOrderRouter } from './routes/order-routes.js';
 import { createCommentRouter } from './routes/comment-routes.js';
+import { createTreasuryProductRouter } from './routes/treasury-product-routes.js';
 import { prisma } from './lib/prisma-client.js';
 
 /**
@@ -25,6 +26,7 @@ export function createApp(): Application {
   app.use('/api', createInvestmentRouter());
   app.use('/api', createOrderRouter());
   app.use('/api', createCommentRouter());
+  app.use('/api', createTreasuryProductRouter());
 
   // ── Test-only routes (not available in production) ──────────────────────────
   // Used by Playwright E2E tests to reset DB state between test suites.

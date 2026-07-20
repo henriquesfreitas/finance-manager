@@ -31,20 +31,25 @@ function makeFakePrisma(overrides: Partial<{
   } as unknown as PrismaClient;
 }
 
-/** Builds a minimal Prisma v2 investment row (no orders). */
+/** Builds a minimal Prisma v3 investment row (no orders). */
 function makeRow(partial: Partial<{
   id: string;
   ticker: string;
+  type: 'STOCK' | 'TREASURY';
   sector: string | null;
   archivedAt: Date | null;
 }> = {}) {
   return {
     id: partial.id ?? 'uuid-1',
     ticker: partial.ticker ?? 'ITUB3',
+    type: partial.type ?? 'STOCK',
     sector: partial.sector ?? null,
     archivedAt: partial.archivedAt ?? null,
     targetSellPrice: null,
     targetBuyPrice: null,
+    currentValue: null,
+    treasuryProductId: null,
+    treasuryProduct: null,
     createdAt: new Date('2026-01-01T00:00:00Z'),
     updatedAt: new Date('2026-01-01T00:00:00Z'),
     orders: [] as Array<{
@@ -83,7 +88,10 @@ describe('createInvestment', () => {
 
     expect(result.ticker).toBe('ITUB3');
     expect(result.archivedAt).toBeNull();
-    expect(db.investment.create).toHaveBeenCalledWith({ data: { ticker: 'ITUB3', sector: 'Bancos' } });
+    expect(db.investment.create).toHaveBeenCalledWith({
+      data: { ticker: 'ITUB3', sector: 'Bancos', type: 'STOCK' },
+      include: { treasuryProduct: { select: { name: true } } },
+    });
   });
 
   it('throws with a 409-friendly message when ticker is already registered', async () => {
@@ -332,5 +340,137 @@ describe('updateTargetPrices', () => {
       svc.updateTargetPrices('nonexistent', { targetSellPrice: 35.5 }),
     ).rejects.toThrow('Investment with id "nonexistent" not found');
     expect(db.investment.update).not.toHaveBeenCalled();
+  });
+});
+
+// ─── createTreasuryInvestment ─────────────────────────────────────────────────
+
+describe('createTreasuryInvestment', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  function makeTreasuryProductRow(partial: Partial<{ id: string; name: string; slug: string }> = {}) {
+    return {
+      id: partial.id ?? 'prod-uuid-1',
+      name: partial.name ?? 'Tesouro IPCA+ 2026',
+      slug: partial.slug ?? 'TESOURO-IPCA-2026',
+      createdAt: new Date('2026-01-01T00:00:00Z'),
+    };
+  }
+
+  function makeFakePrismaWithTreasury(overrides: Partial<{
+    investmentFindUnique: ReturnType<typeof vi.fn>;
+    investmentCreate: ReturnType<typeof vi.fn>;
+    productFindUnique: ReturnType<typeof vi.fn>;
+  }> = {}) {
+    return {
+      investment: {
+        findUnique: overrides.investmentFindUnique ?? vi.fn().mockResolvedValue(null),
+        create: overrides.investmentCreate ?? vi.fn(),
+        findMany: vi.fn().mockResolvedValue([]),
+        update: vi.fn(),
+      },
+      treasuryProduct: {
+        findUnique: overrides.productFindUnique ?? vi.fn().mockResolvedValue(null),
+        findMany: vi.fn().mockResolvedValue([]),
+      },
+    } as unknown as PrismaClient;
+  }
+
+  it('creates a treasury investment using the product slug as ticker', async () => {
+    const product = makeTreasuryProductRow();
+    const created = {
+      ...makeRow({ ticker: 'TESOURO-IPCA-2026', type: 'TREASURY' }),
+      sector: 'Renda Fixa',
+      treasuryProductId: 'prod-uuid-1',
+      treasuryProduct: { name: 'Tesouro IPCA+ 2026' },
+    };
+    const db = makeFakePrismaWithTreasury({
+      productFindUnique: vi.fn().mockResolvedValue(product),
+      investmentFindUnique: vi.fn().mockResolvedValue(null),
+      investmentCreate: vi.fn().mockResolvedValue(created),
+    });
+    const svc = createInvestmentService(db);
+
+    const result = await svc.createTreasuryInvestment({ treasuryProductId: 'prod-uuid-1' });
+
+    expect(result.ticker).toBe('TESOURO-IPCA-2026');
+    expect(result.type).toBe('TREASURY');
+    expect(result.treasuryProductName).toBe('Tesouro IPCA+ 2026');
+    expect(result.sector).toBe('Renda Fixa');
+  });
+
+  it('throws 404 when the treasury product does not exist', async () => {
+    const db = makeFakePrismaWithTreasury({
+      productFindUnique: vi.fn().mockResolvedValue(null),
+    });
+    const svc = createInvestmentService(db);
+
+    await expect(
+      svc.createTreasuryInvestment({ treasuryProductId: 'nonexistent' }),
+    ).rejects.toThrow('Treasury product with id "nonexistent" not found');
+  });
+
+  it('throws 409 when the treasury product is already registered', async () => {
+    const product = makeTreasuryProductRow();
+    const existing = makeRow({ ticker: 'TESOURO-IPCA-2026', type: 'TREASURY' });
+    const db = makeFakePrismaWithTreasury({
+      productFindUnique: vi.fn().mockResolvedValue(product),
+      investmentFindUnique: vi.fn().mockResolvedValue(existing),
+    });
+    const svc = createInvestmentService(db);
+
+    await expect(
+      svc.createTreasuryInvestment({ treasuryProductId: 'prod-uuid-1' }),
+    ).rejects.toThrow('"Tesouro IPCA+ 2026" is already registered');
+  });
+});
+
+// ─── updateCurrentValue ───────────────────────────────────────────────────────
+
+describe('updateCurrentValue', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  function decimalStub(value: number) {
+    return { toString: () => String(value) };
+  }
+
+  it('sets currentValue and returns the updated record', async () => {
+    const existing = makeRow({ ticker: 'TESOURO-IPCA-2026', type: 'TREASURY' });
+    const updated = { ...existing, currentValue: decimalStub(30882.59) };
+    const db = makeFakePrisma({
+      findUnique: vi.fn().mockResolvedValue(existing),
+      update: vi.fn().mockResolvedValue(updated),
+    });
+    const svc = createInvestmentService(db);
+
+    const result = await svc.updateCurrentValue('uuid-1', { currentValue: 30882.59 });
+
+    expect(result.currentValue).toBe('30882.59');
+    expect(db.investment.update).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: 'uuid-1' }, data: { currentValue: 30882.59 } }),
+    );
+  });
+
+  it('clears currentValue when null is passed', async () => {
+    const existing = makeRow({ ticker: 'TESOURO-IPCA-2026', type: 'TREASURY' });
+    const updated = { ...existing, currentValue: null };
+    const db = makeFakePrisma({
+      findUnique: vi.fn().mockResolvedValue(existing),
+      update: vi.fn().mockResolvedValue(updated),
+    });
+    const svc = createInvestmentService(db);
+
+    const result = await svc.updateCurrentValue('uuid-1', { currentValue: null });
+
+    expect(result.currentValue).toBeNull();
+  });
+
+  it('throws a not-found error when the investment does not exist', async () => {
+    const db = makeFakePrisma({ findUnique: vi.fn().mockResolvedValue(null) });
+    const svc = createInvestmentService(db);
+
+    await expect(
+      svc.updateCurrentValue('nonexistent', { currentValue: 100 }),
+    ).rejects.toThrow('Investment with id "nonexistent" not found');
   });
 });

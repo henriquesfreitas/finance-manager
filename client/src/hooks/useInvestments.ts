@@ -12,8 +12,16 @@ import {
   archiveInvestment,
   updateInvestmentSector,
   updateTargetPrices,
+  fetchTreasuryProducts,
+  createTreasuryInvestment,
+  updateCurrentValue,
 } from '../services/investment-api-client';
-import type { ArchivedInvestmentItem, InvestmentListItem, InvestmentRecord } from '../types/investment';
+import type {
+  ArchivedInvestmentItem,
+  InvestmentListItem,
+  InvestmentRecord,
+  TreasuryProduct,
+} from '../types/investment';
 
 /** Cache key for the active investments list. */
 export const ACTIVE_INVESTMENTS_QUERY_KEY = ['investments', 'active'] as const;
@@ -122,6 +130,63 @@ export function useUpdateTargetPrices(): UseMutationResult<
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ id, ...data }: UpdateTargetPricesInput) => updateTargetPrices(id, data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ACTIVE_INVESTMENTS_QUERY_KEY }),
+  });
+}
+
+/** Cache key for the treasury products catalog. */
+export const TREASURY_PRODUCTS_QUERY_KEY = ['treasury-products'] as const;
+
+/**
+ * Fetches the catalog of available Tesouro Direto products.
+ * Stale after 30 minutes — the catalog changes infrequently.
+ *
+ * @example const { data: products } = useTreasuryProducts();
+ */
+export function useTreasuryProducts(): UseQueryResult<TreasuryProduct[], Error> {
+  return useQuery({
+    queryKey: TREASURY_PRODUCTS_QUERY_KEY,
+    queryFn: fetchTreasuryProducts,
+    staleTime: 1000 * 60 * 30,
+  });
+}
+
+/**
+ * Creates a new TREASURY investment from a product catalog entry.
+ * Invalidates the active investments list on success.
+ *
+ * @example mutate('prod-uuid')
+ */
+export function useCreateTreasuryInvestment(): UseMutationResult<InvestmentRecord, Error, string> {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (treasuryProductId: string) => createTreasuryInvestment(treasuryProductId),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ACTIVE_INVESTMENTS_QUERY_KEY }),
+  });
+}
+
+/** Input shape for updating current value. */
+export interface UpdateCurrentValueInput {
+  id: string;
+  currentValue: number | null;
+}
+
+/**
+ * Updates the manually-entered current value of a non-STOCK investment.
+ * Invalidates the active investments list on success so the table refreshes.
+ *
+ * @example mutateAsync({ id: 'some-uuid', currentValue: 30882.59 })
+ * @example mutateAsync({ id: 'some-uuid', currentValue: null })  // clears it
+ */
+export function useUpdateCurrentValue(): UseMutationResult<
+  InvestmentRecord,
+  Error,
+  UpdateCurrentValueInput
+> {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, currentValue }: UpdateCurrentValueInput) =>
+      updateCurrentValue(id, currentValue),
     onSuccess: () => qc.invalidateQueries({ queryKey: ACTIVE_INVESTMENTS_QUERY_KEY }),
   });
 }

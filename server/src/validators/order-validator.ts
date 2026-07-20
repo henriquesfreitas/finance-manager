@@ -27,15 +27,19 @@ export const createOrderSchema = z.object({
     .date()
     .refine(
       (d) => {
-        // Compare as date strings to avoid timezone off-by-one.
-        // Both sides are YYYY-MM-DD so lexicographic comparison is correct.
-        const today = new Date().toLocaleDateString('en-CA'); // "YYYY-MM-DD" in local TZ
+        const today = new Date().toLocaleDateString('en-CA');
         return d <= today;
       },
       'order date must not be in the future',
     ),
+
+  // Contracted rate at purchase time — optional, treasury-only (e.g. 6.5 for IPCA+ 6.5%)
+  contractedRate: z
+    .number()
+    .positive('contractedRate must be greater than 0')
+    .nullable()
+    .optional(),
 }).superRefine((data, ctx) => {
-  // For BUY, SELL, and BONUS price must be strictly positive
   if (data.type !== 'SPLIT' && data.price <= 0) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
@@ -106,6 +110,13 @@ export const updateOrderSchema = z.object({
       },
       'order date must not be in the future',
     )
+    .optional(),
+
+  // Pass null to clear a previously recorded rate
+  contractedRate: z
+    .number()
+    .positive('contractedRate must be greater than 0')
+    .nullable()
     .optional(),
 }).refine(
   (data) => Object.keys(data).length > 0,

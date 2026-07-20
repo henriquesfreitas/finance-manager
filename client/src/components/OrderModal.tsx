@@ -39,6 +39,7 @@ const orderSchema = z.object({
     },
     { message: 'Order date must not be in the future' },
   ),
+  contractedRate: z.number().positive('Rate must be greater than 0').nullable().optional(),
 }).refine(
   (data) => data.type === 'SPLIT' || data.price > 0,
   { message: 'Price must be greater than 0', path: ['price'] },
@@ -101,6 +102,7 @@ function orderTypeColorClass(type: string): string {
 
 interface OrderFormProps {
   investmentId: string;
+  isTreasury: boolean;
   onSuccess: () => void;
 }
 
@@ -108,7 +110,7 @@ interface OrderFormProps {
  * Form for adding a new order (BUY or SELL).
  * Uses react-hook-form + Zod validation with inline error messages.
  */
-function OrderForm({ investmentId, onSuccess }: OrderFormProps): React.JSX.Element {
+function OrderForm({ investmentId, isTreasury, onSuccess }: OrderFormProps): React.JSX.Element {
   const createOrder = useCreateOrder(investmentId);
 
   const {
@@ -147,6 +149,7 @@ function OrderForm({ investmentId, onSuccess }: OrderFormProps): React.JSX.Eleme
           type: 'BUY',
           quantity: undefined as unknown as number,
           price: undefined as unknown as number,
+          contractedRate: undefined,
           orderDate: new Date(`${todayISOString()}T12:00:00`),
         });
         onSuccess();
@@ -222,6 +225,26 @@ function OrderForm({ investmentId, onSuccess }: OrderFormProps): React.JSX.Eleme
           {errors.price && (
             <p className="text-xs text-destructive" role="alert">
               {errors.price.message}
+            </p>
+          )}
+        </div>
+      )}
+
+      {/* Contracted Rate — only shown for treasury investments */}
+      {isTreasury && selectedType === 'BUY' && (
+        <div className="grid gap-1.5">
+          <Label htmlFor="order-rate">Contracted Rate (%)</Label>
+          <Input
+            id="order-rate"
+            type="number"
+            step="0.01"
+            placeholder="6.50"
+            aria-invalid={!!errors.contractedRate}
+            {...register('contractedRate', { valueAsNumber: true })}
+          />
+          {errors.contractedRate && (
+            <p className="text-xs text-destructive" role="alert">
+              {errors.contractedRate.message}
             </p>
           )}
         </div>
@@ -428,6 +451,7 @@ function EditOrderRow({
 
 interface OrderHistoryProps {
   investmentId: string;
+  isTreasury: boolean;
 }
 
 /**
@@ -436,7 +460,7 @@ interface OrderHistoryProps {
  * Always fetches fresh data (staleTime: 0 in useOrders).
  * Shows an error message on fetch failure with no stale data (Req 5.4).
  */
-function OrderHistory({ investmentId }: OrderHistoryProps): React.JSX.Element {
+function OrderHistory({ investmentId, isTreasury }: OrderHistoryProps): React.JSX.Element {
   const { data: orders, isLoading, isError, error } = useOrders(investmentId);
   const [editingOrderId, setEditingOrderId] = useState<string | null>(null);
 
@@ -470,6 +494,7 @@ function OrderHistory({ investmentId }: OrderHistoryProps): React.JSX.Element {
             <TableHead>Type</TableHead>
             <TableHead className="text-right">Quantity</TableHead>
             <TableHead className="text-right">Price (R$)</TableHead>
+            {isTreasury && <TableHead className="text-right">Rate (%)</TableHead>}
             <TableHead className="text-right">Date</TableHead>
             <TableHead className="text-right">Total (R$)</TableHead>
             <TableHead className="text-right">Actions</TableHead>
@@ -500,6 +525,13 @@ function OrderHistory({ investmentId }: OrderHistoryProps): React.JSX.Element {
                 <TableCell className="text-right">
                   {order.type === 'SPLIT' ? '—' : parseFloat(order.price).toFixed(2)}
                 </TableCell>
+                {isTreasury && (
+                  <TableCell className="text-right">
+                    {order.contractedRate !== null && order.contractedRate !== undefined
+                      ? `${parseFloat(order.contractedRate).toFixed(2)}%`
+                      : <span className="text-muted-foreground">—</span>}
+                  </TableCell>
+                )}
                 <TableCell className="text-right">
                   {formatOrderDate(order.orderDate)}
                 </TableCell>
@@ -557,17 +589,24 @@ export function OrderModal({
 }: OrderModalProps): React.JSX.Element | null {
   if (!investment) return null;
 
+  const isTreasury = investment.type === 'TREASURY';
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[860px]">
         <DialogHeader>
-          <DialogTitle>Orders — {investment.ticker}</DialogTitle>
+          <DialogTitle>
+            Orders — {isTreasury && investment.treasuryProductName
+              ? investment.treasuryProductName
+              : investment.ticker}
+          </DialogTitle>
         </DialogHeader>
 
         <div className="grid gap-6 py-2">
           {/* Add order form */}
           <OrderForm
             investmentId={investment.id}
+            isTreasury={isTreasury}
             onSuccess={() => {
               // History auto-refreshes via query invalidation in useCreateOrder
             }}
@@ -576,7 +615,7 @@ export function OrderModal({
           {/* Order history */}
           <div className="grid gap-2">
             <h3 className="text-sm font-semibold">Order History</h3>
-            <OrderHistory investmentId={investment.id} />
+            <OrderHistory investmentId={investment.id} isTreasury={isTreasury} />
           </div>
         </div>
       </DialogContent>

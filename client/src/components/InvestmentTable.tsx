@@ -19,7 +19,7 @@ import {
   calculatePortfolioWeightByInvested,
 } from '@/lib/investment-calculator';
 import { EditablePriceCell } from '@/components/EditablePriceCell';
-import { useUpdateTargetPrices } from '@/hooks/useInvestments';
+import { useUpdateTargetPrices, useUpdateCurrentValue } from '@/hooks/useInvestments';
 import { toast } from 'sonner';
 
 interface InvestmentTableProps {
@@ -69,14 +69,18 @@ export function InvestmentTable({
   onTickerClick,
 }: InvestmentTableProps): React.JSX.Element {
   // Compute portfolio-level totals once for the weight column.
-  // If any position lacks a current price, portfolioCurrentTotal is null (all-or-nothing).
-  const portfolioCurrentTotal = investments.reduce<number | null>((acc, inv) => {
-    if (acc === null) return null;
+  // Hybrid approach: for each investment, use currentTotal if available (has live price
+  // or manual currentValue), otherwise fall back to totalInvested.
+  // This gives an accurate picture even when some assets have no live price.
+  const portfolioCurrentTotal = investments.reduce<number>((acc, inv) => {
     const qty = parseFloat(inv.position.quantity);
-    const price = inv.quote?.currentPrice ?? null;
+    const price = inv.type === 'TREASURY'
+      ? (inv.currentValue !== null ? parseFloat(inv.currentValue) : null)
+      : (inv.quote?.currentPrice ?? null);
+    const avg = parseFloat(inv.position.averagePrice);
     const current = calculateCurrentTotal(qty, price);
-    if (current === null) return null;
-    return acc + current;
+    // Fall back to totalInvested when current price is unavailable
+    return acc + (current !== null ? current : calculateTotalInvested(qty, avg));
   }, 0);
 
   const portfolioTotalInvested = investments.reduce((acc, inv) => {
@@ -174,7 +178,7 @@ function TableHeaderRow(): React.JSX.Element {
 
 interface InvestmentRowProps {
   investment: InvestmentListItem;
-  portfolioCurrentTotal: number | null;
+  portfolioCurrentTotal: number;
   portfolioTotalInvested: number;
   onAddOrder: (investment: InvestmentListItem) => void;
   onArchive: (investment: InvestmentListItem) => void;
@@ -188,10 +192,19 @@ function hasNoOrders(investment: InvestmentListItem): boolean {
 
 function InvestmentRow({ investment, portfolioCurrentTotal, portfolioTotalInvested, onAddOrder, onArchive, onTickerClick }: InvestmentRowProps): React.JSX.Element {
   const { mutate: saveTargetPrices, isPending: isSavingTargets } = useUpdateTargetPrices();
+  const { mutate: saveCurrentValue, isPending: isSavingCurrentValue } = useUpdateCurrentValue();
+
+  const isTreasury = investment.type === 'TREASURY';
 
   const quantity = parseFloat(investment.position.quantity);
   const averagePrice = parseFloat(investment.position.averagePrice);
-  const currentPrice = investment.quote?.currentPrice ?? null;
+
+  // For TREASURY: use manually-entered currentValue as the current price.
+  // For STOCK: use live Yahoo Finance quote.
+  const currentPrice = isTreasury
+    ? (investment.currentValue !== null ? parseFloat(investment.currentValue) : null)
+    : (investment.quote?.currentPrice ?? null);
+
   const dailyChangePercent = investment.quote?.dailyChangePercent ?? null;
 
   // Parse stored target prices (Decimal strings) to numbers for comparison/display
@@ -219,17 +232,21 @@ function InvestmentRow({ investment, portfolioCurrentTotal, portfolioTotalInvest
 
   const totalInvested = noOrders ? 0 : calculateTotalInvested(quantity, averagePrice);
 
-  // Market-dependent fields are null when quote is unavailable (Req 9.6),
-  // but still show zero when investment has no orders
+  // Market-dependent fields are null when price is unavailable
   const currentTotal = noOrders ? 0 : calculateCurrentTotal(quantity, currentPrice);
   const profit = noOrders ? 0 : calculateProfit(currentTotal, totalInvested);
-  // totalVariation returns null when totalInvested is 0 (avoids division by zero — Req 9.3)
   const totalVariation = noOrders ? 0 : calculateTotalVariation(profit, totalInvested);
 
-  // Portfolio weight: current-value basis (primary), invested basis (tooltip)
+  // Portfolio weight: hybrid basis — use currentTotal if available, else totalInvested.
+  // This matches the portfolioCurrentTotal calculation at the table level, ensuring
+  // every investment contributes to its share even without a live/manual price.
+  const positionValueForWeight = noOrders
+    ? 0
+    : (currentTotal !== null ? currentTotal : totalInvested);
+
   const portfolioWeight = noOrders
     ? null
-    : calculatePortfolioWeight(currentTotal, portfolioCurrentTotal);
+    : calculatePortfolioWeight(positionValueForWeight, portfolioCurrentTotal);
   const portfolioWeightByInvested = noOrders
     ? null
     : calculatePortfolioWeightByInvested(totalInvested, portfolioTotalInvested);
@@ -239,21 +256,29 @@ function InvestmentRow({ investment, portfolioCurrentTotal, portfolioTotalInvest
       ? `By invested: ${formatPortfolioPercent(portfolioWeightByInvested)}`
       : 'By invested: N/A';
 
+  // Display label: treasury uses the full product name; stocks use the ticker
+  const displayLabel = isTreasury && investment.treasuryProductName
+    ? investment.treasuryProductName
+    : investment.ticker;
+
   function handleSellTargetSave(value: number | null): void {
     saveTargetPrices(
       { id: investment.id, targetSellPrice: value },
-      {
-        onError: () => toast.error(`Failed to save Target Sell for ${investment.ticker}`),
-      },
+      { onError: () => toast.error(`Failed to save Target Sell for ${displayLabel}`) },
     );
   }
 
   function handleBuyTargetSave(value: number | null): void {
     saveTargetPrices(
       { id: investment.id, targetBuyPrice: value },
-      {
-        onError: () => toast.error(`Failed to save Target Buy for ${investment.ticker}`),
-      },
+      { onError: () => toast.error(`Failed to save Target Buy for ${displayLabel}`) },
+    );
+  }
+
+  function handleCurrentValueSave(value: number | null): void {
+    saveCurrentValue(
+      { id: investment.id, currentValue: value },
+      { onError: () => toast.error(`Failed to save Current Value for ${displayLabel}`) },
     );
   }
 
@@ -261,11 +286,11 @@ function InvestmentRow({ investment, portfolioCurrentTotal, portfolioTotalInvest
     <TableRow>
       <TableCell className="font-medium">
         <button
-          className="cursor-pointer underline-offset-2 hover:underline focus-visible:outline-none focus-visible:underline"
+          className="cursor-pointer underline-offset-2 hover:underline focus-visible:outline-none focus-visible:underline text-left"
           onClick={() => onTickerClick(investment.id, investment.ticker, investment.sector)}
-          aria-label={`View comments for ${investment.ticker}`}
+          aria-label={`View comments for ${displayLabel}`}
         >
-          {investment.ticker}
+          {displayLabel}
         </button>
       </TableCell>
       <TableCell>
@@ -273,12 +298,30 @@ function InvestmentRow({ investment, portfolioCurrentTotal, portfolioTotalInvest
           ? <span>{investment.sector}</span>
           : <span className="text-muted-foreground">—</span>}
       </TableCell>
-      <TableCell className="text-right">{quantity.toLocaleString('pt-BR')}</TableCell>
-      <TableCell className="text-right">{formatCurrency(averagePrice)}</TableCell>
       <TableCell className="text-right">
-        {currentPrice !== null
-          ? formatCurrency(currentPrice)
-          : <span className="text-muted-foreground">N/A</span>}
+        {noOrders
+          ? <span className="text-muted-foreground">—</span>
+          : quantity.toLocaleString('pt-BR')}
+      </TableCell>
+      <TableCell className="text-right">
+        {noOrders
+          ? <span className="text-muted-foreground">—</span>
+          : formatCurrency(averagePrice)}
+      </TableCell>
+      {/* Current Price: editable for TREASURY, read-only live quote for STOCK */}
+      <TableCell className="text-right">
+        {isTreasury ? (
+          <EditablePriceCell
+            value={investment.currentValue !== null ? parseFloat(investment.currentValue) : null}
+            onSave={handleCurrentValueSave}
+            isPending={isSavingCurrentValue}
+            ariaLabel={`Edit Current Value for ${displayLabel}`}
+          />
+        ) : currentPrice !== null ? (
+          formatCurrency(currentPrice)
+        ) : (
+          <span className="text-muted-foreground">N/A</span>
+        )}
       </TableCell>
       <TableCell className={`text-right ${sellTargetClass}`}>
         <EditablePriceCell
@@ -286,7 +329,7 @@ function InvestmentRow({ investment, portfolioCurrentTotal, portfolioTotalInvest
           onSave={handleSellTargetSave}
           isPending={isSavingTargets}
           className={sellTargetClass}
-          ariaLabel={`Edit Target Sell price for ${investment.ticker}`}
+          ariaLabel={`Edit Target Sell price for ${displayLabel}`}
         />
       </TableCell>
       <TableCell className={`text-right ${buyTargetClass}`}>
@@ -295,30 +338,45 @@ function InvestmentRow({ investment, portfolioCurrentTotal, portfolioTotalInvest
           onSave={handleBuyTargetSave}
           isPending={isSavingTargets}
           className={buyTargetClass}
-          ariaLabel={`Edit Target Buy price for ${investment.ticker}`}
+          ariaLabel={`Edit Target Buy price for ${displayLabel}`}
         />
       </TableCell>
-      <TableCell className={`text-right ${dailyChangePercent !== null ? profitColorClass(dailyChangePercent) : 'text-muted-foreground'}`}>
-        {dailyChangePercent !== null ? formatPercent(dailyChangePercent) : 'N/A'}
-      </TableCell>
-      <TableCell className="text-right">{formatCurrency(totalInvested)}</TableCell>
-      <TableCell className="text-right">
-        {currentTotal !== null
-          ? formatCurrency(currentTotal)
-          : <span className="text-muted-foreground">N/A</span>}
-      </TableCell>
-      <TableCell className={`text-right ${profitColorClass(profit)}`}>
-        {profit !== null
-          ? formatCurrency(profit)
-          : <span className="text-muted-foreground">N/A</span>}
-      </TableCell>
-      <TableCell className={`text-right ${profitColorClass(totalVariation)}`}>
-        {totalVariation !== null
-          ? formatPercent(totalVariation)
-          : <span className="text-muted-foreground">N/A</span>}
+      {/* Daily Change %: only meaningful for STOCK */}
+      <TableCell className={`text-right ${!isTreasury && !noOrders && dailyChangePercent !== null ? profitColorClass(dailyChangePercent) : 'text-muted-foreground'}`}>
+        {isTreasury || noOrders
+          ? '—'
+          : dailyChangePercent !== null ? formatPercent(dailyChangePercent) : 'N/A'}
       </TableCell>
       <TableCell className="text-right">
-        {portfolioWeight !== null ? (
+        {noOrders
+          ? <span className="text-muted-foreground">—</span>
+          : formatCurrency(totalInvested)}
+      </TableCell>
+      <TableCell className="text-right">
+        {noOrders
+          ? <span className="text-muted-foreground">—</span>
+          : currentTotal !== null
+            ? formatCurrency(currentTotal)
+            : <span className="text-muted-foreground">N/A</span>}
+      </TableCell>
+      <TableCell className={`text-right ${noOrders ? 'text-muted-foreground' : profitColorClass(profit)}`}>
+        {noOrders
+          ? '—'
+          : profit !== null
+            ? formatCurrency(profit)
+            : <span className="text-muted-foreground">N/A</span>}
+      </TableCell>
+      <TableCell className={`text-right ${noOrders ? 'text-muted-foreground' : profitColorClass(totalVariation)}`}>
+        {noOrders
+          ? '—'
+          : totalVariation !== null
+            ? formatPercent(totalVariation)
+            : <span className="text-muted-foreground">N/A</span>}
+      </TableCell>
+      <TableCell className="text-right">
+        {noOrders ? (
+          <span className="text-muted-foreground">—</span>
+        ) : portfolioWeight !== null ? (
           <span
             title={portfolioWeightTooltip}
             className="cursor-help underline decoration-dotted underline-offset-2"
@@ -335,7 +393,7 @@ function InvestmentRow({ investment, portfolioCurrentTotal, portfolioTotalInvest
             variant="ghost"
             size="sm"
             onClick={() => onAddOrder(investment)}
-            aria-label={`Add order for ${investment.ticker}`}
+            aria-label={`Add order for ${displayLabel}`}
           >
             <PlusCircle className="h-4 w-4" />
           </Button>
@@ -343,7 +401,7 @@ function InvestmentRow({ investment, portfolioCurrentTotal, portfolioTotalInvest
             variant="ghost"
             size="sm"
             onClick={() => onArchive(investment)}
-            aria-label={`Archive ${investment.ticker}`}
+            aria-label={`Archive ${displayLabel}`}
             className="text-destructive hover:text-destructive"
           >
             <Archive className="h-4 w-4" />

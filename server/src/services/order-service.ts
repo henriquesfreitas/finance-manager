@@ -14,6 +14,7 @@ function toOrderRecord(record: {
   type: 'BUY' | 'SELL';
   quantity: { toString(): string };
   price: { toString(): string };
+  contractedRate?: { toString(): string } | null;
   orderDate: Date;
   createdAt: Date;
   updatedAt: Date;
@@ -24,6 +25,7 @@ function toOrderRecord(record: {
     type: record.type,
     quantity: record.quantity.toString(),
     price: record.price.toString(),
+    contractedRate: record.contractedRate ? record.contractedRate.toString() : null,
     // orderDate is stored as date-only; slice to YYYY-MM-DD
     orderDate: record.orderDate.toISOString().slice(0, 10),
     createdAt: record.createdAt.toISOString(),
@@ -99,6 +101,7 @@ export function createOrderService(db: PrismaClient) {
           type: input.type,
           quantity: input.quantity,
           price: input.price,
+          contractedRate: input.contractedRate ?? null,
           // Prisma expects a DateTime for @db.Date fields; noon UTC avoids TZ drift
           orderDate: new Date(`${input.orderDate}T12:00:00.000Z`),
         },
@@ -138,18 +141,28 @@ export function createOrderService(db: PrismaClient) {
     },
 
     /**
-     * Fetches all orders across all investments, enriched with the ticker.
+     * Fetches all orders across all investments, enriched with the display name.
+     * For STOCK investments this is the ticker (e.g. "ITUB3").
+     * For TREASURY investments this is the product short name (e.g. "IPCA+ 2026").
      * Sorted by orderDate DESC then createdAt DESC (latest first).
      */
     async listAllOrders(): Promise<OrderWithTicker[]> {
       const orders = await db.order.findMany({
-        include: { investment: { select: { ticker: true } } },
+        include: {
+          investment: {
+            select: {
+              ticker: true,
+              treasuryProduct: { select: { name: true } },
+            },
+          },
+        },
         orderBy: [{ orderDate: 'desc' }, { createdAt: 'desc' }],
       });
 
       return orders.map((o) => ({
         ...toOrderRecord(o),
-        ticker: o.investment.ticker,
+        // Treasury investments show the product short name; stocks show the ticker
+        ticker: o.investment.treasuryProduct?.name ?? o.investment.ticker,
       }));
     },
 
@@ -200,6 +213,7 @@ export function createOrderService(db: PrismaClient) {
           ...(validation.data.type !== undefined && { type: validation.data.type }),
           ...(validation.data.quantity !== undefined && { quantity: validation.data.quantity }),
           ...(validation.data.price !== undefined && { price: validation.data.price }),
+          ...(validation.data.contractedRate !== undefined && { contractedRate: validation.data.contractedRate }),
           ...(validation.data.orderDate !== undefined && {
             orderDate: new Date(`${validation.data.orderDate}T12:00:00.000Z`),
           }),

@@ -100,6 +100,11 @@ export function AllOrdersSection(): React.JSX.Element {
                       : parseFloat(order.price).toFixed(2)}
                   </TableCell>
                   <TableCell className="text-right">
+                    {order.contractedRate
+                      ? `${parseFloat(order.contractedRate).toFixed(2)}%`
+                      : <span className="text-muted-foreground">—</span>}
+                  </TableCell>
+                  <TableCell className="text-right">
                     {formatOrderDate(order.orderDate)}
                   </TableCell>
                   <TableCell className="text-right">
@@ -124,6 +129,7 @@ function OrdersTableHeaderRow(): React.JSX.Element {
       <TableHead>Type</TableHead>
       <TableHead className="text-right">Quantity</TableHead>
       <TableHead className="text-right">Price (R$)</TableHead>
+      <TableHead className="text-right">Rate (%)</TableHead>
       <TableHead className="text-right">Date</TableHead>
       <TableHead className="text-right">Total (R$)</TableHead>
     </TableRow>

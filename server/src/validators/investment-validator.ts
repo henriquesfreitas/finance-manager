@@ -1,5 +1,10 @@
 import { z } from 'zod';
-import type { CreateInvestmentInput, UpdateTargetPricesInput } from '../types/investment.js';
+import type {
+  CreateInvestmentInput,
+  CreateTreasuryInvestmentInput,
+  UpdateTargetPricesInput,
+  UpdateCurrentValueInput,
+} from '../types/investment.js';
 
 /**
  * Canonical list of allowed investment sectors.
@@ -54,8 +59,8 @@ export const createInvestmentSchema = z.object({
     .string()
     .trim()
     .min(1, 'ticker must not be empty')
-    .max(10, 'ticker must be at most 10 characters')
-    .regex(/^[A-Za-z0-9.]+$/, 'ticker must contain only letters, digits, and dots')
+    .max(20, 'ticker must be at most 20 characters')
+    .regex(/^[A-Za-z0-9.\-]+$/, 'ticker must contain only letters, digits, dots, and hyphens')
     .transform((v) => v.toUpperCase()),
   sector: z.enum(INVESTMENT_SECTORS, {
     error: `sector must be one of: ${INVESTMENT_SECTORS.join(', ')}`,
@@ -157,6 +162,82 @@ export function validateUpdateTargetPricesInput(raw: unknown):
   | { success: true; data: UpdateTargetPricesInput }
   | { success: false; errors: Record<string, string[]> } {
   const parsed = updateTargetPricesSchema.safeParse(raw);
+
+  if (parsed.success) {
+    return { success: true, data: parsed.data };
+  }
+
+  const errors: Record<string, string[]> = {};
+  for (const issue of parsed.error.issues) {
+    const field = issue.path.join('.') || '_root';
+    (errors[field] ??= []).push(issue.message);
+  }
+  return { success: false, errors };
+}
+
+/**
+ * Zod schema for creating a new TREASURY investment.
+ * Only requires the id of an existing TreasuryProduct row.
+ *
+ * @example
+ *   createTreasuryInvestmentSchema.parse({ treasuryProductId: 'some-uuid' })
+ */
+export const createTreasuryInvestmentSchema = z.object({
+  treasuryProductId: z
+    .string({ error: 'treasuryProductId must be a string' })
+    .uuid('treasuryProductId must be a valid UUID'),
+});
+
+/**
+ * Parses and validates raw treasury investment creation input.
+ *
+ * @example
+ *   const result = validateCreateTreasuryInvestmentInput({ treasuryProductId: 'uuid' });
+ *   if (result.success) { ... result.data.treasuryProductId ... }
+ */
+export function validateCreateTreasuryInvestmentInput(raw: unknown):
+  | { success: true; data: CreateTreasuryInvestmentInput }
+  | { success: false; errors: Record<string, string[]> } {
+  const parsed = createTreasuryInvestmentSchema.safeParse(raw);
+
+  if (parsed.success) {
+    return { success: true, data: parsed.data };
+  }
+
+  const errors: Record<string, string[]> = {};
+  for (const issue of parsed.error.issues) {
+    const field = issue.path.join('.') || '_root';
+    (errors[field] ??= []).push(issue.message);
+  }
+  return { success: false, errors };
+}
+
+/**
+ * Zod schema for updating the manual current value of a non-STOCK investment.
+ * Accepts a positive number or null (to clear).
+ *
+ * @example
+ *   updateCurrentValueSchema.parse({ currentValue: 30882.59 })
+ *   updateCurrentValueSchema.parse({ currentValue: null })
+ */
+export const updateCurrentValueSchema = z.object({
+  currentValue: z
+    .number({ error: 'currentValue must be a number' })
+    .positive('currentValue must be greater than 0')
+    .nullable(),
+});
+
+/**
+ * Parses and validates raw current-value update input.
+ *
+ * @example
+ *   const result = validateUpdateCurrentValueInput({ currentValue: 30882.59 });
+ *   if (result.success) { ... result.data.currentValue // 30882.59 ... }
+ */
+export function validateUpdateCurrentValueInput(raw: unknown):
+  | { success: true; data: UpdateCurrentValueInput }
+  | { success: false; errors: Record<string, string[]> } {
+  const parsed = updateCurrentValueSchema.safeParse(raw);
 
   if (parsed.success) {
     return { success: true, data: parsed.data };

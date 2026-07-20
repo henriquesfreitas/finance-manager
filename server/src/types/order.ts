@@ -1,4 +1,4 @@
-import type { MarketQuote } from './investment.js';
+import type { AssetType, MarketQuote } from './investment.js';
 
 /**
  * Types for the order domain (v2).
@@ -21,6 +21,8 @@ export interface CreateOrderInput {
   price: number;
   /** ISO date string (YYYY-MM-DD), must not be in the future */
   orderDate: string;
+  /** Contracted rate at purchase time — for TREASURY orders (e.g. 6.5 for IPCA+ 6.5%). Optional. */
+  contractedRate?: number | null;
 }
 
 /**
@@ -35,6 +37,8 @@ export interface UpdateOrderInput {
   price?: number;
   /** ISO date string (YYYY-MM-DD), must not be in the future when provided */
   orderDate?: string;
+  /** Contracted rate — pass null to clear it */
+  contractedRate?: number | null;
 }
 
 /**
@@ -52,6 +56,8 @@ export interface OrderRecord {
   price: string;
   /** ISO date string (date only, no time component) */
   orderDate: string;
+  /** Contracted rate at purchase time, e.g. "6.50". Null for STOCK orders or when not recorded. */
+  contractedRate: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -76,19 +82,27 @@ export interface ComputedPosition {
 }
 
 /**
- * Investment record as returned by the v2 active-listing endpoint.
+ * Investment record as returned by the v3 active-listing endpoint.
  * Extends the base record with a computed position and optional live quote.
  */
 export interface EnrichedInvestment {
   id: string;
   ticker: string;
+  type: AssetType;
   sector: string | null;
   archivedAt: string | null;
+  targetSellPrice: string | null;
+  targetBuyPrice: string | null;
+  /** Manually-entered current value for non-STOCK assets. Null when not set. */
+  currentValue: string | null;
+  treasuryProductId: string | null;
+  /** Full display name from the treasury product catalog; null for STOCK. */
+  treasuryProductName: string | null;
   createdAt: string;
   updatedAt: string;
   /** Computed from order history at query time — never stored. */
   position: ComputedPosition;
-  /** null when Yahoo Finance is unavailable or the ticker is unrecognised. */
+  /** null for TREASURY assets or when Yahoo Finance is unavailable. */
   quote: MarketQuote | null;
 }
 
@@ -99,8 +113,14 @@ export interface EnrichedInvestment {
 export interface ArchivedInvestment {
   id: string;
   ticker: string;
+  type: AssetType;
   sector: string | null;
   archivedAt: string | null;
+  targetSellPrice: string | null;
+  targetBuyPrice: string | null;
+  currentValue: string | null;
+  treasuryProductId: string | null;
+  treasuryProductName: string | null;
   createdAt: string;
   updatedAt: string;
   /** Final position computed from all historical orders. */

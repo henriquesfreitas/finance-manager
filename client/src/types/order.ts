@@ -13,6 +13,8 @@ export interface OrderListItem {
   price: string;
   /** ISO date string — "YYYY-MM-DD" */
   orderDate: string;
+  /** Contracted rate at purchase time — e.g. "6.50" for IPCA+ 6.5%. Null for stocks or when not recorded. */
+  contractedRate: string | null;
   createdAt: string;
 }
 
