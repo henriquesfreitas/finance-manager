@@ -27,6 +27,10 @@ export interface InvestmentRecord {
   /** Investment sector (e.g. "Bancos", "Energia Elétrica"). Nullable for legacy rows. */
   sector: string | null;
   archivedAt: string | null;
+  /** User-defined sell target price as a Decimal string. Null when not set. */
+  targetSellPrice: string | null;
+  /** User-defined buy target price as a Decimal string. Null when not set. */
+  targetBuyPrice: string | null;
   createdAt: string;
   updatedAt: string;
 }

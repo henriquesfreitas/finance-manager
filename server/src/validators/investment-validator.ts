@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import type { CreateInvestmentInput } from '../types/investment.js';
+import type { CreateInvestmentInput, UpdateTargetPricesInput } from '../types/investment.js';
 
 /**
  * Canonical list of allowed investment sectors.
@@ -124,3 +124,48 @@ export function validateUpdateSectorInput(raw: unknown):
  * Kept for backward compatibility with v1 routes.
  */
 export const validateInvestmentInput = validateCreateInvestmentInput;
+
+/**
+ * Nullable positive price helper — accepts a positive number or null (to clear).
+ */
+const nullablePositivePrice = z
+  .number({ error: 'must be a number' })
+  .positive('must be greater than 0')
+  .nullable();
+
+/**
+ * Zod schema for updating target buy/sell prices.
+ * Both fields are optional; send only the ones you want to change.
+ * Passing null explicitly clears a previously set target.
+ *
+ * @example
+ *   updateTargetPricesSchema.parse({ targetSellPrice: 35.5, targetBuyPrice: null })
+ */
+export const updateTargetPricesSchema = z.object({
+  targetSellPrice: nullablePositivePrice.optional(),
+  targetBuyPrice: nullablePositivePrice.optional(),
+});
+
+/**
+ * Parses and validates raw target-price update input.
+ *
+ * @example
+ *   const result = validateUpdateTargetPricesInput({ targetSellPrice: 35.5 });
+ *   if (result.success) { ... result.data.targetSellPrice // 35.5 ... }
+ */
+export function validateUpdateTargetPricesInput(raw: unknown):
+  | { success: true; data: UpdateTargetPricesInput }
+  | { success: false; errors: Record<string, string[]> } {
+  const parsed = updateTargetPricesSchema.safeParse(raw);
+
+  if (parsed.success) {
+    return { success: true, data: parsed.data };
+  }
+
+  const errors: Record<string, string[]> = {};
+  for (const issue of parsed.error.issues) {
+    const field = issue.path.join('.') || '_root';
+    (errors[field] ??= []).push(issue.message);
+  }
+  return { success: false, errors };
+}

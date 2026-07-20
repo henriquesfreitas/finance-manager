@@ -14,6 +14,8 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: ['./src/__tests__/setup.ts'],
     include: ['src/__tests__/**/*.test.{ts,tsx}'],
+    pool: 'vmForks',        // forks pool crashes with Vite 8 in node_modules; vmForks works correctly
+    fileParallelism: false, // run serially to avoid module-cache collisions
     coverage: {
       provider: 'v8',
       reporter: ['text', 'lcov', 'html'],

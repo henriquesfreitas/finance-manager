@@ -11,6 +11,7 @@ import {
   createInvestment,
   archiveInvestment,
   updateInvestmentSector,
+  updateTargetPrices,
 } from '../services/investment-api-client';
 import type { ArchivedInvestmentItem, InvestmentListItem, InvestmentRecord } from '../types/investment';
 
@@ -97,5 +98,30 @@ export function useUpdateInvestmentSector(): UseMutationResult<
       qc.invalidateQueries({ queryKey: ACTIVE_INVESTMENTS_QUERY_KEY });
       qc.invalidateQueries({ queryKey: ARCHIVED_INVESTMENTS_QUERY_KEY });
     },
+  });
+}
+
+/** Input shape for updating target prices. */
+export interface UpdateTargetPricesInput {
+  id: string;
+  targetSellPrice?: number | null;
+  targetBuyPrice?: number | null;
+}
+
+/**
+ * Updates the target sell/buy prices of an investment.
+ * Invalidates the active investments list on success so the table refreshes.
+ *
+ * @example mutateAsync({ id: 'some-uuid', targetSellPrice: 35.5 })
+ */
+export function useUpdateTargetPrices(): UseMutationResult<
+  InvestmentRecord,
+  Error,
+  UpdateTargetPricesInput
+> {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, ...data }: UpdateTargetPricesInput) => updateTargetPrices(id, data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ACTIVE_INVESTMENTS_QUERY_KEY }),
   });
 }

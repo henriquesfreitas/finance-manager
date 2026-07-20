@@ -85,3 +85,20 @@ export function archiveInvestment(id: string): Promise<InvestmentRecord> {
     method: 'PATCH',
   });
 }
+
+/**
+ * Updates the target sell and/or buy prices for an investment.
+ * Pass null for a field to clear it.
+ * PATCH /api/investments/:id/target-prices
+ *
+ * @example updateTargetPrices('some-uuid', { targetSellPrice: 35.5, targetBuyPrice: 28.0 })
+ */
+export function updateTargetPrices(
+  id: string,
+  data: { targetSellPrice?: number | null; targetBuyPrice?: number | null },
+): Promise<InvestmentRecord> {
+  return request<InvestmentRecord>(`/api/investments/${id}/target-prices`, {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  });
+}

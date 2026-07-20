@@ -1,19 +1,28 @@
 import type { PrismaClient } from '@prisma/client';
 import { fetchQuotes } from './yahoo-finance-quote-service.js';
 import { createWeightedAverageCalculator } from './weighted-average-calculator.js';
-import type { CreateInvestmentInput, InvestmentRecord } from '../types/investment.js';
+import type { CreateInvestmentInput, UpdateTargetPricesInput, InvestmentRecord } from '../types/investment.js';
 import type { EnrichedInvestment, ArchivedInvestment, ComputedPosition } from '../types/order.js';
 
 const calculator = createWeightedAverageCalculator();
 
-/** Shape returned by Prisma when fetching an investment with its orders. */
-type InvestmentWithOrders = {
+/** Minimal row shape accepted by toRecord — covers both direct queries and joined queries.
+ *  targetSellPrice/targetBuyPrice are optional because the Prisma-generated type
+ *  won't include them until the migration runs and the client is regenerated.
+ */
+type InvestmentRow = {
   id: string;
   ticker: string;
   sector: string | null;
   archivedAt: Date | null;
+  targetSellPrice?: { toString(): string } | null;
+  targetBuyPrice?: { toString(): string } | null;
   createdAt: Date;
   updatedAt: Date;
+};
+
+/** Shape returned by Prisma when fetching an investment with its orders. */
+type InvestmentWithOrders = InvestmentRow & {
   orders: Array<{
     type: 'BUY' | 'SELL' | 'BONUS' | 'SPLIT';
     quantity: { toNumber(): number };
@@ -32,12 +41,14 @@ const includeOrdersChronological = {
 };
 
 /** Converts a Prisma investment row to the plain InvestmentRecord shape. */
-function toRecord(row: Omit<InvestmentWithOrders, 'orders'>): InvestmentRecord {
+function toRecord(row: InvestmentRow): InvestmentRecord {
   return {
     id: row.id,
     ticker: row.ticker,
     sector: row.sector,
     archivedAt: row.archivedAt ? row.archivedAt.toISOString() : null,
+    targetSellPrice: row.targetSellPrice ? row.targetSellPrice.toString() : null,
+    targetBuyPrice: row.targetBuyPrice ? row.targetBuyPrice.toString() : null,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };
@@ -153,6 +164,29 @@ export function createInvestmentService(db: PrismaClient) {
       const record = await db.investment.update({
         where: { id },
         data: { sector },
+      });
+      return toRecord(record);
+    },
+
+    /**
+     * Updates the target sell and/or buy prices of an existing investment.
+     * Pass null for a field to explicitly clear it.
+     * Throws 404 when the investment does not exist.
+     *
+     * @example
+     *   await svc.updateTargetPrices('uuid', { targetSellPrice: 35.5, targetBuyPrice: null });
+     */
+    async updateTargetPrices(id: string, data: UpdateTargetPricesInput): Promise<InvestmentRecord> {
+      const existing = await db.investment.findUnique({ where: { id } });
+      if (!existing) {
+        throw new Error(`Investment with id "${id}" not found`);
+      }
+      const record = await db.investment.update({
+        where: { id },
+        data: {
+          ...(data.targetSellPrice !== undefined && { targetSellPrice: data.targetSellPrice }),
+          ...(data.targetBuyPrice !== undefined && { targetBuyPrice: data.targetBuyPrice }),
+        },
       });
       return toRecord(record);
     },

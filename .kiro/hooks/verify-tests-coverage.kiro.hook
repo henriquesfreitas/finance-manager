@@ -1,10 +1,11 @@
 {
   "enabled": true,
   "name": "Verify Tests After Task",
-  "description": "After a task is completed, reminds the agent to verify that unit tests and E2E tests were added or updated to cover the changes made.",
+  "description": "After the agent writes code files, verifies that unit tests and E2E tests were added or updated to cover the changes made.",
   "version": "1",
   "when": {
-    "type": "agentStop"
+    "type": "postToolUse",
+    "toolTypes": ["write"]
   },
   "then": {
     "type": "askAgent",

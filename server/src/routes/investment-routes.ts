@@ -3,6 +3,7 @@ import { createInvestmentService } from '../services/investment-service.js';
 import {
   validateInvestmentInput,
   validateUpdateSectorInput,
+  validateUpdateTargetPricesInput,
 } from '../validators/investment-validator.js';
 import { prisma } from '../lib/prisma-client.js';
 
@@ -79,6 +80,26 @@ export function createInvestmentRouter(): Router {
         error:
           'PUT method not allowed. Investments are now order-derived and cannot be manually updated',
       });
+  });
+
+  // PATCH /api/investments/:id/target-prices — update target sell/buy prices
+  router.patch('/investments/:id/target-prices', async (req: Request, res: Response) => {
+    const id = req.params['id'] as string;
+    const validation = validateUpdateTargetPricesInput(req.body);
+    if (!validation.success) {
+      res.status(400).json({ error: 'Validation failed', details: validation.errors });
+      return;
+    }
+    try {
+      const investment = await service.updateTargetPrices(id, validation.data);
+      res.json(investment);
+    } catch (err) {
+      if (err instanceof Error && err.message.includes('not found')) {
+        res.status(404).json({ error: err.message });
+        return;
+      }
+      throw err;
+    }
   });
 
   // PATCH /api/investments/:id/sector — update the sector of an investment

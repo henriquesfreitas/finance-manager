@@ -1,10 +1,11 @@
 {
   "enabled": true,
   "name": "Update PROJECT_RULES.md",
-  "description": "After a task completes, reminds the agent to check if any new patterns, conventions, services, or architectural decisions were introduced that should be documented in PROJECT_RULES.md.",
+  "description": "After the agent writes code files, checks if any new patterns, conventions, services, or architectural decisions were introduced that should be documented in PROJECT_RULES.md.",
   "version": "1",
   "when": {
-    "type": "agentStop"
+    "type": "postToolUse",
+    "toolTypes": ["write"]
   },
   "then": {
     "type": "askAgent",

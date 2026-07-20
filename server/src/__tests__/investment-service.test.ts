@@ -35,12 +35,16 @@ function makeFakePrisma(overrides: Partial<{
 function makeRow(partial: Partial<{
   id: string;
   ticker: string;
+  sector: string | null;
   archivedAt: Date | null;
 }> = {}) {
   return {
     id: partial.id ?? 'uuid-1',
     ticker: partial.ticker ?? 'ITUB3',
+    sector: partial.sector ?? null,
     archivedAt: partial.archivedAt ?? null,
+    targetSellPrice: null,
+    targetBuyPrice: null,
     createdAt: new Date('2026-01-01T00:00:00Z'),
     updatedAt: new Date('2026-01-01T00:00:00Z'),
     orders: [] as Array<{
@@ -75,11 +79,11 @@ describe('createInvestment', () => {
     });
     const svc = createInvestmentService(db);
 
-    const result = await svc.createInvestment({ ticker: 'ITUB3' });
+    const result = await svc.createInvestment({ ticker: 'ITUB3', sector: 'Bancos' });
 
     expect(result.ticker).toBe('ITUB3');
     expect(result.archivedAt).toBeNull();
-    expect(db.investment.create).toHaveBeenCalledWith({ data: { ticker: 'ITUB3' } });
+    expect(db.investment.create).toHaveBeenCalledWith({ data: { ticker: 'ITUB3', sector: 'Bancos' } });
   });
 
   it('throws with a 409-friendly message when ticker is already registered', async () => {
@@ -89,7 +93,7 @@ describe('createInvestment', () => {
     });
     const svc = createInvestmentService(db);
 
-    await expect(svc.createInvestment({ ticker: 'ITUB3' })).rejects.toThrow(
+    await expect(svc.createInvestment({ ticker: 'ITUB3', sector: 'Bancos' })).rejects.toThrow(
       'Ticker "ITUB3" is already registered',
     );
     expect(db.investment.create).not.toHaveBeenCalled();
@@ -251,6 +255,82 @@ describe('archiveInvestment', () => {
     await expect(svc.archiveInvestment('uuid-1')).rejects.toThrow(
       'Investment "ITUB3" is already archived',
     );
+    expect(db.investment.update).not.toHaveBeenCalled();
+  });
+});
+
+// ─── updateTargetPrices ───────────────────────────────────────────────────────
+
+describe('updateTargetPrices', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  /** Builds a Decimal-like stub as Prisma would return. */
+  function decimalStub(value: number) {
+    return { toString: () => String(value) };
+  }
+
+  it('updates targetSellPrice and returns the updated record', async () => {
+    const existing = makeRow({ ticker: 'ITUB3' });
+    const updated = {
+      ...existing,
+      targetSellPrice: decimalStub(35.5),
+      targetBuyPrice: null,
+    };
+    const db = makeFakePrisma({
+      findUnique: vi.fn().mockResolvedValue(existing),
+      update: vi.fn().mockResolvedValue(updated),
+    });
+    const svc = createInvestmentService(db);
+
+    const result = await svc.updateTargetPrices('uuid-1', { targetSellPrice: 35.5 });
+
+    expect(result.targetSellPrice).toBe('35.5');
+    expect(result.targetBuyPrice).toBeNull();
+    expect(db.investment.update).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: 'uuid-1' } }),
+    );
+  });
+
+  it('updates targetBuyPrice and returns the updated record', async () => {
+    const existing = makeRow({ ticker: 'ITUB3' });
+    const updated = {
+      ...existing,
+      targetSellPrice: null,
+      targetBuyPrice: decimalStub(28.0),
+    };
+    const db = makeFakePrisma({
+      findUnique: vi.fn().mockResolvedValue(existing),
+      update: vi.fn().mockResolvedValue(updated),
+    });
+    const svc = createInvestmentService(db);
+
+    const result = await svc.updateTargetPrices('uuid-1', { targetBuyPrice: 28.0 });
+
+    expect(result.targetBuyPrice).toBe('28');
+    expect(db.investment.update).toHaveBeenCalled();
+  });
+
+  it('clears targetSellPrice when null is passed', async () => {
+    const existing = makeRow({ ticker: 'ITUB3' });
+    const updated = { ...existing, targetSellPrice: null, targetBuyPrice: null };
+    const db = makeFakePrisma({
+      findUnique: vi.fn().mockResolvedValue(existing),
+      update: vi.fn().mockResolvedValue(updated),
+    });
+    const svc = createInvestmentService(db);
+
+    const result = await svc.updateTargetPrices('uuid-1', { targetSellPrice: null });
+
+    expect(result.targetSellPrice).toBeNull();
+  });
+
+  it('throws a not-found error when the investment does not exist', async () => {
+    const db = makeFakePrisma({ findUnique: vi.fn().mockResolvedValue(null) });
+    const svc = createInvestmentService(db);
+
+    await expect(
+      svc.updateTargetPrices('nonexistent', { targetSellPrice: 35.5 }),
+    ).rejects.toThrow('Investment with id "nonexistent" not found');
     expect(db.investment.update).not.toHaveBeenCalled();
   });
 });

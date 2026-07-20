@@ -11,15 +11,18 @@ datasource db {
 }
 
 model Investment {
-  id         String    @id @default(uuid())
-  ticker     String    @unique
+  id              String    @id @default(uuid())
+  ticker          String    @unique
   // Nullable first so existing rows survive the migration; required at app layer via Zod.
-  sector     String?
-  archivedAt DateTime?
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
-  orders     Order[]
-  comments   Comment[]
+  sector          String?
+  archivedAt      DateTime?
+  // User-defined price targets for buy/sell decisions. Nullable — not set by default.
+  targetSellPrice Decimal?  @db.Decimal(18, 8)
+  targetBuyPrice  Decimal?  @db.Decimal(18, 8)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  orders          Order[]
+  comments        Comment[]
 
   @@map("investments")
 }

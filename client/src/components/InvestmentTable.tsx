@@ -18,6 +18,9 @@ import {
   calculatePortfolioWeight,
   calculatePortfolioWeightByInvested,
 } from '@/lib/investment-calculator';
+import { EditablePriceCell } from '@/components/EditablePriceCell';
+import { useUpdateTargetPrices } from '@/hooks/useInvestments';
+import { toast } from 'sonner';
 
 interface InvestmentTableProps {
   investments: InvestmentListItem[];
@@ -92,7 +95,7 @@ export function InvestmentTable({
           <TableBody>
             {Array.from({ length: 3 }).map((_, i) => (
               <TableRow key={i}>
-                {Array.from({ length: 12 }).map((_, j) => (
+                {Array.from({ length: 14 }).map((_, j) => (
                   <TableCell key={j}>
                     <div className="h-4 w-full animate-pulse rounded bg-muted" />
                   </TableCell>
@@ -114,7 +117,7 @@ export function InvestmentTable({
           </TableHeader>
           <TableBody>
             <TableRow>
-              <TableCell colSpan={12} className="py-12 text-center text-muted-foreground">
+              <TableCell colSpan={14} className="py-12 text-center text-muted-foreground">
                 No investments yet. Click "Add Investment" to get started.
               </TableCell>
             </TableRow>
@@ -156,6 +159,8 @@ function TableHeaderRow(): React.JSX.Element {
       <TableHead className="text-right">Quantity</TableHead>
       <TableHead className="text-right">Avg Price</TableHead>
       <TableHead className="text-right">Current Price</TableHead>
+      <TableHead className="text-right">Target Sell</TableHead>
+      <TableHead className="text-right">Target Buy</TableHead>
       <TableHead className="text-right">Daily Change %</TableHead>
       <TableHead className="text-right">Total Invested</TableHead>
       <TableHead className="text-right">Current Total</TableHead>
@@ -182,10 +187,32 @@ function hasNoOrders(investment: InvestmentListItem): boolean {
 }
 
 function InvestmentRow({ investment, portfolioCurrentTotal, portfolioTotalInvested, onAddOrder, onArchive, onTickerClick }: InvestmentRowProps): React.JSX.Element {
+  const { mutate: saveTargetPrices, isPending: isSavingTargets } = useUpdateTargetPrices();
+
   const quantity = parseFloat(investment.position.quantity);
   const averagePrice = parseFloat(investment.position.averagePrice);
   const currentPrice = investment.quote?.currentPrice ?? null;
   const dailyChangePercent = investment.quote?.dailyChangePercent ?? null;
+
+  // Parse stored target prices (Decimal strings) to numbers for comparison/display
+  const targetSellPrice = investment.targetSellPrice !== null
+    ? parseFloat(investment.targetSellPrice)
+    : null;
+  const targetBuyPrice = investment.targetBuyPrice !== null
+    ? parseFloat(investment.targetBuyPrice)
+    : null;
+
+  // Color coding: sell target turns green when current >= target (time to sell)
+  const sellTargetClass =
+    currentPrice !== null && targetSellPrice !== null && currentPrice >= targetSellPrice
+      ? 'text-green-600 dark:text-green-400'
+      : '';
+
+  // Color coding: buy target turns green when current <= target (good entry point)
+  const buyTargetClass =
+    currentPrice !== null && targetBuyPrice !== null && currentPrice <= targetBuyPrice
+      ? 'text-green-600 dark:text-green-400'
+      : '';
 
   // When the investment has no orders, all computed fields are zero (Req 9.4)
   const noOrders = hasNoOrders(investment);
@@ -212,6 +239,24 @@ function InvestmentRow({ investment, portfolioCurrentTotal, portfolioTotalInvest
       ? `By invested: ${formatPortfolioPercent(portfolioWeightByInvested)}`
       : 'By invested: N/A';
 
+  function handleSellTargetSave(value: number | null): void {
+    saveTargetPrices(
+      { id: investment.id, targetSellPrice: value },
+      {
+        onError: () => toast.error(`Failed to save Target Sell for ${investment.ticker}`),
+      },
+    );
+  }
+
+  function handleBuyTargetSave(value: number | null): void {
+    saveTargetPrices(
+      { id: investment.id, targetBuyPrice: value },
+      {
+        onError: () => toast.error(`Failed to save Target Buy for ${investment.ticker}`),
+      },
+    );
+  }
+
   return (
     <TableRow>
       <TableCell className="font-medium">
@@ -234,6 +279,24 @@ function InvestmentRow({ investment, portfolioCurrentTotal, portfolioTotalInvest
         {currentPrice !== null
           ? formatCurrency(currentPrice)
           : <span className="text-muted-foreground">N/A</span>}
+      </TableCell>
+      <TableCell className={`text-right ${sellTargetClass}`}>
+        <EditablePriceCell
+          value={targetSellPrice}
+          onSave={handleSellTargetSave}
+          isPending={isSavingTargets}
+          className={sellTargetClass}
+          ariaLabel={`Edit Target Sell price for ${investment.ticker}`}
+        />
+      </TableCell>
+      <TableCell className={`text-right ${buyTargetClass}`}>
+        <EditablePriceCell
+          value={targetBuyPrice}
+          onSave={handleBuyTargetSave}
+          isPending={isSavingTargets}
+          className={buyTargetClass}
+          ariaLabel={`Edit Target Buy price for ${investment.ticker}`}
+        />
       </TableCell>
       <TableCell className={`text-right ${dailyChangePercent !== null ? profitColorClass(dailyChangePercent) : 'text-muted-foreground'}`}>
         {dailyChangePercent !== null ? formatPercent(dailyChangePercent) : 'N/A'}

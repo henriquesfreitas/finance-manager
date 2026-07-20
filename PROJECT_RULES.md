@@ -319,6 +319,7 @@ Each investment has an optional `sector` field from a predefined list (e.g. "Ban
 | Method | Path | Notes |
 |--------|------|-------|
 | GET | `/health` | Health check |
+| PATCH | `/api/investments/:id/target-prices` | Update target sell/buy prices (nullable Decimal) |
 | GET | `/api/investments` | List active investments (enriched with quotes + position) |
 | GET | `/api/investments/archived` | List archived investments (with final position) |
 | POST | `/api/investments` | Create investment (ticker + optional sector) |
@@ -350,6 +351,7 @@ All unexpected errors: caught by the global Express error handler, logged as JSO
 
 - Framework: Vitest + jsdom (`@testing-library/jest-dom` imported in `setup.ts`).
 - Run with: `npm test` (inside `client/`) — maps to `vitest run`.
+- Pool: `vmForks` + `fileParallelism: false` — required on Windows/Node 22 to avoid a Vitest v4 worker crash (vitest#8861 — `forks` pool crashes when Vite 8 is hoisted from `client/` into the module resolution path).
 - Test file naming: `<module-name>.test.ts`, placed in `__tests__/`.
 - Calculator tests use `toBeCloseTo` for floating-point comparisons.
 - No mocks for pure functions — pass plain numbers, assert plain numbers.
@@ -358,6 +360,7 @@ All unexpected errors: caught by the global Express error handler, logged as JSO
 
 - Framework: Vitest.
 - Run with: `npm test` (inside `server/`).
+- Pool: `vmForks` + `fileParallelism: false` — same reason as client (vitest#8861). The server also pins `"vite": "^6.3.5"` as a devDependency to prevent Vite 8 (the client dep) from being hoisted and breaking the Vitest worker.
 - **Service tests** (`investment-service.test.ts`): inject a fake Prisma client built with `vi.fn()`. Mock the Yahoo Finance service module with `vi.mock(...)`. Verify the service calls the right Prisma methods with the right arguments.
 - **Route tests** (`investment-routes.test.ts`): use a `FakeInvestmentService` class with `vi.fn()` methods. Mount the router on a minimal Express app with `supertest`. Mock both `createInvestmentService` and `lib/prisma-client.js`.
 - **Validator tests** (`investment-validator.test.ts`): call `validateInvestmentInput` directly with raw data. Assert `success`, `data`, or `errors` fields.
@@ -462,6 +465,8 @@ Investment (investments)
 ├── ticker: String UNIQUE
 ├── sector: String? (nullable for migration compat, required by app Zod schema)
 ├── archivedAt: DateTime?
+├── targetSellPrice: Decimal(18,8)? (nullable — user-defined sell target)
+├── targetBuyPrice: Decimal(18,8)? (nullable — user-defined buy target)
 ├── createdAt / updatedAt
 ├── → Order[] (1:N, onDelete: Restrict)
 └── → Comment[] (1:N, onDelete: Restrict)
@@ -532,3 +537,5 @@ npm run db:studio    # opens Prisma Studio in browser
 | 2026-07-17 | Comments system | Free-text notes on investments |
 | 2026-07-19 | Sectors | Optional sector classification for investments |
 | 2026-07-19 | Updated PROJECT_RULES.md | Documented orders, comments, archive, sectors, weighted average calculator, updated API endpoints |
+| 2026-07-20 | Target prices | Added targetSellPrice/targetBuyPrice to investments table. Inline editable cells in InvestmentTable with color coding (green when current price hits target). PATCH /api/investments/:id/target-prices endpoint. EditablePriceCell reusable component. |
+| 2026-07-20 | Fix test infrastructure | Root cause: Vite 8 (client dep) hoisted into server node_modules broke Vitest v4 workers. Fix: pin vite ^6 in server devDependencies; switch both vitest configs to pool: vmForks + fileParallelism: false (vitest#8861). All 143 server + 29 client tests now pass. |

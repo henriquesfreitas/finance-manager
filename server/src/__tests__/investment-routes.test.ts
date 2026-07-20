@@ -49,7 +49,10 @@ function buildApp(): express.Express {
 const RECORD: InvestmentRecord = {
   id: 'uuid-1',
   ticker: 'ITUB3',
+  sector: 'Bancos',
   archivedAt: null,
+  targetSellPrice: null,
+  targetBuyPrice: null,
   createdAt: '2026-01-01T00:00:00.000Z',
   updatedAt: '2026-01-01T00:00:00.000Z',
 };
@@ -151,7 +154,7 @@ describe('POST /api/investments', () => {
     fakeService.createInvestment.mockResolvedValueOnce(RECORD);
     const app = buildApp();
 
-    const res = await request(app).post('/api/investments').send({ ticker: 'ITUB3' });
+    const res = await request(app).post('/api/investments').send({ ticker: 'ITUB3', sector: 'Bancos' });
 
     expect(res.status).toBe(201);
     expect(res.body.ticker).toBe('ITUB3');
@@ -162,10 +165,10 @@ describe('POST /api/investments', () => {
     fakeService.createInvestment.mockResolvedValueOnce({ ...RECORD, ticker: 'PETR4' });
     const app = buildApp();
 
-    await request(app).post('/api/investments').send({ ticker: 'petr4' });
+    await request(app).post('/api/investments').send({ ticker: 'petr4', sector: 'Petróleo e Gás' });
 
     // The validator transforms to uppercase, so the service receives 'PETR4'
-    expect(fakeService.createInvestment).toHaveBeenCalledWith({ ticker: 'PETR4' });
+    expect(fakeService.createInvestment).toHaveBeenCalledWith({ ticker: 'PETR4', sector: 'Petróleo e Gás' });
   });
 
   it('returns 400 with validation errors when ticker is empty', async () => {
@@ -202,7 +205,7 @@ describe('POST /api/investments', () => {
     );
     const app = buildApp();
 
-    const res = await request(app).post('/api/investments').send({ ticker: 'ITUB3' });
+    const res = await request(app).post('/api/investments').send({ ticker: 'ITUB3', sector: 'Bancos' });
 
     expect(res.status).toBe(409);
     expect(res.body.error).toMatch(/already registered/);

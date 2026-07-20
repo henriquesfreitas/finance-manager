@@ -5,7 +5,8 @@ export default defineConfig({
     globals: true,
     environment: 'node',
     include: ['src/__tests__/**/*.test.ts'],
-    pool: 'forks', // prevents module-mock bleed-through between test files
+    pool: 'vmForks',        // vmForks: workers run correctly; vi.mock needs explicit re-import pattern
+    fileParallelism: false, // required: run serially to avoid module-cache collisions in vmForks
     coverage: {
       provider: 'v8',
       reporter: ['text', 'lcov', 'html'],
