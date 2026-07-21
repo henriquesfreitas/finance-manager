@@ -58,6 +58,7 @@ export function createOrder(
     price: data.price,
     // Convert Date → "YYYY-MM-DD" using local timezone to avoid UTC off-by-one
     orderDate: toLocalDateString(data.orderDate),
+    ...(data.contractedRate !== undefined && { contractedRate: data.contractedRate }),
   };
 
   return request<ComputedPosition>(`/api/investments/${investmentId}/orders`, {
@@ -84,6 +85,7 @@ export function updateOrder(
     ...(data.orderDate !== undefined && {
       orderDate: toLocalDateString(data.orderDate),
     }),
+    ...(data.contractedRate !== undefined && { contractedRate: data.contractedRate }),
     ...(data.averagePriceAtSell !== undefined && { averagePriceAtSell: data.averagePriceAtSell }),
   };
 

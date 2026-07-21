@@ -61,6 +61,7 @@ const editOrderSchema = z.object({
     },
     { message: 'Order date must not be in the future' },
   ),
+  contractedRate: z.number().positive('Rate must be greater than 0').nullable().optional(),
   averagePriceAtSell: z.number().positive('PM must be greater than 0').nullable().optional(),
 }).refine(
   (data) => data.type === 'SPLIT' || data.price > 0,
@@ -145,7 +146,15 @@ function OrderForm({ investmentId, isTreasury, onSuccess }: OrderFormProps): Rea
   function onSubmit(values: OrderFormValues): void {
     // SPLIT orders don't have a price — force it to 0
     const payload = values.type === 'SPLIT' ? { ...values, price: 0 } : values;
-    createOrder.mutate(payload, {
+    // Sanitize contractedRate: NaN (empty input) → undefined (don't send)
+    const sanitized = {
+      ...payload,
+      contractedRate:
+        payload.contractedRate != null && !Number.isNaN(payload.contractedRate)
+          ? payload.contractedRate
+          : undefined,
+    };
+    createOrder.mutate(sanitized, {
       onSuccess: () => {
         toast.success('Order added successfully');
         reset({
@@ -320,6 +329,10 @@ function EditOrderRow({
       quantity: parseFloat(order.quantity),
       price: parseFloat(order.price),
       orderDate: new Date(`${order.orderDate}T12:00:00`),
+      contractedRate:
+        order.contractedRate !== null && order.contractedRate !== undefined
+          ? parseFloat(order.contractedRate)
+          : null,
       averagePriceAtSell:
         order.averagePriceAtSell !== null && order.averagePriceAtSell !== undefined
           ? parseFloat(order.averagePriceAtSell)
@@ -330,11 +343,17 @@ function EditOrderRow({
   const selectedType = watch('type');
 
   function onSubmit(values: EditOrderFormValues): void {
+    // Sanitize contractedRate: NaN → undefined
+    const contractedRate =
+      values.contractedRate != null && !Number.isNaN(values.contractedRate)
+        ? values.contractedRate
+        : null;
     updateOrder.mutate(
       {
         orderId: order.id,
         data: {
           ...values,
+          contractedRate,
           // Only send averagePriceAtSell when editing a SELL order
           averagePriceAtSell:
             values.type === 'SELL' ? (values.averagePriceAtSell ?? null) : null,
@@ -440,7 +459,26 @@ function EditOrderRow({
             </div>
           </div>
 
-          {/* Row 3: PM at sell — only for SELL orders */}
+          {/* Row 3: Contracted Rate — only for BUY orders (treasury) */}
+          {selectedType === 'BUY' && (
+            <div className="grid gap-1">
+              <Input
+                type="number"
+                step="0.01"
+                placeholder="Rate % (e.g. 6.50)"
+                aria-label="Contracted rate"
+                aria-invalid={!!errors.contractedRate}
+                {...register('contractedRate', { valueAsNumber: true })}
+              />
+              {errors.contractedRate && (
+                <p className="text-xs text-destructive" role="alert">
+                  {errors.contractedRate.message}
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* Row 4: PM at sell — only for SELL orders */}
           {selectedType === 'SELL' && (
             <div className="grid gap-1">
               <Input

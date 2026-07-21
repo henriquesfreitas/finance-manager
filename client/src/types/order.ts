@@ -43,6 +43,8 @@ export interface AddOrderFormData {
   /** Unit price, must be > 0 */
   price: number;
   orderDate: Date;
+  /** Contracted rate for TREASURY orders (e.g. 6.5 for IPCA+ 6.5%). Optional. */
+  contractedRate?: number | null;
 }
 
 /**
@@ -54,6 +56,8 @@ export interface UpdateOrderFormData {
   quantity?: number;
   price?: number;
   orderDate?: Date;
+  /** Contracted rate — pass null to clear */
+  contractedRate?: number | null;
   /** Pass null to clear the PM snapshot */
   averagePriceAtSell?: number | null;
 }
