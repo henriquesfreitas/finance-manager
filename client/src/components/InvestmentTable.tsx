@@ -307,6 +307,8 @@ function InvestmentRow({ investment, portfolioCurrentTotal, portfolioTotalInvest
       <TableCell className="text-right">
         {noOrders
           ? <span className="text-muted-foreground">—</span>
+          : isTreasury
+          ? <span className="text-muted-foreground">—</span>
           : formatCurrency(averagePrice)}
       </TableCell>
       {/* Current Price: editable for TREASURY, read-only live quote for STOCK */}
