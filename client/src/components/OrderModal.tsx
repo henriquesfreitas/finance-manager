@@ -113,9 +113,11 @@ interface OrderFormProps {
 /**
  * Form for adding a new order (BUY or SELL).
  * Uses react-hook-form + Zod validation with inline error messages.
+ * For treasury investments, shows Total Invested + Quantity + Rate instead of Unit Price.
  */
 function OrderForm({ investmentId, isTreasury, onSuccess }: OrderFormProps): React.JSX.Element {
   const createOrder = useCreateOrder(investmentId);
+  const [totalInvested, setTotalInvested] = React.useState<string>('');
 
   const {
     register,
@@ -135,6 +137,7 @@ function OrderForm({ investmentId, isTreasury, onSuccess }: OrderFormProps): Rea
   });
 
   const selectedType = watch('type');
+  const quantity = watch('quantity');
 
   // When switching to SPLIT, auto-set price to 0 (hidden field)
   React.useEffect(() => {
@@ -142,6 +145,16 @@ function OrderForm({ investmentId, isTreasury, onSuccess }: OrderFormProps): Rea
       setValue('price', 0);
     }
   }, [selectedType, setValue]);
+
+  // For treasury: compute unit price from total / quantity
+  React.useEffect(() => {
+    if (isTreasury && totalInvested && quantity > 0) {
+      const total = parseFloat(totalInvested);
+      if (!Number.isNaN(total) && total > 0) {
+        setValue('price', total / quantity);
+      }
+    }
+  }, [isTreasury, totalInvested, quantity, setValue]);
 
   function onSubmit(values: OrderFormValues): void {
     // SPLIT orders don't have a price — force it to 0
@@ -164,6 +177,7 @@ function OrderForm({ investmentId, isTreasury, onSuccess }: OrderFormProps): Rea
           contractedRate: undefined,
           orderDate: new Date(`${todayISOString()}T12:00:00`),
         });
+        setTotalInvested('');
         onSuccess();
       },
       onError: (error: Error) => {
@@ -211,7 +225,7 @@ function OrderForm({ investmentId, isTreasury, onSuccess }: OrderFormProps): Rea
           id="order-quantity"
           type="number"
           step="any"
-          placeholder={selectedType === 'SPLIT' ? '2' : '100'}
+          placeholder={selectedType === 'SPLIT' ? '2' : isTreasury ? '1.23' : '100'}
           aria-invalid={!!errors.quantity}
           {...register('quantity', { valueAsNumber: true })}
         />
@@ -222,8 +236,29 @@ function OrderForm({ investmentId, isTreasury, onSuccess }: OrderFormProps): Rea
         )}
       </div>
 
-      {/* Unit Price — hidden for SPLIT (price is 0) */}
-      {selectedType !== 'SPLIT' && (
+      {/* Treasury: Total Invested — derives unit price */}
+      {isTreasury && selectedType !== 'SPLIT' && (
+        <div className="grid gap-1.5">
+          <Label htmlFor="order-total">Total Invested (R$)</Label>
+          <Input
+            id="order-total"
+            type="number"
+            step="any"
+            placeholder="5000.00"
+            value={totalInvested}
+            onChange={(e) => setTotalInvested(e.target.value)}
+          />
+          {/* Show derived unit price as helper text */}
+          {totalInvested && quantity > 0 && (
+            <p className="text-xs text-muted-foreground">
+              Unit price: R$ {(parseFloat(totalInvested) / quantity).toFixed(2)}
+            </p>
+          )}
+        </div>
+      )}
+
+      {/* Unit Price — shown for non-treasury, hidden for SPLIT */}
+      {!isTreasury && selectedType !== 'SPLIT' && (
         <div className="grid gap-1.5">
           <Label htmlFor="order-price">Unit Price (R$)</Label>
           <Input
@@ -241,6 +276,9 @@ function OrderForm({ investmentId, isTreasury, onSuccess }: OrderFormProps): Rea
           )}
         </div>
       )}
+
+      {/* Hidden price field for treasury (computed from total/qty) */}
+      {isTreasury && <input type="hidden" {...register('price', { valueAsNumber: true })} />}
 
       {/* Contracted Rate — only shown for treasury investments */}
       {isTreasury && selectedType === 'BUY' && (
