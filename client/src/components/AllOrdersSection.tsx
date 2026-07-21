@@ -10,6 +10,7 @@ import {
 import { useAllOrders } from '@/hooks/useOrders';
 import type { OrderWithTicker } from '@/types/order';
 import { calculateSellTotalInvested, calculateSellProfit } from '@/lib/investment-calculator';
+import { formatQuantity } from '@/lib/utils';
 
 /** Returns Tailwind text-color class based on order type. */
 function orderTypeColorClass(type: string): string {
@@ -105,8 +106,8 @@ export function AllOrdersSection(): React.JSX.Element {
                       </TableCell>
                       <TableCell className="text-right">
                         {order.type === 'SPLIT'
-                          ? `×${parseFloat(order.quantity).toFixed(2)}`
-                          : parseFloat(order.quantity).toFixed(2)}
+                          ? `×${formatQuantity(parseFloat(order.quantity))}`
+                          : formatQuantity(parseFloat(order.quantity))}
                       </TableCell>
                       <TableCell className="text-right">
                         {order.type === 'SPLIT'

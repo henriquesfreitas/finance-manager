@@ -25,6 +25,7 @@ import { useOrders, useCreateOrder, useUpdateOrder } from '@/hooks/useOrders';
 import type { InvestmentListItem } from '@/types/investment';
 import type { OrderListItem } from '@/types/order';
 import { calculateSellTotalInvested, calculateSellProfit } from '@/lib/investment-calculator';
+import { formatQuantity } from '@/lib/utils';
 
 // ─── Validation schemas ───────────────────────────────────────────────────────
 
@@ -555,8 +556,8 @@ function OrderHistory({ investmentId, isTreasury }: OrderHistoryProps): React.JS
                   </TableCell>
                   <TableCell className="text-right">
                     {order.type === 'SPLIT'
-                      ? `×${parseFloat(order.quantity).toFixed(2)}`
-                      : parseFloat(order.quantity).toFixed(2)}
+                      ? `×${formatQuantity(parseFloat(order.quantity))}`
+                      : formatQuantity(parseFloat(order.quantity))}
                   </TableCell>
                   <TableCell className="text-right">
                     {order.type === 'SPLIT' ? '—' : parseFloat(order.price).toFixed(2)}

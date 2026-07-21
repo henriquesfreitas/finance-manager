@@ -21,6 +21,7 @@ import {
 import { EditablePriceCell } from '@/components/EditablePriceCell';
 import { useUpdateTargetPrices, useUpdateCurrentValue } from '@/hooks/useInvestments';
 import { toast } from 'sonner';
+import { formatQuantity } from '@/lib/utils';
 
 interface InvestmentTableProps {
   investments: InvestmentListItem[];
@@ -301,7 +302,7 @@ function InvestmentRow({ investment, portfolioCurrentTotal, portfolioTotalInvest
       <TableCell className="text-right">
         {noOrders
           ? <span className="text-muted-foreground">—</span>
-          : quantity.toLocaleString('pt-BR')}
+          : formatQuantity(quantity)}
       </TableCell>
       <TableCell className="text-right">
         {noOrders

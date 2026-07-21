@@ -14,6 +14,7 @@ import { useArchivedInvestments } from '@/hooks/useInvestments';
 import { useOrders } from '@/hooks/useOrders';
 import type { ArchivedInvestmentItem } from '@/types/investment';
 import type { OrderListItem, OrderType } from '@/types/order';
+import { formatQuantity } from '@/lib/utils';
 
 /** Formats a number as BRL currency. */
 function formatCurrency(value: number): string {
@@ -112,7 +113,7 @@ function ArchivedInvestmentRows({
   onToggle,
   onTickerClick,
 }: ArchivedInvestmentRowsProps): React.JSX.Element {
-  const quantity = parseFloat(investment.position.quantity).toFixed(2);
+  const quantity = formatQuantity(parseFloat(investment.position.quantity));
   const averagePrice = parseFloat(investment.position.averagePrice);
   const archivedDate = formatDate(investment.archivedAt);
 
@@ -227,7 +228,7 @@ interface OrderRowProps {
 
 /** Renders a single order row inside the expanded order history sub-table. */
 function OrderRow({ order }: OrderRowProps): React.JSX.Element {
-  const quantity = parseFloat(order.quantity).toFixed(2);
+  const quantity = formatQuantity(parseFloat(order.quantity));
   const price = parseFloat(order.price);
   const total = parseFloat(order.quantity) * price;
 
