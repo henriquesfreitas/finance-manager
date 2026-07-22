@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { AlertCircle, RefreshCw } from 'lucide-react';
+import { AlertCircle, RefreshCw, LogOut, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { AddInvestmentForm } from '@/components/AddInvestmentForm';
 import { InvestmentTable } from '@/components/InvestmentTable';
@@ -9,6 +9,7 @@ import { ArchiveSection } from '@/components/ArchiveSection';
 import { AllOrdersSection } from '@/components/AllOrdersSection';
 import { CommentModal } from '@/components/CommentModal';
 import { useActiveInvestments } from '@/hooks/useInvestments';
+import { useAuth } from '@/contexts/auth-context';
 import type { InvestmentListItem } from '@/types/investment';
 
 /**
@@ -24,6 +25,17 @@ import type { InvestmentListItem } from '@/types/investment';
  */
 export function HomePage(): React.JSX.Element {
   const { data: investments = [], isLoading, isError, refetch } = useActiveInvestments();
+  const { logout, admin } = useAuth();
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+
+  async function handleLogout(): Promise<void> {
+    setIsLoggingOut(true);
+    try {
+      await logout();
+    } finally {
+      setIsLoggingOut(false);
+    }
+  }
 
   // ── Order modal state ────────────────────────────────────────────────────────
   const [orderModalOpen, setOrderModalOpen] = useState(false);
@@ -87,7 +99,28 @@ export function HomePage(): React.JSX.Element {
     <div className="container mx-auto px-4 py-8">
       {/* ── Header ──────────────────────────────────────────────────────────── */}
       <div className="mb-6">
-        <h1 className="mb-4 text-2xl font-bold tracking-tight">Finance Investment Manager</h1>
+        <div className="mb-4 flex items-center justify-between">
+          <h1 className="text-2xl font-bold tracking-tight">Finance Investment Manager</h1>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => void handleLogout()}
+            disabled={isLoggingOut}
+            aria-label="Sign out"
+          >
+            {isLoggingOut ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <>
+                <LogOut className="mr-2 h-4 w-4" />
+                {admin?.username && (
+                  <span className="hidden sm:inline">{admin.username}</span>
+                )}
+                <span className="sr-only sm:not-sr-only sm:ml-1">Sign out</span>
+              </>
+            )}
+          </Button>
+        </div>
         <AddInvestmentForm />
       </div>
 

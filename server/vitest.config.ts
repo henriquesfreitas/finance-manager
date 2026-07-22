@@ -5,8 +5,8 @@ export default defineConfig({
     globals: true,
     environment: 'node',
     include: ['src/__tests__/**/*.test.ts'],
-    pool: 'vmForks',        // vmForks: workers run correctly; vi.mock needs explicit re-import pattern
-    fileParallelism: false, // required: run serially to avoid module-cache collisions in vmForks
+    pool: 'forks',          // forks: each test file runs in a fresh process — reliable module isolation
+    fileParallelism: false, // run serially: integration tests use a shared DB, parallelism would cause conflicts
     coverage: {
       provider: 'v8',
       reporter: ['text', 'lcov', 'html'],

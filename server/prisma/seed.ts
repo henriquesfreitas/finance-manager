@@ -1,11 +1,12 @@
 /**
- * Prisma seed script — populates the treasury_products catalog.
+ * Prisma seed script — populates the treasury_products catalog and admin user.
  * Run with: node --import tsx/esm prisma/seed.ts
  * (or via `npm run db:seed` defined in package.json)
  *
  * Safe to re-run — uses upsert so existing rows are not duplicated.
  */
 import { PrismaClient } from '@prisma/client';
+import { seedAdmin } from './seed-admin.js';
 
 const prisma = new PrismaClient();
 
@@ -46,6 +47,8 @@ async function main(): Promise<void> {
 
   const count = await prisma.treasuryProduct.count();
   console.log(`Done. ${count} treasury products in catalog.`);
+
+  await seedAdmin(prisma);
 }
 
 main()
