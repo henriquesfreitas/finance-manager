@@ -750,3 +750,63 @@ npm run db:studio    # opens Prisma Studio in browser
 | 2026-07-21 | Auth API client property test (task 6.4) | Added `client/src/__tests__/auth-api-client.property.test.ts` — Property 10 (Validates: Requirements 4.3). Installed `fast-check` as a client devDependency. 100 iterations each for login, logout, fetchCurrentAdmin: for any arbitrary 401 error message string, the function throws an Error whose message matches the server's `error` field. 3 property tests pass. |
 | 2026-07-21 | Auth context (task 6.3) | Added `client/src/contexts/auth-context.tsx` — `AuthProvider` + `useAuth`. State: `isAuthenticated`, `isLoading`, `admin`. On mount calls `fetchCurrentAdmin()` with 5 s timeout (Req 4.5). `login()` propagates errors to caller. `logout()` wraps API call with 10 s timeout; always clears auth state and calls `queryClient.clear()` on success or failure (Req 5.3–5.5). Accepts `queryClient` prop for cache clearing. Added `@testing-library/dom@10` devDependency (peer dep of `@testing-library/react`). 13 unit tests in `auth-context.test.tsx`; 73 client tests pass. |
 | 2026-07-21 | Server integration tests (task 10.1) | Added `server/src/__tests__/auth-integration.test.ts` — full-stack integration tests using real PostgreSQL, Supertest, and PrismaClient. Covers: login flow (token + httpOnly cookie + session DB record), invalid credential error parity, validation errors, protected route access (no cookie / malformed token / valid token / sliding-window refresh), logout (204 + Max-Age=0 cookie + DB deletion + post-logout 401), and rate limiting (429 + Retry-After header). `afterEach` resets the module-level rate-limiter via a successful login (calls internal `rateLimiter.reset(ip)`). 300 server tests pass. |
+
+
+---
+
+## Production Deployment
+
+The project deploys to a single VPS using Docker Compose with multi-container orchestration.
+
+### Architecture
+
+```
+Internet → nginx (SSL termination, rate limiting, static assets)
+             ├── /api/*    → server container (Express, port 3000)
+             └── /*        → client container (nginx serving static SPA)
+         postgres container (internal network, not exposed)
+         certbot (auto-renews Let's Encrypt certificates)
+```
+
+### Files
+
+| File | Purpose |
+|------|---------|
+| `docker-compose.prod.yml` | Full-stack production Docker Compose |
+| `server/Dockerfile` | Multi-stage Node 22 build for Express API |
+| `client/Dockerfile` | Multi-stage build → nginx for SPA serving |
+| `client/nginx.conf` | Inner nginx config for the client container |
+| `nginx/nginx.conf` | Outer reverse proxy config (rate limits, gzip) |
+| `nginx/conf.d/default.conf` | Server blocks (HTTP→HTTPS redirect, SSL, proxy) |
+| `.env.production.example` | Template for production environment variables |
+| `scripts/setup-vps.sh` | One-time VPS security setup (firewall, fail2ban, swap) |
+| `scripts/setup-ssl.sh` | One-time SSL provisioning via Let's Encrypt |
+| `scripts/deploy.sh` | Build + deploy + migrate (run after `git pull`) |
+| `scripts/backup-db.sh` | Automated PostgreSQL backup with retention |
+
+### Security hardening
+
+- UFW firewall (ports 22, 80, 443 only)
+- fail2ban on SSH (3 attempts → 2h ban)
+- SSH key-only authentication, root login disabled
+- Let's Encrypt TLS 1.2/1.3 with auto-renewal
+- nginx rate limiting: 30 req/s API, 5 req/min login
+- HSTS, X-Frame-Options, X-Content-Type-Options headers
+- Docker containers run as non-root
+- Database not exposed externally (internal Docker network)
+
+### Deployment commands (on VPS)
+
+```bash
+# Initial setup (once)
+sudo bash scripts/setup-vps.sh
+# Prepare env
+cp .env.production.example .env   # fill in real values
+# SSL (once, after DNS is configured)
+bash scripts/setup-ssl.sh
+# Deploy (every time)
+git pull origin main
+bash scripts/deploy.sh
+# Backup (add to crontab)
+bash scripts/backup-db.sh
+```

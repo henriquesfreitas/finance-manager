@@ -32,3 +32,8 @@ server/prisma/*.db
 
 # Docker volumes
 pgdata/
+
+# Production
+backups/
+certbot/
+nginx/ssl/
