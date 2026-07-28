@@ -58,7 +58,8 @@ sed -i 's/PasswordAuthentication yes/PasswordAuthentication no/' /etc/ssh/sshd_c
 sed -i 's/#PermitRootLogin yes/PermitRootLogin no/' /etc/ssh/sshd_config
 sed -i 's/PermitRootLogin yes/PermitRootLogin no/' /etc/ssh/sshd_config
 
-systemctl reload sshd
+# Ubuntu 24.04 uses ssh.service (not sshd.service)
+systemctl reload ssh
 
 # ── Docker (if not installed) ─────────────────────────────────────────────────
 if ! command -v docker &> /dev/null; then

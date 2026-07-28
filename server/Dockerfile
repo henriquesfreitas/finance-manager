@@ -6,7 +6,7 @@ WORKDIR /app
 # Install dependencies first (layer cache)
 COPY package.json package-lock.json ./
 COPY prisma ./prisma/
-RUN npm ci
+RUN npm install
 
 # Generate Prisma client
 RUN npx prisma generate
@@ -27,7 +27,7 @@ RUN addgroup -S appgroup && adduser -S appuser -G appgroup
 # Install production dependencies + tsx (needed for prisma seed)
 COPY package.json package-lock.json ./
 COPY prisma ./prisma/
-RUN npm ci --omit=dev && npm install tsx && npx prisma generate
+RUN npm install --omit=dev && npm install tsx && npx prisma generate
 
 # Copy built output from builder
 COPY --from=builder /app/dist ./dist/
