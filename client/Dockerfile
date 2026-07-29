@@ -16,7 +16,8 @@ COPY @/ ./@/
 ARG VITE_API_BASE_URL
 ENV VITE_API_BASE_URL=${VITE_API_BASE_URL}
 
-RUN npm run build
+# Skip tsc type-checking in Docker (Vite handles TS transpilation; type-check runs in CI/local dev)
+RUN npx vite build
 
 # ── Stage 2: Serve with nginx ────────────────────────────────────────────────
 FROM nginx:alpine AS production
