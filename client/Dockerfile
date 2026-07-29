@@ -8,7 +8,7 @@ COPY package.json package-lock.json ./
 RUN npm install --legacy-peer-deps
 
 # Copy source and build
-COPY tsconfig.json index.html vite.config.ts components.json ./
+COPY tsconfig.json tsconfig.app.json tsconfig.node.json index.html vite.config.ts components.json ./
 COPY src ./src/
 COPY @/ ./@/
 
