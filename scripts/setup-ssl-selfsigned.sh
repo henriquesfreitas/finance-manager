@@ -63,6 +63,8 @@ server {
     http2 on;
     server_name _;
 
+    resolver 127.0.0.11 valid=10s;
+
     ssl_certificate /etc/nginx/ssl/fullchain.pem;
     ssl_certificate_key /etc/nginx/ssl/privkey.pem;
 
@@ -79,9 +81,20 @@ server {
     add_header Referrer-Policy "strict-origin-when-cross-origin" always;
 
     # API proxy — rate limited
+    location /api/auth/login {
+        limit_req zone=login burst=3 nodelay;
+        set \$backend_server server:3000;
+        proxy_pass http://\$backend_server;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+    }
+
     location /api/ {
         limit_req zone=api burst=50 nodelay;
-        proxy_pass http://server:3000;
+        set \$backend_server server:3000;
+        proxy_pass http://\$backend_server;
         proxy_set_header Host \$host;
         proxy_set_header X-Real-IP \$remote_addr;
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
@@ -89,25 +102,17 @@ server {
         proxy_read_timeout 30s;
     }
 
-    # Login endpoint — stricter rate limit
-    location /api/auth/login {
-        limit_req zone=login burst=3 nodelay;
-        proxy_pass http://server:3000;
-        proxy_set_header Host \$host;
-        proxy_set_header X-Real-IP \$remote_addr;
-        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto \$scheme;
-    }
-
     # Health check (no rate limit)
     location /health {
-        proxy_pass http://server:3000;
+        set \$backend_server server:3000;
+        proxy_pass http://\$backend_server;
         proxy_set_header Host \$host;
     }
 
     # Static frontend
     location / {
-        proxy_pass http://client:80;
+        set \$backend_client client:80;
+        proxy_pass http://\$backend_client;
         proxy_set_header Host \$host;
         proxy_set_header X-Real-IP \$remote_addr;
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
