@@ -74,10 +74,8 @@ export function validateCreateOrderInput(raw: unknown):
   const parsed = createOrderSchema.safeParse(raw);
 
   if (parsed.success) {
-    return { success: true, data: parsed.data };
+    return { success: true, data: parsed.data as CreateOrderInput };
   }
-
-  // Flatten ZodError into a field→messages map for consistent API error shape
   const errors: Record<string, string[]> = {};
   for (const issue of parsed.error.issues) {
     const field = issue.path.join('.') || '_root';
@@ -154,7 +152,7 @@ export function validateUpdateOrderInput(raw: unknown):
   const parsed = updateOrderSchema.safeParse(raw);
 
   if (parsed.success) {
-    return { success: true, data: parsed.data };
+    return { success: true, data: parsed.data as UpdateOrderInput };
   }
 
   const errors: Record<string, string[]> = {};

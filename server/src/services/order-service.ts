@@ -11,7 +11,7 @@ import type { OrderEntry } from './weighted-average-calculator.js';
 function toOrderRecord(record: {
   id: string;
   investmentId: string;
-  type: 'BUY' | 'SELL';
+  type: OrderType;
   quantity: { toString(): string };
   price: { toString(): string };
   contractedRate?: { toString(): string } | null;
