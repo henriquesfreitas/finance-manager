@@ -132,27 +132,59 @@ export function InvestmentTable({
     );
   }
 
+  // Split investments into those with a position (has orders) and watchlist (no orders)
+  const invested = investments.filter((inv) => parseFloat(inv.position.quantity) > 0);
+  const watchlist = investments.filter((inv) => parseFloat(inv.position.quantity) === 0);
+
   return (
-    <div className="rounded-md border">
-      <Table>
-        <TableHeader>
-          <TableHeaderRow />
-        </TableHeader>
-        <TableBody>
-          {investments.map((investment) => (
-            <InvestmentRow
-              key={investment.id}
-              investment={investment}
-              portfolioCurrentTotal={portfolioCurrentTotal}
-              portfolioTotalInvested={portfolioTotalInvested}
-              onAddOrder={onAddOrder}
-              onArchive={onArchive}
-              onTickerClick={onTickerClick}
-            />
-          ))}
-        </TableBody>
-      </Table>
-    </div>
+    <>
+      <div className="rounded-md border">
+        <Table>
+          <TableHeader>
+            <TableHeaderRow />
+          </TableHeader>
+          <TableBody>
+            {invested.map((investment) => (
+              <InvestmentRow
+                key={investment.id}
+                investment={investment}
+                portfolioCurrentTotal={portfolioCurrentTotal}
+                portfolioTotalInvested={portfolioTotalInvested}
+                onAddOrder={onAddOrder}
+                onArchive={onArchive}
+                onTickerClick={onTickerClick}
+              />
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+
+      {watchlist.length > 0 && (
+        <>
+          <h2 className="mt-6 mb-2 text-lg font-semibold">Watchlist</h2>
+          <div className="rounded-md border">
+            <Table>
+              <TableHeader>
+                <TableHeaderRow />
+              </TableHeader>
+              <TableBody>
+                {watchlist.map((investment) => (
+                  <InvestmentRow
+                    key={investment.id}
+                    investment={investment}
+                    portfolioCurrentTotal={portfolioCurrentTotal}
+                    portfolioTotalInvested={portfolioTotalInvested}
+                    onAddOrder={onAddOrder}
+                    onArchive={onArchive}
+                    onTickerClick={onTickerClick}
+                  />
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </>
+      )}
+    </>
   );
 }
 
