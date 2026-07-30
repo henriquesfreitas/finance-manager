@@ -391,23 +391,24 @@ function InvestmentRow({ investment, portfolioCurrentTotal, portfolioTotalInvest
         )}
       </TableCell>
       <TableCell className="text-right">
-        <div className="flex justify-end gap-2">
+        <div className="flex justify-end gap-1">
           <Button
             variant="ghost"
             size="sm"
+            className="h-5 w-5 p-0"
             onClick={() => onAddOrder(investment)}
             aria-label={`Add order for ${displayLabel}`}
           >
-            <PlusCircle className="h-4 w-4" />
+            <PlusCircle className="h-3.5 w-3.5" />
           </Button>
           <Button
             variant="ghost"
             size="sm"
+            className="h-5 w-5 p-0 text-destructive hover:text-destructive"
             onClick={() => onArchive(investment)}
             aria-label={`Archive ${displayLabel}`}
-            className="text-destructive hover:text-destructive"
           >
-            <Archive className="h-4 w-4" />
+            <Archive className="h-3.5 w-3.5" />
           </Button>
         </div>
       </TableCell>

@@ -91,7 +91,7 @@ export function EditablePriceCell({
         onKeyDown={handleKeyDown}
         disabled={isPending}
         aria-label={ariaLabel}
-        className="w-24 rounded border border-input bg-background px-1 py-0.5 text-right text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+        className="w-24 rounded border border-input bg-background px-1 py-0 text-right text-[10pt] leading-5 focus:outline-none focus:ring-1 focus:ring-ring"
       />
     );
   }
@@ -102,7 +102,7 @@ export function EditablePriceCell({
       disabled={isPending}
       aria-label={ariaLabel}
       title="Click to set price target"
-      className={`w-full cursor-text text-right text-sm hover:underline focus-visible:outline-none focus-visible:underline ${className}`}
+      className={`w-full cursor-text text-right text-[10pt] leading-5 hover:underline focus-visible:outline-none focus-visible:underline ${className}`}
     >
       {value !== null ? (
         formatCurrency(value)
