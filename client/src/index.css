@@ -36,5 +36,7 @@
   body {
     background-color: var(--color-background);
     color: var(--color-foreground);
+    font-family: Calibri, "Segoe UI", sans-serif;
+    font-size: 10pt;
   }
 }
