@@ -125,13 +125,13 @@ LATEST_CHANGE=$(docker compose -f docker-compose.prod.yml exec -T postgres \
   psql -U "${POSTGRES_USER}" -d "${POSTGRES_DB}" -t -A -c "
     SELECT COALESCE(MAX(latest), 'epoch'::timestamptz)
     FROM (
-      SELECT MAX(updated_at) AS latest FROM investments
+      SELECT MAX("updatedAt") AS latest FROM investments
       UNION ALL
-      SELECT MAX(updated_at) AS latest FROM orders
+      SELECT MAX("updatedAt") AS latest FROM orders
       UNION ALL
-      SELECT MAX(updated_at) AS latest FROM comments
+      SELECT MAX("updatedAt") AS latest FROM comments
       UNION ALL
-      SELECT MAX(created_at) AS latest FROM treasury_products
+      SELECT MAX("createdAt") AS latest FROM treasury_products
     ) sub;
   " 2>&1) || { send_failure_email "Could not query database: ${LATEST_CHANGE}"; exit 1; }
 
@@ -189,10 +189,10 @@ INVESTMENTS_ROWS=$(docker compose -f docker-compose.prod.yml exec -T postgres \
       ticker,
       type,
       COALESCE(sector, '-')                    AS sector,
-      CASE WHEN archived_at IS NOT NULL THEN 'archived' ELSE 'active' END AS status,
-      to_char(updated_at AT TIME ZONE 'America/Sao_Paulo', 'DD/MM/YY HH24:MI') AS updated
+      CASE WHEN "archivedAt" IS NOT NULL THEN 'archived' ELSE 'active' END AS status,
+      to_char("updatedAt" AT TIME ZONE 'America/Sao_Paulo', 'DD/MM/YY HH24:MI') AS updated
     FROM investments
-    WHERE updated_at >= NOW() - INTERVAL '7 days'
+    WHERE "updatedAt" >= NOW() - INTERVAL '7 days'
     ORDER BY updated_at DESC
     LIMIT 10;
   " 2>/dev/null || echo "")
@@ -204,11 +204,11 @@ ORDERS_ROWS=$(docker compose -f docker-compose.prod.yml exec -T postgres \
       o.type,
       TRIM(TO_CHAR(o.quantity::numeric,    '999999990.99')) AS qty,
       TRIM(TO_CHAR(o.price::numeric,       'FM999999990.00')) AS price,
-      to_char(o.order_date, 'DD/MM/YY')   AS order_date,
-      to_char(o.updated_at AT TIME ZONE 'America/Sao_Paulo', 'DD/MM/YY HH24:MI') AS updated
+      to_char(o."orderDate", 'DD/MM/YY')   AS order_date,
+      to_char(o."updatedAt" AT TIME ZONE 'America/Sao_Paulo', 'DD/MM/YY HH24:MI') AS updated
     FROM orders o
-    JOIN investments i ON i.id = o.investment_id
-    WHERE o.updated_at >= NOW() - INTERVAL '7 days'
+    JOIN investments i ON i.id = o."investmentId"
+    WHERE o."updatedAt" >= NOW() - INTERVAL '7 days'
     ORDER BY o.updated_at DESC
     LIMIT 10;
   " 2>/dev/null || echo "")
