@@ -201,6 +201,69 @@ Base URL: `http://localhost:3000`
 - `profit = currentTotal − totalInvested`
 - `totalVariation = (profit / totalInvested) × 100`
 
+## Automated Backup (Production)
+
+The script `scripts/backup-db.sh` runs a PostgreSQL dump, uploads it to Cloudflare R2, and sends an HTML email report via Resend — but only when data has actually changed since the last run.
+
+### How it works
+
+- Queries `MAX(updatedAt)` across `investments`, `orders`, `comments`, and `treasury_products`
+- Compares against a timestamp marker saved after the last successful backup
+- If nothing changed, exits silently — no dump, no email
+- On change: runs `pg_dump | gzip`, uploads via `rclone`, sends success email with a summary of the last 7 days of activity
+- On any failure (DB down, rclone error, etc): sends a failure alert email instead
+
+### Dependencies on the server
+
+```bash
+# rclone (for R2 upload)
+curl https://rclone.org/install.sh | sudo bash
+
+# curl and python3 are pre-installed on Ubuntu/Oracle Linux
+```
+
+### rclone R2 configuration
+
+Create `~/.config/rclone/rclone.conf` on the server:
+
+```ini
+[r2]
+type = s3
+provider = Cloudflare
+access_key_id = YOUR_ACCESS_KEY_ID
+secret_access_key = YOUR_SECRET_ACCESS_KEY
+endpoint = https://YOUR_ACCOUNT_ID.r2.cloudflarestorage.com
+```
+
+Get credentials from the Cloudflare dashboard → R2 → Manage R2 API tokens.
+
+### Required env vars
+
+Add these to the production `.env` (see `.env.production.example`):
+
+```bash
+BACKUP_NOTIFY_EMAIL=you@gmail.com
+BACKUP_FROM_EMAIL=backup@yourdomain.com   # verified sender in Resend
+RESEND_API_KEY=re_xxxxxxxxxxxxxxxxxxxx    # send-only key from resend.com
+```
+
+### Cron job
+
+```bash
+crontab -e
+# Runs every 6 hours; skips silently if no data changed
+0 */6 * * * /opt/finance-manager/scripts/backup-db.sh >> /var/log/finance-backup.log 2>&1
+```
+
+### Email notifications
+
+- **Success**: subject `✅ Backup YYYYMMDD_HHMMSS — <size>` with investments and orders tables from the last 7 days
+- **Failure**: subject `⚠ Backup FAILED` with the error reason and a pointer to the log file
+
+The `RESEND_API_KEY` is send-only scoped — it cannot read email or access your Google account. Safe to store in `.env`.
+
+---
+
 ## Troubleshooting
 
 **"Can't reach database server"** — Make sure Docker is running and `docker compose up -d` was executed from the project root.
