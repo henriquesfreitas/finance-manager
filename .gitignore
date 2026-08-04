@@ -37,3 +37,4 @@ pgdata/
 backups/
 certbot/
 nginx/ssl/
+.env.prod
