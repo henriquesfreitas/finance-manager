@@ -274,8 +274,6 @@ export function createOrderService(db: PrismaClient) {
         averagePrice: updatedPosition.averagePrice.toString(),
       };
     },
-  };
-}
 
     /**
      * Deletes an existing order and validates that removing it does not leave
