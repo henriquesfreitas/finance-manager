@@ -87,6 +87,7 @@ export function deleteOrder(
  *
  * PUT /api/investments/:id/orders/:orderId
  */
+export function updateOrder(
   investmentId: string,
   orderId: string,
   data: UpdateOrderFormData,
