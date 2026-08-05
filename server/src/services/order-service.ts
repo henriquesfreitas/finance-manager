@@ -277,4 +277,79 @@ export function createOrderService(db: PrismaClient) {
   };
 }
 
+    /**
+     * Deletes an existing order and validates that removing it does not leave
+     * the position in an invalid state (e.g. a later SELL now exceeds quantity).
+     *
+     * Returns the updated computed position after deletion.
+     *
+     * Throws with a descriptive message when:
+     * - the order is not found or belongs to a different investment
+     * - the investment is archived
+     * - removing the order would produce a negative position at any point in time
+     *
+     * @example
+     *   await svc.deleteOrder(investmentId, orderId);
+     */
+    async deleteOrder(
+      investmentId: string,
+      orderId: string,
+    ): Promise<ComputedPosition> {
+      // 1. Verify order exists and belongs to this investment
+      const order = await db.order.findUnique({ where: { id: orderId } });
+      if (!order || order.investmentId !== investmentId) {
+        throw new Error(`Order with id "${orderId}" not found for this investment`);
+      }
+
+      // 2. Verify investment is not archived
+      const investment = await db.investment.findUnique({ where: { id: investmentId } });
+      if (!investment) {
+        throw new Error(`Investment with id "${investmentId}" not found`);
+      }
+      if (investment.archivedAt !== null) {
+        throw new Error(`Investment "${investment.ticker}" is already archived`);
+      }
+
+      // 3. Simulate deletion: check remaining orders produce no negative position
+      const allOrders = await db.order.findMany({
+        where: { investmentId },
+        orderBy: [{ orderDate: 'asc' }, { createdAt: 'asc' }],
+      });
+
+      const remainingEntries: OrderEntry[] = allOrders
+        .filter((o) => o.id !== orderId)
+        .map((o) => ({
+          type: o.type as OrderType,
+          quantity: o.quantity.toNumber(),
+          price: o.price.toNumber(),
+        }));
+
+      let runningQuantity = 0;
+      for (const entry of remainingEntries) {
+        if (entry.type === 'BUY' || entry.type === 'BONUS') {
+          runningQuantity += entry.quantity;
+        } else if (entry.type === 'SPLIT') {
+          runningQuantity *= entry.quantity;
+        } else {
+          runningQuantity -= entry.quantity;
+          if (runningQuantity < 0) {
+            throw new Error(
+              `Cannot delete this order: a later SELL order would exceed the available position.`,
+            );
+          }
+        }
+      }
+
+      // 4. Delete the order
+      await db.order.delete({ where: { id: orderId } });
+
+      const updatedPosition = calculator.computePosition(remainingEntries);
+      return {
+        quantity: updatedPosition.quantity.toString(),
+        averagePrice: updatedPosition.averagePrice.toString(),
+      };
+    },
+  };
+}
+
 export type OrderService = ReturnType<typeof createOrderService>;

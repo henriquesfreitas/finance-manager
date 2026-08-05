@@ -92,5 +92,32 @@ export function createOrderRouter(): Router {
     }
   });
 
+  // DELETE /api/investments/:id/orders/:orderId — delete an existing order
+  router.delete('/investments/:id/orders/:orderId', async (req: Request, res: Response) => {
+    const investmentId = req.params['id'] as string;
+    const orderId = req.params['orderId'] as string;
+
+    try {
+      const position = await service.deleteOrder(investmentId, orderId);
+      res.json(position);
+    } catch (err) {
+      if (err instanceof Error) {
+        if (err.message.includes('not found')) {
+          res.status(404).json({ error: err.message });
+          return;
+        }
+        if (err.message.includes('already archived')) {
+          res.status(409).json({ error: err.message });
+          return;
+        }
+        if (err.message.includes('Cannot delete this order')) {
+          res.status(422).json({ error: err.message });
+          return;
+        }
+      }
+      throw err;
+    }
+  });
+
   return router;
 }

@@ -10,6 +10,7 @@ import {
   fetchAllOrders,
   createOrder,
   updateOrder,
+  deleteOrder,
   type ComputedPosition,
 } from '../services/order-api-client';
 import type { AddOrderFormData, UpdateOrderFormData, OrderListItem, OrderWithTicker } from '../types/order';
@@ -83,6 +84,28 @@ export function useUpdateOrder(
   return useMutation({
     mutationFn: ({ orderId, data }: { orderId: string; data: UpdateOrderFormData }) =>
       updateOrder(investmentId, orderId, data),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['orders', investmentId] });
+      void qc.invalidateQueries({ queryKey: ACTIVE_INVESTMENTS_QUERY_KEY });
+      void qc.invalidateQueries({ queryKey: ALL_ORDERS_QUERY_KEY });
+    },
+  });
+}
+
+/**
+ * Deletes an existing order for the given investment.
+ *
+ * On success, invalidates:
+ * - the orders list for this investment (order history refreshes)
+ * - the active investments list (computed position columns update)
+ * - the global all-orders list
+ */
+export function useDeleteOrder(
+  investmentId: string,
+): UseMutationResult<ComputedPosition, Error, string> {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (orderId: string) => deleteOrder(investmentId, orderId),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ['orders', investmentId] });
       void qc.invalidateQueries({ queryKey: ACTIVE_INVESTMENTS_QUERY_KEY });

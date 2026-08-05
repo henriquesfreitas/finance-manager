@@ -68,12 +68,25 @@ export function createOrder(
 }
 
 /**
+ * Deletes an existing order and returns the updated computed position.
+ *
+ * DELETE /api/investments/:id/orders/:orderId
+ */
+export function deleteOrder(
+  investmentId: string,
+  orderId: string,
+): Promise<ComputedPosition> {
+  return request<ComputedPosition>(
+    `/api/investments/${investmentId}/orders/${orderId}`,
+    { method: 'DELETE' },
+  );
+}
+/**
  * Updates an existing order and returns the updated computed position.
  * Only the provided fields are changed (partial update).
  *
  * PUT /api/investments/:id/orders/:orderId
  */
-export function updateOrder(
   investmentId: string,
   orderId: string,
   data: UpdateOrderFormData,

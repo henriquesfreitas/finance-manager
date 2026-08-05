@@ -3,7 +3,7 @@ import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { toast } from 'sonner';
-import { Pencil, X, Check } from 'lucide-react';
+import { Pencil, X, Check, Trash2 } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -21,7 +21,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { useOrders, useCreateOrder, useUpdateOrder } from '@/hooks/useOrders';
+import { useOrders, useCreateOrder, useUpdateOrder, useDeleteOrder } from '@/hooks/useOrders';
 import type { InvestmentListItem } from '@/types/investment';
 import type { OrderListItem } from '@/types/order';
 import { calculateSellTotalInvested, calculateSellProfit } from '@/lib/investment-calculator';
@@ -568,14 +568,16 @@ interface OrderHistoryProps {
 }
 
 /**
- * Displays the complete order history for an investment with inline edit support.
- * Each row has a pencil icon that switches it to an inline edit form.
+ * Displays the complete order history for an investment with inline edit and delete support.
+ * Each row has a pencil icon (edit) and a trash icon (delete with inline confirmation).
  * Always fetches fresh data (staleTime: 0 in useOrders).
  * Shows an error message on fetch failure with no stale data (Req 5.4).
  */
 function OrderHistory({ investmentId, isTreasury }: OrderHistoryProps): React.JSX.Element {
   const { data: orders, isLoading, isError, error } = useOrders(investmentId);
   const [editingOrderId, setEditingOrderId] = useState<string | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const deleteOrder = useDeleteOrder(investmentId);
 
   if (isLoading) {
     return (
@@ -599,6 +601,19 @@ function OrderHistory({ investmentId, isTreasury }: OrderHistoryProps): React.JS
     );
   }
 
+  function handleDeleteConfirm(orderId: string): void {
+    deleteOrder.mutate(orderId, {
+      onSuccess: () => {
+        toast.success('Order deleted');
+        setConfirmDeleteId(null);
+      },
+      onError: (err: Error) => {
+        toast.error(err.message);
+        setConfirmDeleteId(null);
+      },
+    });
+  }
+
   return (
     <div className="overflow-x-auto rounded-md border">
       <Table className="min-w-[520px]">
@@ -610,19 +625,59 @@ function OrderHistory({ investmentId, isTreasury }: OrderHistoryProps): React.JS
             {isTreasury && <TableHead className="text-right">Rate (%)</TableHead>}
             <TableHead className="text-right">Date</TableHead>
             <TableHead className="text-right">Total (R$)</TableHead>
-            <TableHead className="text-right">Actions</TableHead>          </TableRow>
+            <TableHead className="text-right">Actions</TableHead>
+          </TableRow>
         </TableHeader>
         <TableBody>
-          {orders.map((order: OrderListItem) =>
-            editingOrderId === order.id ? (
-              <EditOrderRow
-                key={order.id}
-                order={order}
-                investmentId={investmentId}
-                onCancel={() => setEditingOrderId(null)}
-                onSaved={() => setEditingOrderId(null)}
-              />
-            ) : (
+          {orders.map((order: OrderListItem) => {
+            if (editingOrderId === order.id) {
+              return (
+                <EditOrderRow
+                  key={order.id}
+                  order={order}
+                  investmentId={investmentId}
+                  onCancel={() => setEditingOrderId(null)}
+                  onSaved={() => setEditingOrderId(null)}
+                />
+              );
+            }
+
+            if (confirmDeleteId === order.id) {
+              const colSpan = isTreasury ? 7 : 6;
+              return (
+                <TableRow key={order.id} className="bg-destructive/5">
+                  <TableCell colSpan={colSpan}>
+                    <div className="flex items-center justify-between gap-2 px-1">
+                      <span className="text-sm text-destructive">
+                        Delete this {order.type} order from {formatOrderDate(order.orderDate)}?
+                      </span>
+                      <div className="flex gap-1">
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          disabled={deleteOrder.isPending}
+                          onClick={() => handleDeleteConfirm(order.id)}
+                          aria-label="Confirm delete order"
+                        >
+                          {deleteOrder.isPending ? 'Deleting…' : 'Delete'}
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          disabled={deleteOrder.isPending}
+                          onClick={() => setConfirmDeleteId(null)}
+                          aria-label="Cancel delete"
+                        >
+                          Cancel
+                        </Button>
+                      </div>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              );
+            }
+
+            return (
               <React.Fragment key={order.id}>
                 <TableRow>
                   <TableCell>
@@ -652,14 +707,24 @@ function OrderHistory({ investmentId, isTreasury }: OrderHistoryProps): React.JS
                     {order.type === 'SPLIT' ? '—' : computeTotal(order.quantity, order.price)}
                   </TableCell>
                   <TableCell className="text-right">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setEditingOrderId(order.id)}
-                      aria-label={`Edit order from ${formatOrderDate(order.orderDate)}`}
-                    >
-                      <Pencil className="h-3.5 w-3.5" />
-                    </Button>
+                    <div className="flex justify-end gap-0.5">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => { setEditingOrderId(order.id); setConfirmDeleteId(null); }}
+                        aria-label={`Edit order from ${formatOrderDate(order.orderDate)}`}
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => { setConfirmDeleteId(order.id); setEditingOrderId(null); }}
+                        aria-label={`Delete order from ${formatOrderDate(order.orderDate)}`}
+                      >
+                        <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
                 {order.type === 'SELL' && order.averagePriceAtSell !== null && (() => {
@@ -707,8 +772,8 @@ function OrderHistory({ investmentId, isTreasury }: OrderHistoryProps): React.JS
                   );
                 })()}
               </React.Fragment>
-            ),
-          )}
+            );
+          })}
         </TableBody>
       </Table>
     </div>
