@@ -106,6 +106,7 @@ export interface EnrichedInvestment {
   archivedAt: string | null;
   targetSellPrice: string | null;
   targetBuyPrice: string | null;
+  targetBuyQuantity?: string | null;
   /** Manually-entered current value for non-STOCK assets. Null when not set. */
   currentValue: string | null;
   treasuryProductId: string | null;
@@ -131,6 +132,7 @@ export interface ArchivedInvestment {
   archivedAt: string | null;
   targetSellPrice: string | null;
   targetBuyPrice: string | null;
+  targetBuyQuantity?: string | null;
   currentValue: string | null;
   treasuryProductId: string | null;
   treasuryProductName: string | null;

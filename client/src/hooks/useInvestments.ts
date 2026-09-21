@@ -114,6 +114,7 @@ export interface UpdateTargetPricesInput {
   id: string;
   targetSellPrice?: number | null;
   targetBuyPrice?: number | null;
+  targetBuyQuantity?: number | null;
 }
 
 /**

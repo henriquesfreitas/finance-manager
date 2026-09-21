@@ -21,6 +21,7 @@ type InvestmentRow = {
   archivedAt: Date | null;
   targetSellPrice?: { toString(): string } | null;
   targetBuyPrice?: { toString(): string } | null;
+  targetBuyQuantity?: { toString(): string } | null;
   currentValue?: { toString(): string } | null;
   treasuryProductId: string | null;
   treasuryProduct?: { name: string } | null;
@@ -58,6 +59,7 @@ function toRecord(row: InvestmentRow): InvestmentRecord {
     archivedAt: row.archivedAt ? row.archivedAt.toISOString() : null,
     targetSellPrice: row.targetSellPrice ? row.targetSellPrice.toString() : null,
     targetBuyPrice: row.targetBuyPrice ? row.targetBuyPrice.toString() : null,
+    targetBuyQuantity: row.targetBuyQuantity ? row.targetBuyQuantity.toString() : null,
     currentValue: row.currentValue ? row.currentValue.toString() : null,
     treasuryProductId: row.treasuryProductId,
     treasuryProductName: row.treasuryProduct?.name ?? null,
@@ -220,7 +222,7 @@ export function createInvestmentService(db: PrismaClient) {
     },
 
     /**
-     * Updates the target sell and/or buy prices of an existing investment.
+     * Updates target sell/buy prices and/or intended buy quantity of an existing investment.
      * Pass null for a field to explicitly clear it.
      * Throws 404 when the investment does not exist.
      *
@@ -237,6 +239,7 @@ export function createInvestmentService(db: PrismaClient) {
         data: {
           ...(data.targetSellPrice !== undefined && { targetSellPrice: data.targetSellPrice }),
           ...(data.targetBuyPrice !== undefined && { targetBuyPrice: data.targetBuyPrice }),
+          ...(data.targetBuyQuantity !== undefined && { targetBuyQuantity: data.targetBuyQuantity }),
         },
         include: { treasuryProduct: { select: { name: true } } },
       });

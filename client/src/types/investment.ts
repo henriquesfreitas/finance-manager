@@ -36,6 +36,8 @@ export interface InvestmentRecord {
   targetSellPrice: string | null;
   /** User-defined buy target price as a Decimal string. Null when not set. */
   targetBuyPrice: string | null;
+  /** User-defined quantity intended for the next buy. Null when not set. */
+  targetBuyQuantity: string | null;
   /**
    * Manually-entered current value for TREASURY assets (e.g. "30882.59000000").
    * Null when not set — UI shows N/A.

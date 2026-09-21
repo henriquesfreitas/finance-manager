@@ -11,6 +11,12 @@ interface EditablePriceCellProps {
   className?: string;
   /** Accessible label for the edit input, e.g. "Edit Target Sell Price for ITUB3". */
   ariaLabel?: string;
+  /** Formats the stored value when idle. Defaults to BRL currency. */
+  formatValue?: (value: number) => string;
+  /** Numeric input step. Defaults to hundredths for prices. */
+  step?: string;
+  /** Tooltip shown while idle. */
+  title?: string;
 }
 
 /** Formats a number as BRL currency for display. */
@@ -32,6 +38,9 @@ export function EditablePriceCell({
   isPending = false,
   className = '',
   ariaLabel = 'Edit price target',
+  formatValue = formatCurrency,
+  step = '0.01',
+  title = 'Click to set price target',
 }: EditablePriceCellProps): React.JSX.Element {
   const [editing, setEditing] = useState(false);
   // Draft holds the raw string while the user types
@@ -84,7 +93,7 @@ export function EditablePriceCell({
         ref={inputRef}
         type="number"
         min="0"
-        step="0.01"
+        step={step}
         value={draft}
         onChange={(e) => setDraft(e.target.value)}
         onBlur={commit}
@@ -101,11 +110,11 @@ export function EditablePriceCell({
       onClick={startEditing}
       disabled={isPending}
       aria-label={ariaLabel}
-      title="Click to set price target"
+      title={title}
       className={`w-full cursor-text text-right text-[10pt] leading-5 hover:underline focus-visible:outline-none focus-visible:underline ${className}`}
     >
       {value !== null ? (
-        formatCurrency(value)
+        formatValue(value)
       ) : (
         <span className="text-muted-foreground/40">—</span>
       )}

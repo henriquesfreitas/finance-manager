@@ -139,7 +139,7 @@ const nullablePositivePrice = z
   .nullable();
 
 /**
- * Zod schema for updating target buy/sell prices.
+ * Zod schema for updating target buy/sell prices and intended buy quantity.
  * Both fields are optional; send only the ones you want to change.
  * Passing null explicitly clears a previously set target.
  *
@@ -149,6 +149,7 @@ const nullablePositivePrice = z
 export const updateTargetPricesSchema = z.object({
   targetSellPrice: nullablePositivePrice.optional(),
   targetBuyPrice: nullablePositivePrice.optional(),
+  targetBuyQuantity: nullablePositivePrice.optional(),
 });
 
 /**

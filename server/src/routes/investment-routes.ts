@@ -111,7 +111,7 @@ export function createInvestmentRouter(): Router {
     });
   });
 
-  // PATCH /api/investments/:id/target-prices — update target sell/buy prices
+  // PATCH /api/investments/:id/target-prices — update target prices and intended buy quantity
   router.patch('/investments/:id/target-prices', async (req: Request, res: Response) => {
     const id = req.params['id'] as string;
     const validation = validateUpdateTargetPricesInput(req.body);

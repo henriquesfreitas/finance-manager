@@ -1,5 +1,5 @@
 import React from 'react';
-import { PlusCircle, Archive } from 'lucide-react';
+import { PlusCircle, Archive, ArrowDown, ArrowUp, ArrowUpDown } from 'lucide-react';
 import {
   Table,
   TableBody,
@@ -29,6 +29,29 @@ interface InvestmentTableProps {
   onAddOrder: (investment: InvestmentListItem) => void;
   onArchive: (investment: InvestmentListItem) => void;
   onTickerClick: (id: string, ticker: string, sector: string | null) => void;
+}
+
+type SortKey =
+  | 'ticker'
+  | 'sector'
+  | 'quantity'
+  | 'averagePrice'
+  | 'currentPrice'
+  | 'targetSellPrice'
+  | 'targetBuyPrice'
+  | 'targetBuyQuantity'
+  | 'dailyChangePercent'
+  | 'totalInvested'
+  | 'currentTotal'
+  | 'profit'
+  | 'totalVariation'
+  | 'portfolioWeight';
+
+type SortDirection = 'ascending' | 'descending';
+
+interface SortState {
+  key: SortKey | null;
+  direction: SortDirection;
 }
 
 /** Formats a number as BRL currency. */
@@ -69,6 +92,8 @@ export function InvestmentTable({
   onArchive,
   onTickerClick,
 }: InvestmentTableProps): React.JSX.Element {
+  const [sort, setSort] = React.useState<SortState>({ key: null, direction: 'ascending' });
+
   // Compute portfolio-level totals once for the weight column.
   // Hybrid approach: for each investment, use currentTotal if available (has live price
   // or manual currentValue), otherwise fall back to totalInvested.
@@ -90,17 +115,37 @@ export function InvestmentTable({
     return acc + calculateTotalInvested(qty, avg);
   }, 0);
 
+  function handleSort(key: SortKey): void {
+    setSort((currentSort) => ({
+      key,
+      direction: currentSort.key === key && currentSort.direction === 'ascending'
+        ? 'descending'
+        : 'ascending',
+    }));
+  }
+
+  const sortInvestments = (items: InvestmentListItem[]): InvestmentListItem[] => (
+    sort.key === null
+      ? items
+      : [...items].sort((left, right) => compareInvestments(
+        left,
+        right,
+        sort,
+        portfolioCurrentTotal,
+      ))
+  );
+
   if (isLoading) {
     return (
       <div className="rounded-md border">
         <Table>
           <TableHeader>
-            <TableHeaderRow />
+            <TableHeaderRow sort={sort} onSort={handleSort} />
           </TableHeader>
           <TableBody>
             {Array.from({ length: 3 }).map((_, i) => (
               <TableRow key={i}>
-                {Array.from({ length: 14 }).map((_, j) => (
+                {Array.from({ length: 15 }).map((_, j) => (
                   <TableCell key={j}>
                     <div className="h-4 w-full animate-pulse rounded bg-muted" />
                   </TableCell>
@@ -118,11 +163,11 @@ export function InvestmentTable({
       <div className="rounded-md border">
         <Table>
           <TableHeader>
-            <TableHeaderRow />
+            <TableHeaderRow sort={sort} onSort={handleSort} />
           </TableHeader>
           <TableBody>
             <TableRow>
-              <TableCell colSpan={14} className="py-12 text-center text-muted-foreground">
+              <TableCell colSpan={15} className="py-12 text-center text-muted-foreground">
                 No investments yet. Click "Add Investment" to get started.
               </TableCell>
             </TableRow>
@@ -133,15 +178,15 @@ export function InvestmentTable({
   }
 
   // Split investments into those with a position (has orders) and watchlist (no orders)
-  const invested = investments.filter((inv) => parseFloat(inv.position.quantity) > 0);
-  const watchlist = investments.filter((inv) => parseFloat(inv.position.quantity) === 0);
+  const invested = sortInvestments(investments.filter((inv) => parseFloat(inv.position.quantity) > 0));
+  const watchlist = sortInvestments(investments.filter((inv) => parseFloat(inv.position.quantity) === 0));
 
   return (
     <>
       <div className="rounded-md border">
         <Table>
           <TableHeader>
-            <TableHeaderRow />
+            <TableHeaderRow sort={sort} onSort={handleSort} />
           </TableHeader>
           <TableBody>
             {invested.map((investment) => (
@@ -165,7 +210,7 @@ export function InvestmentTable({
           <div className="rounded-md border">
             <Table>
               <TableHeader>
-                <TableHeaderRow />
+                <TableHeaderRow sort={sort} onSort={handleSort} />
               </TableHeader>
               <TableBody>
                 {watchlist.map((investment) => (
@@ -188,25 +233,126 @@ export function InvestmentTable({
   );
 }
 
-function TableHeaderRow(): React.JSX.Element {
+interface TableHeaderRowProps {
+  sort: SortState;
+  onSort: (key: SortKey) => void;
+}
+
+interface SortableTableHeadProps {
+  label: string;
+  sortKey: SortKey;
+  sort: SortState;
+  onSort: (key: SortKey) => void;
+  className?: string;
+}
+
+function TableHeaderRow({ sort, onSort }: TableHeaderRowProps): React.JSX.Element {
   return (
     <TableRow>
-      <TableHead>Ticker</TableHead>
-      <TableHead>Sector</TableHead>
-      <TableHead className="text-right">Quantity</TableHead>
-      <TableHead className="text-right">Avg Price</TableHead>
-      <TableHead className="text-right">Current Price</TableHead>
-      <TableHead className="text-right">Target Sell</TableHead>
-      <TableHead className="text-right">Target Buy</TableHead>
-      <TableHead className="text-right">Daily Change %</TableHead>
-      <TableHead className="text-right">Total Invested</TableHead>
-      <TableHead className="text-right">Current Total</TableHead>
-      <TableHead className="text-right">Profit</TableHead>
-      <TableHead className="text-right">Variation %</TableHead>
-      <TableHead className="text-right">Portfolio %</TableHead>
+      <SortableTableHead label="Ticker" sortKey="ticker" sort={sort} onSort={onSort} />
+      <SortableTableHead label="Sector" sortKey="sector" sort={sort} onSort={onSort} />
+      <SortableTableHead label="Quantity" sortKey="quantity" sort={sort} onSort={onSort} className="text-right" />
+      <SortableTableHead label="Avg Price" sortKey="averagePrice" sort={sort} onSort={onSort} className="text-right" />
+      <SortableTableHead label="Current Price" sortKey="currentPrice" sort={sort} onSort={onSort} className="text-right" />
+      <SortableTableHead label="Target Sell" sortKey="targetSellPrice" sort={sort} onSort={onSort} className="text-right" />
+      <SortableTableHead label="Target Buy" sortKey="targetBuyPrice" sort={sort} onSort={onSort} className="text-right" />
+      <SortableTableHead label="Target Buy Qty" sortKey="targetBuyQuantity" sort={sort} onSort={onSort} className="text-right" />
+      <SortableTableHead label="Daily Change %" sortKey="dailyChangePercent" sort={sort} onSort={onSort} className="text-right" />
+      <SortableTableHead label="Total Invested" sortKey="totalInvested" sort={sort} onSort={onSort} className="text-right" />
+      <SortableTableHead label="Current Total" sortKey="currentTotal" sort={sort} onSort={onSort} className="text-right" />
+      <SortableTableHead label="Profit" sortKey="profit" sort={sort} onSort={onSort} className="text-right" />
+      <SortableTableHead label="Variation %" sortKey="totalVariation" sort={sort} onSort={onSort} className="text-right" />
+      <SortableTableHead label="Portfolio %" sortKey="portfolioWeight" sort={sort} onSort={onSort} className="text-right" />
       <TableHead className="text-right">Actions</TableHead>
     </TableRow>
   );
+}
+
+function SortableTableHead({ label, sortKey, sort, onSort, className }: SortableTableHeadProps): React.JSX.Element {
+  const isActive = sort.key === sortKey;
+  const Icon = !isActive ? ArrowUpDown : sort.direction === 'ascending' ? ArrowUp : ArrowDown;
+  const nextDirection = isActive && sort.direction === 'ascending' ? 'descending' : 'ascending';
+
+  return (
+    <TableHead className={className} aria-sort={isActive ? sort.direction : 'none'}>
+      <button
+        type="button"
+        className="inline-flex cursor-pointer items-center gap-1 hover:text-foreground focus-visible:outline-none focus-visible:underline"
+        onClick={() => onSort(sortKey)}
+        aria-label={`Sort by ${label}, ${nextDirection}`}
+      >
+        {label}
+        <Icon className="h-3.5 w-3.5" aria-hidden="true" />
+      </button>
+    </TableHead>
+  );
+}
+
+function compareInvestments(
+  left: InvestmentListItem,
+  right: InvestmentListItem,
+  sort: SortState,
+  portfolioCurrentTotal: number,
+): number {
+  if (sort.key === null) return 0;
+
+  const leftValue = getSortValue(left, sort.key, portfolioCurrentTotal);
+  const rightValue = getSortValue(right, sort.key, portfolioCurrentTotal);
+
+  if (leftValue === null) return rightValue === null ? 0 : 1;
+  if (rightValue === null) return -1;
+
+  let comparison: number;
+  if (typeof leftValue === 'string' && typeof rightValue === 'string') {
+    comparison = leftValue.localeCompare(rightValue, 'pt-BR', { sensitivity: 'base' });
+  } else if (typeof leftValue === 'number' && typeof rightValue === 'number') {
+    comparison = leftValue - rightValue;
+  } else {
+    comparison = String(leftValue).localeCompare(String(rightValue), 'pt-BR', { sensitivity: 'base' });
+  }
+
+  return sort.direction === 'ascending' ? comparison : -comparison;
+}
+
+function getSortValue(
+  investment: InvestmentListItem,
+  sortKey: SortKey,
+  portfolioCurrentTotal: number,
+): number | string | null {
+  const quantity = parseFloat(investment.position.quantity);
+  const noOrders = quantity === 0;
+  const averagePrice = parseFloat(investment.position.averagePrice);
+  const currentPrice = investment.type === 'TREASURY'
+    ? (investment.currentValue !== null ? parseFloat(investment.currentValue) : null)
+    : (investment.quote?.currentPrice ?? null);
+  const totalInvested = noOrders ? null : calculateTotalInvested(quantity, averagePrice);
+  const currentTotal = noOrders ? null : calculateCurrentTotal(quantity, currentPrice);
+  const profit = totalInvested === null ? null : calculateProfit(currentTotal, totalInvested);
+  const totalVariation = totalInvested === null ? null : calculateTotalVariation(profit, totalInvested);
+  const positionValue = currentTotal ?? totalInvested;
+  const portfolioWeight = positionValue === null
+    ? null
+    : calculatePortfolioWeight(positionValue, portfolioCurrentTotal);
+
+  switch (sortKey) {
+    case 'ticker':
+      return investment.type === 'TREASURY' && investment.treasuryProductName
+        ? investment.treasuryProductName
+        : investment.ticker;
+    case 'sector': return investment.sector;
+    case 'quantity': return noOrders ? null : quantity;
+    case 'averagePrice': return noOrders || investment.type === 'TREASURY' ? null : averagePrice;
+    case 'currentPrice': return currentPrice;
+    case 'targetSellPrice': return investment.targetSellPrice === null ? null : parseFloat(investment.targetSellPrice);
+    case 'targetBuyPrice': return investment.targetBuyPrice === null ? null : parseFloat(investment.targetBuyPrice);
+    case 'targetBuyQuantity': return investment.targetBuyQuantity == null ? null : parseFloat(investment.targetBuyQuantity);
+    case 'dailyChangePercent': return noOrders || investment.type === 'TREASURY' ? null : investment.quote?.dailyChangePercent ?? null;
+    case 'totalInvested': return totalInvested;
+    case 'currentTotal': return currentTotal;
+    case 'profit': return profit;
+    case 'totalVariation': return totalVariation;
+    case 'portfolioWeight': return portfolioWeight;
+  }
 }
 
 interface InvestmentRowProps {
@@ -246,6 +392,9 @@ function InvestmentRow({ investment, portfolioCurrentTotal, portfolioTotalInvest
     : null;
   const targetBuyPrice = investment.targetBuyPrice !== null
     ? parseFloat(investment.targetBuyPrice)
+    : null;
+  const targetBuyQuantity = investment.targetBuyQuantity != null
+    ? parseFloat(investment.targetBuyQuantity)
     : null;
 
   // Color coding: sell target turns green when current >= target (time to sell)
@@ -305,6 +454,13 @@ function InvestmentRow({ investment, portfolioCurrentTotal, portfolioTotalInvest
     saveTargetPrices(
       { id: investment.id, targetBuyPrice: value },
       { onError: () => toast.error(`Failed to save Target Buy for ${displayLabel}`) },
+    );
+  }
+
+  function handleBuyQuantitySave(value: number | null): void {
+    saveTargetPrices(
+      { id: investment.id, targetBuyQuantity: value },
+      { onError: () => toast.error(`Failed to save Target Buy Quantity for ${displayLabel}`) },
     );
   }
 
@@ -374,6 +530,17 @@ function InvestmentRow({ investment, portfolioCurrentTotal, portfolioTotalInvest
           isPending={isSavingTargets}
           className={buyTargetClass}
           ariaLabel={`Edit Target Buy price for ${displayLabel}`}
+        />
+      </TableCell>
+      <TableCell className="text-right">
+        <EditablePriceCell
+          value={targetBuyQuantity}
+          onSave={handleBuyQuantitySave}
+          isPending={isSavingTargets}
+          formatValue={formatQuantity}
+          step="0.00000001"
+          title="Click to set intended buy quantity"
+          ariaLabel={`Edit Target Buy Quantity for ${displayLabel}`}
         />
       </TableCell>
       {/* Daily Change %: only meaningful for STOCK */}

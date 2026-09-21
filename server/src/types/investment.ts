@@ -30,6 +30,8 @@ export interface InvestmentRecord {
   targetSellPrice: string | null;
   /** User-defined buy target price as a Decimal string, e.g. "28.00000000". Null when not set. */
   targetBuyPrice: string | null;
+  /** User-defined quantity intended for the next buy. Null when not set. */
+  targetBuyQuantity?: string | null;
   /**
    * Manually-entered current value for non-STOCK assets (e.g. Tesouro Direto).
    * Null when not set — UI shows N/A. Stored as Decimal string, e.g. "30882.59000000".
@@ -94,4 +96,5 @@ export interface UpdateCurrentValueInput {
 export interface UpdateTargetPricesInput {
   targetSellPrice?: number | null | undefined;
   targetBuyPrice?: number | null | undefined;
+  targetBuyQuantity?: number | null | undefined;
 }

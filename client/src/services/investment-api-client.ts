@@ -89,7 +89,7 @@ export function archiveInvestment(id: string): Promise<InvestmentRecord> {
 }
 
 /**
- * Updates the target sell and/or buy prices for an investment.
+ * Updates the target sell/buy prices and intended buy quantity for an investment.
  * Pass null for a field to clear it.
  * PATCH /api/investments/:id/target-prices
  *
@@ -97,7 +97,7 @@ export function archiveInvestment(id: string): Promise<InvestmentRecord> {
  */
 export function updateTargetPrices(
   id: string,
-  data: { targetSellPrice?: number | null; targetBuyPrice?: number | null },
+  data: { targetSellPrice?: number | null; targetBuyPrice?: number | null; targetBuyQuantity?: number | null },
 ): Promise<InvestmentRecord> {
   return request<InvestmentRecord>(`/api/investments/${id}/target-prices`, {
     method: 'PATCH',
