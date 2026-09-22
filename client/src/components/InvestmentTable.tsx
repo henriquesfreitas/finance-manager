@@ -69,6 +69,12 @@ function formatPortfolioPercent(value: number): string {
   return `${value.toFixed(1)}%`;
 }
 
+/** Keeps quantity cells compact while preserving the full value in the hover title. */
+function formatCompactQuantity(value: number): string {
+  const formatted = formatQuantity(value);
+  return formatted.length > 5 ? `${formatted.slice(0, 5)}…` : formatted;
+}
+
 /**
  * Returns Tailwind text-color classes based on sign.
  * Positive → green, negative → red, zero/null → neutral.
@@ -138,7 +144,7 @@ export function InvestmentTable({
   if (isLoading) {
     return (
       <div className="rounded-md border">
-        <Table>
+        <Table className="[&_th]:px-0.5 [&_td]:px-0.5">
           <TableHeader>
             <TableHeaderRow sort={sort} onSort={handleSort} />
           </TableHeader>
@@ -161,7 +167,7 @@ export function InvestmentTable({
   if (investments.length === 0) {
     return (
       <div className="rounded-md border">
-        <Table>
+        <Table className="[&_th]:px-0.5 [&_td]:px-0.5">
           <TableHeader>
             <TableHeaderRow sort={sort} onSort={handleSort} />
           </TableHeader>
@@ -184,7 +190,7 @@ export function InvestmentTable({
   return (
     <>
       <div className="rounded-md border">
-        <Table>
+        <Table className="[&_th]:px-0.5 [&_td]:px-0.5">
           <TableHeader>
             <TableHeaderRow sort={sort} onSort={handleSort} />
           </TableHeader>
@@ -208,7 +214,7 @@ export function InvestmentTable({
         <>
           <h2 className="mt-6 mb-2 text-lg font-semibold">Watchlist</h2>
           <div className="rounded-md border">
-            <Table>
+            <Table className="[&_th]:px-0.5 [&_td]:px-0.5">
               <TableHeader>
                 <TableHeaderRow sort={sort} onSort={handleSort} />
               </TableHeader>
@@ -240,6 +246,7 @@ interface TableHeaderRowProps {
 
 interface SortableTableHeadProps {
   label: string;
+  title?: string;
   sortKey: SortKey;
   sort: SortState;
   onSort: (key: SortKey) => void;
@@ -251,13 +258,13 @@ function TableHeaderRow({ sort, onSort }: TableHeaderRowProps): React.JSX.Elemen
     <TableRow>
       <SortableTableHead label="Ticker" sortKey="ticker" sort={sort} onSort={onSort} />
       <SortableTableHead label="Sector" sortKey="sector" sort={sort} onSort={onSort} />
-      <SortableTableHead label="Quantity" sortKey="quantity" sort={sort} onSort={onSort} className="text-right" />
+      <SortableTableHead label="Qty" sortKey="quantity" sort={sort} onSort={onSort} className="text-right" />
       <SortableTableHead label="Avg Price" sortKey="averagePrice" sort={sort} onSort={onSort} className="text-right" />
-      <SortableTableHead label="Current Price" sortKey="currentPrice" sort={sort} onSort={onSort} className="text-right" />
-      <SortableTableHead label="Target Sell" sortKey="targetSellPrice" sort={sort} onSort={onSort} className="text-right" />
-      <SortableTableHead label="Target Buy" sortKey="targetBuyPrice" sort={sort} onSort={onSort} className="text-right" />
-      <SortableTableHead label="Target Buy Qty" sortKey="targetBuyQuantity" sort={sort} onSort={onSort} className="text-right" />
-      <SortableTableHead label="Daily Change %" sortKey="dailyChangePercent" sort={sort} onSort={onSort} className="text-right" />
+      <SortableTableHead label="Price Now" sortKey="currentPrice" sort={sort} onSort={onSort} className="max-w-20 text-right whitespace-normal" />
+      <SortableTableHead label="Var %" sortKey="dailyChangePercent" sort={sort} onSort={onSort} className="max-w-20 text-right whitespace-normal" />
+      <SortableTableHead label="Sell" title="Target Sell" sortKey="targetSellPrice" sort={sort} onSort={onSort} className="max-w-20 text-right whitespace-normal" />
+      <SortableTableHead label="Buy" title="Target Buy" sortKey="targetBuyPrice" sort={sort} onSort={onSort} className="max-w-20 text-right whitespace-normal" />
+      <SortableTableHead label="Buy Qty" title="Target Buy Qty" sortKey="targetBuyQuantity" sort={sort} onSort={onSort} className="max-w-20 text-right whitespace-normal" />
       <SortableTableHead label="Total Invested" sortKey="totalInvested" sort={sort} onSort={onSort} className="text-right" />
       <SortableTableHead label="Current Total" sortKey="currentTotal" sort={sort} onSort={onSort} className="text-right" />
       <SortableTableHead label="Profit" sortKey="profit" sort={sort} onSort={onSort} className="text-right" />
@@ -268,21 +275,23 @@ function TableHeaderRow({ sort, onSort }: TableHeaderRowProps): React.JSX.Elemen
   );
 }
 
-function SortableTableHead({ label, sortKey, sort, onSort, className }: SortableTableHeadProps): React.JSX.Element {
+function SortableTableHead({ label, title, sortKey, sort, onSort, className }: SortableTableHeadProps): React.JSX.Element {
   const isActive = sort.key === sortKey;
   const Icon = !isActive ? ArrowUpDown : sort.direction === 'ascending' ? ArrowUp : ArrowDown;
   const nextDirection = isActive && sort.direction === 'ascending' ? 'descending' : 'ascending';
+  const accessibleLabel = title ?? label;
 
   return (
     <TableHead className={className} aria-sort={isActive ? sort.direction : 'none'}>
       <button
         type="button"
-        className="inline-flex cursor-pointer items-center gap-1 hover:text-foreground focus-visible:outline-none focus-visible:underline"
+        className="inline-flex max-w-full cursor-pointer items-center gap-0.5 hover:text-foreground focus-visible:outline-none focus-visible:underline"
         onClick={() => onSort(sortKey)}
-        aria-label={`Sort by ${label}, ${nextDirection}`}
+        aria-label={`Sort by ${accessibleLabel}, ${nextDirection}`}
+        title={title}
       >
-        {label}
-        <Icon className="h-3.5 w-3.5" aria-hidden="true" />
+        <span className="max-w-full whitespace-normal text-center leading-tight">{label}</span>
+        <Icon className="h-3 w-3 shrink-0" aria-hidden="true" />
       </button>
     </TableHead>
   );
@@ -484,13 +493,16 @@ function InvestmentRow({ investment, portfolioCurrentTotal, portfolioTotalInvest
       </TableCell>
       <TableCell>
         {investment.sector
-          ? <span>{investment.sector}</span>
+          ? <span
+              className="inline-block max-w-24 truncate align-bottom"
+              title={investment.sector}
+            >{investment.sector}</span>
           : <span className="text-muted-foreground">—</span>}
       </TableCell>
       <TableCell className="text-right">
         {noOrders
           ? <span className="text-muted-foreground">—</span>
-          : formatQuantity(quantity)}
+          : <span title={formatQuantity(quantity)}>{formatCompactQuantity(quantity)}</span>}
       </TableCell>
       <TableCell className="text-right">
         {noOrders
@@ -513,6 +525,12 @@ function InvestmentRow({ investment, portfolioCurrentTotal, portfolioTotalInvest
         ) : (
           <span className="text-muted-foreground">N/A</span>
         )}
+      </TableCell>
+      {/* Daily Change %: only meaningful for STOCK */}
+      <TableCell className={`text-right ${!isTreasury && !noOrders && dailyChangePercent !== null ? profitColorClass(dailyChangePercent) : 'text-muted-foreground'}`}>
+        {isTreasury || noOrders
+          ? '—'
+          : dailyChangePercent !== null ? formatPercent(dailyChangePercent) : 'N/A'}
       </TableCell>
       <TableCell className={`text-right ${sellTargetClass}`}>
         <EditablePriceCell
@@ -542,12 +560,6 @@ function InvestmentRow({ investment, portfolioCurrentTotal, portfolioTotalInvest
           title="Click to set intended buy quantity"
           ariaLabel={`Edit Target Buy Quantity for ${displayLabel}`}
         />
-      </TableCell>
-      {/* Daily Change %: only meaningful for STOCK */}
-      <TableCell className={`text-right ${!isTreasury && !noOrders && dailyChangePercent !== null ? profitColorClass(dailyChangePercent) : 'text-muted-foreground'}`}>
-        {isTreasury || noOrders
-          ? '—'
-          : dailyChangePercent !== null ? formatPercent(dailyChangePercent) : 'N/A'}
       </TableCell>
       <TableCell className="text-right">
         {noOrders

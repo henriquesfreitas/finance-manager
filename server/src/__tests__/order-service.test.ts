@@ -35,11 +35,15 @@ function makeInvestmentRow(overrides: Partial<{
   id: string;
   ticker: string;
   archivedAt: Date | null;
+  targetBuyQuantity: number | null;
 }> = {}) {
   return {
     id: overrides.id ?? 'inv-1',
     ticker: overrides.ticker ?? 'ITUB3',
     archivedAt: overrides.archivedAt ?? null,
+    targetBuyQuantity: overrides.targetBuyQuantity == null
+      ? null
+      : makeDecimal(overrides.targetBuyQuantity),
     createdAt: new Date('2026-01-01'),
     updatedAt: new Date('2026-01-01'),
   };
@@ -51,10 +55,12 @@ function makeFakePrisma(overrides: {
   orderFindUnique?: ReturnType<typeof vi.fn>;
   orderCreate?: ReturnType<typeof vi.fn>;
   orderUpdate?: ReturnType<typeof vi.fn>;
+  investmentUpdate?: ReturnType<typeof vi.fn>;
 } = {}) {
   return {
     investment: {
       findUnique: overrides.investmentFindUnique ?? vi.fn().mockResolvedValue(null),
+      update: overrides.investmentUpdate ?? vi.fn().mockResolvedValue({}),
     },
     order: {
       findMany: overrides.orderFindMany ?? vi.fn().mockResolvedValue([]),
@@ -90,6 +96,54 @@ describe('createOrder', () => {
     expect(result.quantity).toBe('100');
     expect(result.averagePrice).toBe('28.35');
     expect(db.order.create).toHaveBeenCalled();
+  });
+
+  it('decreases the remaining target buy quantity after a BUY', async () => {
+    const investment = makeInvestmentRow({ targetBuyQuantity: 100 });
+    const newOrder = makeOrderRow({ quantity: 30, price: 28.35 });
+    const investmentUpdate = vi.fn().mockResolvedValue({});
+    const db = makeFakePrisma({
+      investmentFindUnique: vi.fn().mockResolvedValue(investment),
+      investmentUpdate,
+      orderCreate: vi.fn().mockResolvedValue(newOrder),
+      orderFindMany: vi.fn().mockResolvedValue([newOrder]),
+    });
+
+    await createOrderService(db).createOrder('inv-1', {
+      type: 'BUY',
+      quantity: 30,
+      price: 28.35,
+      orderDate: '2025-01-15',
+    });
+
+    expect(investmentUpdate).toHaveBeenCalledWith({
+      where: { id: 'inv-1' },
+      data: { targetBuyQuantity: 70 },
+    });
+  });
+
+  it('does not let the remaining target buy quantity go below zero', async () => {
+    const investment = makeInvestmentRow({ targetBuyQuantity: 25 });
+    const newOrder = makeOrderRow({ quantity: 30, price: 28.35 });
+    const investmentUpdate = vi.fn().mockResolvedValue({});
+    const db = makeFakePrisma({
+      investmentFindUnique: vi.fn().mockResolvedValue(investment),
+      investmentUpdate,
+      orderCreate: vi.fn().mockResolvedValue(newOrder),
+      orderFindMany: vi.fn().mockResolvedValue([newOrder]),
+    });
+
+    await createOrderService(db).createOrder('inv-1', {
+      type: 'BUY',
+      quantity: 30,
+      price: 28.35,
+      orderDate: '2025-01-15',
+    });
+
+    expect(investmentUpdate).toHaveBeenCalledWith({
+      where: { id: 'inv-1' },
+      data: { targetBuyQuantity: 0 },
+    });
   });
 
   it('throws when the investment does not exist', async () => {

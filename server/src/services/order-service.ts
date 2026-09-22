@@ -115,6 +115,21 @@ export function createOrderService(db: PrismaClient) {
         },
       });
 
+      // A target buy quantity represents the remaining quantity intended for
+      // future BUY orders. Consume it after each BUY and never let it go below
+      // zero. Other order types do not affect this target.
+      if (input.type === 'BUY' && investment.targetBuyQuantity !== null) {
+        const remainingTargetBuyQuantity = Math.max(
+          0,
+          investment.targetBuyQuantity.toNumber() - input.quantity,
+        );
+
+        await db.investment.update({
+          where: { id: investmentId },
+          data: { targetBuyQuantity: remainingTargetBuyQuantity },
+        });
+      }
+
       // 5. Re-fetch all orders (including the new one) sorted chronologically for position
       const allOrders = await db.order.findMany({
         where: { investmentId },
