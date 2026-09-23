@@ -37,6 +37,8 @@ model Investment {
   targetBuyPrice  Decimal?         @db.Decimal(18, 8)
   // User-defined quantity intended for the next buy. Nullable when not set.
   targetBuyQuantity Decimal?       @db.Decimal(18, 8)
+  // User-assigned recommendation score from 1 (lowest) to 5 (best).
+  recommendation   Int?
   // Manually-entered current value — used for non-STOCK assets (e.g. Tesouro Direto).
   // Null means "not set yet"; the UI shows N/A in that case.
   currentValue    Decimal?         @db.Decimal(18, 8)

@@ -11,6 +11,7 @@ import {
   createInvestment,
   archiveInvestment,
   updateInvestmentSector,
+  updateInvestmentRecommendation,
   updateTargetPrices,
   fetchTreasuryProducts,
   createTreasuryInvestment,
@@ -115,6 +116,22 @@ export interface UpdateTargetPricesInput {
   targetSellPrice?: number | null;
   targetBuyPrice?: number | null;
   targetBuyQuantity?: number | null;
+}
+
+/** Saves the recommendation score and refreshes active and archived ticker colors. */
+export function useUpdateInvestmentRecommendation(): UseMutationResult<
+  InvestmentRecord,
+  Error,
+  { id: string; recommendation: number | null }
+> {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, recommendation }) => updateInvestmentRecommendation(id, recommendation),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ACTIVE_INVESTMENTS_QUERY_KEY });
+      qc.invalidateQueries({ queryKey: ARCHIVED_INVESTMENTS_QUERY_KEY });
+    },
+  });
 }
 
 /**

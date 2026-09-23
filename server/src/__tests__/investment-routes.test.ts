@@ -15,6 +15,7 @@ class FakeInvestmentService {
   listArchivedInvestments = vi.fn<[], Promise<ArchivedInvestment[]>>();
   createInvestment = vi.fn<[object], Promise<InvestmentRecord>>();
   archiveInvestment = vi.fn<[string], Promise<InvestmentRecord>>();
+  updateRecommendation = vi.fn<[string, { recommendation: number | null }], Promise<InvestmentRecord>>();
 }
 
 // Mock the service module so the router uses our fake
@@ -49,10 +50,13 @@ function buildApp(): express.Express {
 const RECORD: InvestmentRecord = {
   id: 'uuid-1',
   ticker: 'ITUB3',
+  type: 'STOCK',
   sector: 'Bancos',
   archivedAt: null,
   targetSellPrice: null,
   targetBuyPrice: null,
+  targetBuyQuantity: null,
+  recommendation: null,
   createdAt: '2026-01-01T00:00:00.000Z',
   updatedAt: '2026-01-01T00:00:00.000Z',
 };
@@ -261,6 +265,37 @@ describe('PATCH /api/investments/:id/archive', () => {
 });
 
 // ─── PUT /api/investments/:id — removed in v2, must return 405 ───────────────
+
+describe('PATCH /api/investments/:id/recommendation', () => {
+  beforeEach(() => {
+    fakeService = new FakeInvestmentService();
+    vi.clearAllMocks();
+  });
+
+  it('updates the recommendation when the score is valid', async () => {
+    fakeService.updateRecommendation.mockResolvedValueOnce({ ...RECORD, recommendation: 5 });
+    const app = buildApp();
+
+    const res = await request(app)
+      .patch('/api/investments/uuid-1/recommendation')
+      .send({ recommendation: 5 });
+
+    expect(res.status).toBe(200);
+    expect(res.body.recommendation).toBe(5);
+    expect(fakeService.updateRecommendation).toHaveBeenCalledWith('uuid-1', { recommendation: 5 });
+  });
+
+  it('rejects scores outside the 1–5 scale', async () => {
+    const app = buildApp();
+
+    const res = await request(app)
+      .patch('/api/investments/uuid-1/recommendation')
+      .send({ recommendation: 6 });
+
+    expect(res.status).toBe(400);
+    expect(fakeService.updateRecommendation).not.toHaveBeenCalled();
+  });
+});
 
 describe('PUT /api/investments/:id', () => {
   beforeEach(() => {

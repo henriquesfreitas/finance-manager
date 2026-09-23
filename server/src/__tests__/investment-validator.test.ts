@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   validateCreateInvestmentInput,
   validateUpdateTargetPricesInput,
+  validateUpdateInvestmentRecommendationInput,
 } from '../validators/investment-validator.js';
 
 describe('validateCreateInvestmentInput', () => {
@@ -128,6 +129,26 @@ describe('validateCreateInvestmentInput', () => {
     expect(result.data.ticker).toBe('VALE3');
     expect('quantity' in result.data).toBe(false);
     expect('averagePrice' in result.data).toBe(false);
+  });
+});
+
+describe('validateUpdateInvestmentRecommendationInput', () => {
+  it.each([1, 2, 3, 4, 5])('accepts recommendation %i', (recommendation) => {
+    expect(validateUpdateInvestmentRecommendationInput({ recommendation })).toEqual({
+      success: true,
+      data: { recommendation },
+    });
+  });
+
+  it('accepts null to clear the recommendation', () => {
+    expect(validateUpdateInvestmentRecommendationInput({ recommendation: null })).toEqual({
+      success: true,
+      data: { recommendation: null },
+    });
+  });
+
+  it.each([0, 6, 1.5, '5'])('rejects invalid recommendation %s', (recommendation) => {
+    expect(validateUpdateInvestmentRecommendationInput({ recommendation }).success).toBe(false);
   });
 });
 

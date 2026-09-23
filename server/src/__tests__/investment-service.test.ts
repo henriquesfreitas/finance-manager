@@ -47,6 +47,7 @@ function makeRow(partial: Partial<{
     archivedAt: partial.archivedAt ?? null,
     targetSellPrice: null,
     targetBuyPrice: null,
+    recommendation: null,
     currentValue: null,
     treasuryProductId: null,
     treasuryProduct: null,
@@ -105,6 +106,26 @@ describe('createInvestment', () => {
       'Ticker "ITUB3" is already registered',
     );
     expect(db.investment.create).not.toHaveBeenCalled();
+  });
+});
+
+describe('updateRecommendation', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it('persists and serializes the selected recommendation', async () => {
+    const row = { ...makeRow(), recommendation: 5 };
+    const db = makeFakePrisma({
+      findUnique: vi.fn().mockResolvedValue(makeRow()),
+      update: vi.fn().mockResolvedValue(row),
+    });
+    const result = await createInvestmentService(db).updateRecommendation('uuid-1', { recommendation: 5 });
+
+    expect(db.investment.update).toHaveBeenCalledWith({
+      where: { id: 'uuid-1' },
+      data: { recommendation: 5 },
+      include: { treasuryProduct: { select: { name: true } } },
+    });
+    expect(result.recommendation).toBe(5);
   });
 });
 

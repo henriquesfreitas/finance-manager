@@ -22,13 +22,14 @@ import { EditablePriceCell } from '@/components/EditablePriceCell';
 import { useUpdateTargetPrices, useUpdateCurrentValue } from '@/hooks/useInvestments';
 import { toast } from 'sonner';
 import { formatQuantity } from '@/lib/utils';
+import { getRecommendationColorClass } from '@/lib/recommendation';
 
 interface InvestmentTableProps {
   investments: InvestmentListItem[];
   isLoading: boolean;
   onAddOrder: (investment: InvestmentListItem) => void;
   onArchive: (investment: InvestmentListItem) => void;
-  onTickerClick: (id: string, ticker: string, sector: string | null) => void;
+  onTickerClick: (id: string, ticker: string, sector: string | null, recommendation: number | null) => void;
 }
 
 type SortKey =
@@ -210,6 +211,8 @@ export function InvestmentTable({
         </Table>
       </div>
 
+      <BuyPlanTable investments={investments} />
+
       {watchlist.length > 0 && (
         <>
           <h2 className="mt-6 mb-2 text-lg font-semibold">Watchlist</h2>
@@ -236,6 +239,93 @@ export function InvestmentTable({
         </>
       )}
     </>
+  );
+}
+
+/** Read-only summary of intended purchases, based on editable target buy quantities. */
+function BuyPlanTable({ investments }: { investments: InvestmentListItem[] }): React.JSX.Element | null {
+  const plannedBuys = investments
+    .filter((investment) => investment.targetBuyQuantity !== null
+      && Number.isFinite(Number(investment.targetBuyQuantity))
+      && Number(investment.targetBuyQuantity) > 0)
+    .map((investment) => {
+      const currentPrice = investment.type === 'TREASURY'
+        ? (investment.currentValue !== null ? parseFloat(investment.currentValue) : null)
+        : (investment.quote?.currentPrice ?? null);
+      const buyQuantity = Number(investment.targetBuyQuantity);
+
+      return {
+        investment,
+        currentPrice,
+        buyQuantity,
+        buyValue: currentPrice !== null ? currentPrice * buyQuantity : null,
+      };
+    });
+
+  if (plannedBuys.length === 0) return null;
+
+  const hasMissingPrice = plannedBuys.some((buy) => buy.buyValue === null);
+  const combinedValue = plannedBuys.reduce((total, buy) => total + (buy.buyValue ?? 0), 0);
+
+  return (
+    <section className="mt-6" aria-labelledby="buy-plan-heading">
+      <h2 id="buy-plan-heading" className="mb-2 text-lg font-semibold">Planned Buys</h2>
+      <div className="rounded-md border">
+        <Table className="[&_th]:px-2 [&_td]:px-2">
+          <TableHeader>
+            <TableRow>
+              <TableHead>Ticker</TableHead>
+              <TableHead className="text-right">Price Now</TableHead>
+              <TableHead className="text-right">Var %</TableHead>
+              <TableHead className="text-right">Sell</TableHead>
+              <TableHead className="text-right">Buy</TableHead>
+              <TableHead className="text-right">Buy Qty</TableHead>
+              <TableHead className="text-right">Total (Buy Qty × Price Now)</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {plannedBuys.map(({ investment, currentPrice, buyQuantity, buyValue }) => (
+              <TableRow key={investment.id}>
+                <TableCell className="font-medium">
+                  {investment.type === 'TREASURY' && investment.treasuryProductName
+                    ? investment.treasuryProductName
+                    : investment.ticker}
+                </TableCell>
+                <TableCell className="text-right">
+                  {currentPrice !== null ? formatCurrency(currentPrice) : <span className="text-muted-foreground">N/A</span>}
+                </TableCell>
+                <TableCell className={`text-right ${investment.type === 'STOCK' && investment.quote ? profitColorClass(investment.quote.dailyChangePercent) : 'text-muted-foreground'}`}>
+                  {investment.type === 'STOCK' && investment.quote
+                    ? formatPercent(investment.quote.dailyChangePercent)
+                    : '—'}
+                </TableCell>
+                <TableCell className="text-right">
+                  {investment.targetSellPrice !== null
+                    ? formatCurrency(parseFloat(investment.targetSellPrice))
+                    : <span className="text-muted-foreground">—</span>}
+                </TableCell>
+                <TableCell className="text-right">
+                  {investment.targetBuyPrice !== null
+                    ? formatCurrency(parseFloat(investment.targetBuyPrice))
+                    : <span className="text-muted-foreground">—</span>}
+                </TableCell>
+                <TableCell className="text-right">{formatQuantity(buyQuantity)}</TableCell>
+                <TableCell className="text-right">
+                  {buyValue !== null ? formatCurrency(buyValue) : <span className="text-muted-foreground">N/A</span>}
+                </TableCell>
+              </TableRow>
+            ))}
+            <TableRow>
+              <TableCell colSpan={6} className="text-right font-semibold">
+                Combined total{hasMissingPrice ? ' (partial)' : ''}
+              </TableCell>
+              <TableCell className="text-right font-semibold">{formatCurrency(combinedValue)}</TableCell>
+            </TableRow>
+          </TableBody>
+        </Table>
+      </div>
+      <p className="mt-1 text-xs text-muted-foreground">Information only. Edit planned buy quantities in the table above.</p>
+    </section>
   );
 }
 
@@ -370,7 +460,7 @@ interface InvestmentRowProps {
   portfolioTotalInvested: number;
   onAddOrder: (investment: InvestmentListItem) => void;
   onArchive: (investment: InvestmentListItem) => void;
-  onTickerClick: (id: string, ticker: string, sector: string | null) => void;
+  onTickerClick: (id: string, ticker: string, sector: string | null, recommendation: number | null) => void;
 }
 
 /** Returns true when the investment has no orders (position quantity is "0.00000000"). */
@@ -484,9 +574,9 @@ function InvestmentRow({ investment, portfolioCurrentTotal, portfolioTotalInvest
     <TableRow>
       <TableCell className="font-medium">
         <button
-          className="cursor-pointer underline-offset-2 hover:underline focus-visible:outline-none focus-visible:underline text-left"
-          onClick={() => onTickerClick(investment.id, investment.ticker, investment.sector)}
+          onClick={() => onTickerClick(investment.id, investment.ticker, investment.sector, investment.recommendation)}
           aria-label={`View comments for ${displayLabel}`}
+          className={`cursor-pointer underline-offset-2 hover:underline focus-visible:outline-none focus-visible:underline text-left ${getRecommendationColorClass(investment.recommendation)}`}
         >
           {displayLabel}
         </button>

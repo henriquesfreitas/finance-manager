@@ -76,6 +76,17 @@ export function updateInvestmentSector(id: string, sector: string): Promise<Inve
   });
 }
 
+/** Updates or clears the user-assigned ticker recommendation score. */
+export function updateInvestmentRecommendation(
+  id: string,
+  recommendation: number | null,
+): Promise<InvestmentRecord> {
+  return request<InvestmentRecord>(`/api/investments/${id}/recommendation`, {
+    method: 'PATCH',
+    body: JSON.stringify({ recommendation }),
+  });
+}
+
 /**
  * Soft-deletes an investment by setting its archivedAt timestamp.
  * PATCH /api/investments/:id/archive

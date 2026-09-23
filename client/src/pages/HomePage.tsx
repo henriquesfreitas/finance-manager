@@ -46,6 +46,7 @@ export function HomePage(): React.JSX.Element {
   const [commentInvestmentId, setCommentInvestmentId] = useState<string | null>(null);
   const [commentTicker, setCommentTicker] = useState<string | null>(null);
   const [commentSector, setCommentSector] = useState<string | null>(null);
+  const [commentRecommendation, setCommentRecommendation] = useState<number | null>(null);
 
   // ── Archive dialog state ─────────────────────────────────────────────────────
   const [archiveDialogOpen, setArchiveDialogOpen] = useState(false);
@@ -58,10 +59,11 @@ export function HomePage(): React.JSX.Element {
     setOrderModalOpen(true);
   }
 
-  function handleTickerClick(id: string, ticker: string, sector: string | null): void {
+  function handleTickerClick(id: string, ticker: string, sector: string | null, recommendation: number | null): void {
     setCommentInvestmentId(id);
     setCommentTicker(ticker);
     setCommentSector(sector);
+    setCommentRecommendation(recommendation);
     setCommentModalOpen(true);
   }
 
@@ -71,6 +73,7 @@ export function HomePage(): React.JSX.Element {
       setCommentInvestmentId(null);
       setCommentTicker(null);
       setCommentSector(null);
+      setCommentRecommendation(null);
     }
   }
 
@@ -167,6 +170,7 @@ export function HomePage(): React.JSX.Element {
         investmentId={commentInvestmentId}
         ticker={commentTicker}
         sector={commentSector}
+        recommendation={commentRecommendation}
       />
 
       {/* ── Order modal ──────────────────────────────────────────────────────── */}

@@ -9,8 +9,9 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { useComments, useCreateComment, useUpdateComment, useDeleteComment } from '@/hooks/useComments';
-import { useUpdateInvestmentSector } from '@/hooks/useInvestments';
+import { useUpdateInvestmentRecommendation, useUpdateInvestmentSector } from '@/hooks/useInvestments';
 import { INVESTMENT_SECTORS } from '@/lib/investment-sectors';
+import { getRecommendationColorClass } from '@/lib/recommendation';
 import type { CommentItem } from '@/types/comment';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -68,6 +69,57 @@ function SectorEditor({ investmentId, currentSector }: SectorEditorProps): React
             {s}
           </option>
         ))}
+      </select>
+    </div>
+  );
+}
+
+interface RecommendationEditorProps {
+  investmentId: string;
+  recommendation: number | null;
+}
+
+/** Saves a 1–5 ticker recommendation and lets the table refresh its color. */
+function RecommendationEditor({ investmentId, recommendation }: RecommendationEditorProps): React.JSX.Element {
+  const updateRecommendation = useUpdateInvestmentRecommendation();
+  const [selected, setSelected] = useState(recommendation?.toString() ?? '');
+
+  function handleChange(e: React.ChangeEvent<HTMLSelectElement>): void {
+    const value = e.target.value;
+    const nextRecommendation = value ? Number(value) : null;
+    const previous = selected;
+    setSelected(value);
+    updateRecommendation.mutate(
+      { id: investmentId, recommendation: nextRecommendation },
+      {
+        onSuccess: () => toast.success(nextRecommendation === null
+          ? 'Ticker recommendation cleared'
+          : `Ticker recommendation set to ${nextRecommendation}/5`),
+        onError: (err: Error) => {
+          setSelected(previous);
+          toast.error(err.message);
+        },
+      },
+    );
+  }
+
+  return (
+    <div className="flex items-center gap-2">
+      <label htmlFor="ticker-recommendation" className="text-sm text-muted-foreground">Recommendation:</label>
+      <select
+        id="ticker-recommendation"
+        className={`h-8 rounded-md border border-input bg-transparent px-2 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 ${getRecommendationColorClass(selected ? Number(selected) : null)}`}
+        value={selected}
+        onChange={handleChange}
+        disabled={updateRecommendation.isPending}
+        aria-label="Ticker recommendation"
+      >
+        <option value="">— not set —</option>
+        <option value="1">1 — Lowest</option>
+        <option value="2">2</option>
+        <option value="3">3</option>
+        <option value="4">4</option>
+        <option value="5">5 — Best</option>
       </select>
     </div>
   );
@@ -289,6 +341,7 @@ interface CommentModalProps {
   investmentId: string | null;
   ticker: string | null;
   sector: string | null;
+  recommendation: number | null;
 }
 
 /**
@@ -313,6 +366,7 @@ export function CommentModal({
   investmentId,
   ticker,
   sector,
+  recommendation,
 }: CommentModalProps): React.JSX.Element | null {
   if (!investmentId || !ticker) return null;
 
@@ -326,6 +380,12 @@ export function CommentModal({
         <div className="grid gap-5 py-2">
           {/* Sector editor — inline, saves immediately on change */}
           <SectorEditor investmentId={investmentId} currentSector={sector} />
+
+          <RecommendationEditor
+            key={investmentId}
+            investmentId={investmentId}
+            recommendation={recommendation}
+          />
 
           <AddCommentForm investmentId={investmentId} />
 

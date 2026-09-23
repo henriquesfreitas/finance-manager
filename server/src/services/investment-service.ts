@@ -5,6 +5,7 @@ import type {
   CreateInvestmentInput,
   CreateTreasuryInvestmentInput,
   UpdateTargetPricesInput,
+  UpdateInvestmentRecommendationInput,
   UpdateCurrentValueInput,
   InvestmentRecord,
 } from '../types/investment.js';
@@ -22,6 +23,7 @@ type InvestmentRow = {
   targetSellPrice?: { toString(): string } | null;
   targetBuyPrice?: { toString(): string } | null;
   targetBuyQuantity?: { toString(): string } | null;
+  recommendation?: number | null;
   currentValue?: { toString(): string } | null;
   treasuryProductId: string | null;
   treasuryProduct?: { name: string } | null;
@@ -60,6 +62,7 @@ function toRecord(row: InvestmentRow): InvestmentRecord {
     targetSellPrice: row.targetSellPrice ? row.targetSellPrice.toString() : null,
     targetBuyPrice: row.targetBuyPrice ? row.targetBuyPrice.toString() : null,
     targetBuyQuantity: row.targetBuyQuantity ? row.targetBuyQuantity.toString() : null,
+    recommendation: row.recommendation ?? null,
     currentValue: row.currentValue ? row.currentValue.toString() : null,
     treasuryProductId: row.treasuryProductId,
     treasuryProductName: row.treasuryProduct?.name ?? null,
@@ -241,6 +244,20 @@ export function createInvestmentService(db: PrismaClient) {
           ...(data.targetBuyPrice !== undefined && { targetBuyPrice: data.targetBuyPrice }),
           ...(data.targetBuyQuantity !== undefined && { targetBuyQuantity: data.targetBuyQuantity }),
         },
+        include: { treasuryProduct: { select: { name: true } } },
+      });
+      return toRecord(record);
+    },
+
+    /** Updates or clears the user-assigned 1–5 recommendation score. */
+    async updateRecommendation(id: string, data: UpdateInvestmentRecommendationInput): Promise<InvestmentRecord> {
+      const existing = await db.investment.findUnique({ where: { id } });
+      if (!existing) {
+        throw new Error(`Investment with id "${id}" not found`);
+      }
+      const record = await db.investment.update({
+        where: { id },
+        data: { recommendation: data.recommendation },
         include: { treasuryProduct: { select: { name: true } } },
       });
       return toRecord(record);

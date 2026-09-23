@@ -15,6 +15,7 @@ import { useOrders } from '@/hooks/useOrders';
 import type { ArchivedInvestmentItem } from '@/types/investment';
 import type { OrderListItem, OrderType } from '@/types/order';
 import { formatQuantity } from '@/lib/utils';
+import { getRecommendationColorClass } from '@/lib/recommendation';
 
 /** Formats a number as BRL currency. */
 function formatCurrency(value: number): string {
@@ -36,7 +37,7 @@ function formatDate(isoDate: string): string {
 export function ArchiveSection({
   onTickerClick,
 }: {
-  onTickerClick: (id: string, ticker: string, sector: string | null) => void;
+  onTickerClick: (id: string, ticker: string, sector: string | null, recommendation: number | null) => void;
 }): React.JSX.Element {
   const { data: investments = [], isLoading } = useArchivedInvestments();
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
@@ -100,7 +101,7 @@ interface ArchivedInvestmentRowsProps {
   investment: ArchivedInvestmentItem;
   isExpanded: boolean;
   onToggle: () => void;
-  onTickerClick: (id: string, ticker: string, sector: string | null) => void;
+  onTickerClick: (id: string, ticker: string, sector: string | null, recommendation: number | null) => void;
 }
 
 /**
@@ -141,8 +142,8 @@ function ArchivedInvestmentRows({
         </TableCell>
         <TableCell className="font-medium">
           <button
-            className="cursor-pointer underline-offset-2 hover:underline focus-visible:outline-none focus-visible:underline"
-            onClick={(e) => { e.stopPropagation(); onTickerClick(investment.id, investment.ticker, investment.sector); }}
+            className={`cursor-pointer underline-offset-2 hover:underline focus-visible:outline-none focus-visible:underline ${getRecommendationColorClass(investment.recommendation)}`}
+            onClick={(e) => { e.stopPropagation(); onTickerClick(investment.id, investment.ticker, investment.sector, investment.recommendation); }}
             aria-label={`View comments for ${investment.ticker}`}
           >
             {investment.ticker}

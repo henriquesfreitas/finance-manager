@@ -6,6 +6,7 @@ import {
   validateUpdateTargetPricesInput,
   validateCreateTreasuryInvestmentInput,
   validateUpdateCurrentValueInput,
+  validateUpdateInvestmentRecommendationInput,
 } from '../validators/investment-validator.js';
 import { prisma } from '../lib/prisma-client.js';
 
@@ -161,6 +162,26 @@ export function createInvestmentRouter(): Router {
     }
     try {
       const investment = await service.updateSector(id, validation.data.sector);
+      res.json(investment);
+    } catch (err) {
+      if (err instanceof Error && err.message.includes('not found')) {
+        res.status(404).json({ error: err.message });
+        return;
+      }
+      throw err;
+    }
+  });
+
+  // PATCH /api/investments/:id/recommendation — set or clear the 1–5 rating
+  router.patch('/investments/:id/recommendation', async (req: Request, res: Response) => {
+    const id = req.params['id'] as string;
+    const validation = validateUpdateInvestmentRecommendationInput(req.body);
+    if (!validation.success) {
+      res.status(400).json({ error: 'Validation failed', details: validation.errors });
+      return;
+    }
+    try {
+      const investment = await service.updateRecommendation(id, validation.data);
       res.json(investment);
     } catch (err) {
       if (err instanceof Error && err.message.includes('not found')) {

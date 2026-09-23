@@ -176,6 +176,26 @@ export function validateUpdateTargetPricesInput(raw: unknown):
   return { success: false, errors };
 }
 
+/** Recommendation score is an integer from 1 (lowest) to 5 (best), or null to clear it. */
+export const updateInvestmentRecommendationSchema = z.object({
+  recommendation: z.number().int().min(1).max(5).nullable(),
+});
+
+export function validateUpdateInvestmentRecommendationInput(raw: unknown):
+  | { success: true; data: { recommendation: number | null } }
+  | { success: false; errors: Record<string, string[]> } {
+  const parsed = updateInvestmentRecommendationSchema.safeParse(raw);
+
+  if (parsed.success) return { success: true, data: parsed.data };
+
+  const errors: Record<string, string[]> = {};
+  for (const issue of parsed.error.issues) {
+    const field = issue.path.join('.') || '_root';
+    (errors[field] ??= []).push(issue.message);
+  }
+  return { success: false, errors };
+}
+
 /**
  * Zod schema for creating a new TREASURY investment.
  * Only requires the id of an existing TreasuryProduct row.

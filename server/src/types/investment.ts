@@ -32,6 +32,8 @@ export interface InvestmentRecord {
   targetBuyPrice: string | null;
   /** User-defined quantity intended for the next buy. Null when not set. */
   targetBuyQuantity?: string | null;
+  /** User-assigned ticker recommendation from 1 (lowest) to 5 (best). */
+  recommendation: number | null;
   /**
    * Manually-entered current value for non-STOCK assets (e.g. Tesouro Direto).
    * Null when not set — UI shows N/A. Stored as Decimal string, e.g. "30882.59000000".
@@ -97,4 +99,9 @@ export interface UpdateTargetPricesInput {
   targetSellPrice?: number | null | undefined;
   targetBuyPrice?: number | null | undefined;
   targetBuyQuantity?: number | null | undefined;
+}
+
+/** Validated recommendation score, or null to clear the recommendation. */
+export interface UpdateInvestmentRecommendationInput {
+  recommendation: number | null;
 }
