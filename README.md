@@ -255,6 +255,20 @@ crontab -e
 0 */6 * * * /opt/finance-manager/scripts/backup-db.sh >> /var/log/finance-backup.log 2>&1
 ```
 
+### Price Target Email Alerts (Production)
+
+The script `scripts/check-price-targets.sh` checks active investments using Yahoo Finance quotes for stocks and the saved current value for Treasury products. It emails `BACKUP_NOTIFY_EMAIL` through the existing Resend settings whenever a sell target is met (`price now >= sell target`) or a buy target is met (`price now <= buy target`). A digest is sent only when at least one target is reached; it repeats on each scheduled run while a target remains reached.
+
+Ubuntu's standard cron uses the VPS's system timezone to schedule jobs; setting `TZ` in a user's crontab does not change when the job runs ([Ubuntu crontab manual](https://manpages.ubuntu.com/manpages/jammy/man5/crontab.5.html)). Check the VPS timezone with `timedatectl`. On the common UTC-configured VPS, Brasília is currently UTC-3, so add this entry for 11:00 Brasília time. Replace the project path as needed:
+
+```cron
+0 14 * * 1,4 cd /opt/finance-manager && /bin/bash scripts/check-price-targets.sh >> /var/log/finance-target-alerts.log 2>&1
+```
+
+If the VPS system timezone is `America/Sao_Paulo`, use `0 11 * * 1,4` instead. The script defaults to the root `.env` file.
+
+The selected environment file must contain the existing `BACKUP_NOTIFY_EMAIL`, `BACKUP_FROM_EMAIL`, and `RESEND_API_KEY` settings. To run a manual check, use `ENV_FILE=.env /bin/bash scripts/check-price-targets.sh` from the project root. The server image must be rebuilt and deployed so it includes `dist/jobs/target-price-alerts.js`.
+
 ### Email notifications
 
 - **Success**: subject `✅ Backup YYYYMMDD_HHMMSS — <size>` with investments and orders tables from the last 7 days
