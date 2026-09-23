@@ -5,8 +5,11 @@ WORKDIR /app
 
 # Install dependencies first (layer cache)
 COPY package.json package-lock.json ./
-COPY prisma ./prisma/
 RUN npm install
+
+# Schema and migrations change more often than dependencies. Copy them after
+# dependency installation so Prisma changes don't invalidate the npm layer.
+COPY prisma ./prisma/
 
 # Generate Prisma client
 RUN npx prisma generate
@@ -26,8 +29,11 @@ RUN addgroup -S appgroup && adduser -S appuser -G appgroup
 
 # Install production dependencies + tsx (needed for prisma seed)
 COPY package.json package-lock.json ./
+RUN npm install --omit=dev && npm install tsx
+
+# Keep this after dependency installation so Prisma changes don't reinstall packages.
 COPY prisma ./prisma/
-RUN npm install --omit=dev && npm install tsx && npx prisma generate
+RUN npx prisma generate
 
 # Copy built output from builder
 COPY --from=builder /app/dist ./dist/
