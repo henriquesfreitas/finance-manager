@@ -145,7 +145,8 @@ export function InvestmentTable({
 
   if (isLoading) {
     return (
-      <div className="rounded-md border">
+      <>
+      <div className="hidden rounded-md border md:block">
         <Table className="[&_th]:px-0.5 [&_td]:px-0.5">
           <TableHeader>
             <TableHeaderRow sort={sort} onSort={handleSort} />
@@ -163,12 +164,22 @@ export function InvestmentTable({
           </TableBody>
         </Table>
       </div>
+      <div className="grid gap-3 md:hidden" aria-label="Loading investments">
+        {Array.from({ length: 3 }).map((_, index) => (
+          <div key={index} className="grid gap-3 rounded-xl border bg-card p-4 shadow-sm">
+            <div className="h-5 w-28 animate-pulse rounded bg-muted" />
+            <div className="h-10 w-full animate-pulse rounded bg-muted" />
+          </div>
+        ))}
+      </div>
+      </>
     );
   }
 
   if (investments.length === 0) {
     return (
-      <div className="rounded-md border">
+      <>
+      <div className="hidden rounded-md border md:block">
         <Table className="[&_th]:px-0.5 [&_td]:px-0.5">
           <TableHeader>
             <TableHeaderRow sort={sort} onSort={handleSort} />
@@ -182,6 +193,8 @@ export function InvestmentTable({
           </TableBody>
         </Table>
       </div>
+      <p className="py-10 text-center text-sm text-muted-foreground md:hidden">No investments yet. Click "Add Investment" to get started.</p>
+      </>
     );
   }
 
@@ -191,7 +204,7 @@ export function InvestmentTable({
 
   return (
     <>
-      <div className="rounded-md border">
+      <div className="hidden rounded-md border md:block">
         <Table className="[&_th]:px-0.5 [&_td]:px-0.5">
           <TableHeader>
             <TableHeaderRow sort={sort} onSort={handleSort} />
@@ -212,12 +225,29 @@ export function InvestmentTable({
         </Table>
       </div>
 
+      <div className="grid gap-3 md:hidden">
+        {invested.map((investment) => (
+          <MobileInvestmentCard
+            key={investment.id}
+            investment={investment}
+            portfolioCurrentTotal={portfolioCurrentTotal}
+            portfolioTotalInvested={portfolioTotalInvested}
+            onAddOrder={onAddOrder}
+            onArchive={onArchive}
+            onTickerClick={onTickerClick}
+          />
+        ))}
+      </div>
+
       <BuyPlanTable investments={investments} />
 
       {watchlist.length > 0 && (
-        <>
-          <h2 className="mt-6 mb-2 text-lg font-semibold">Watchlist</h2>
-          <div className="rounded-md border">
+        <section id="watchlist" className="mt-6 scroll-mt-4">
+          <div className="mb-2 flex items-center justify-between gap-3">
+            <h2 className="text-lg font-semibold">Watchlist</h2>
+            <a href="#top" className="shrink-0 text-xs font-medium text-primary hover:underline">Back to top ↑</a>
+          </div>
+          <div className="hidden rounded-md border md:block">
             <Table className="[&_th]:px-0.5 [&_td]:px-0.5">
               <TableHeader>
                 <TableHeaderRow sort={sort} onSort={handleSort} />
@@ -237,7 +267,20 @@ export function InvestmentTable({
               </TableBody>
             </Table>
           </div>
-        </>
+          <div className="grid gap-3 md:hidden">
+            {watchlist.map((investment) => (
+              <MobileInvestmentCard
+                key={investment.id}
+                investment={investment}
+                portfolioCurrentTotal={portfolioCurrentTotal}
+                portfolioTotalInvested={portfolioTotalInvested}
+                onAddOrder={onAddOrder}
+                onArchive={onArchive}
+                onTickerClick={onTickerClick}
+              />
+            ))}
+          </div>
+        </section>
       )}
     </>
   );
@@ -269,10 +312,13 @@ function BuyPlanTable({ investments }: { investments: InvestmentListItem[] }): R
   const combinedValue = plannedBuys.reduce((total, buy) => total + (buy.buyValue ?? 0), 0);
 
   return (
-    <section className="mt-6" aria-labelledby="buy-plan-heading">
-      <h2 id="buy-plan-heading" className="mb-2 text-lg font-semibold">Planned Buys</h2>
-      <div className="rounded-md border">
-        <Table className="[&_th]:px-2 [&_td]:px-2">
+    <section id="planned-buys" className="mt-6 scroll-mt-4" aria-labelledby="buy-plan-heading">
+      <div className="mb-2 flex items-center justify-between gap-3">
+        <h2 id="buy-plan-heading" className="text-lg font-semibold">Planned Buys</h2>
+        <a href="#top" className="shrink-0 text-xs font-medium text-primary hover:underline">Back to top ↑</a>
+      </div>
+      <div className="hidden overflow-x-auto rounded-md border md:block">
+        <Table className="min-w-[640px] [&_th]:px-2 [&_td]:px-2">
           <TableHeader>
             <TableRow>
               <TableHead>Ticker</TableHead>
@@ -325,7 +371,35 @@ function BuyPlanTable({ investments }: { investments: InvestmentListItem[] }): R
           </TableBody>
         </Table>
       </div>
-      <p className="mt-1 text-xs text-muted-foreground">Information only. Edit planned buy quantities in the table above.</p>
+      <div className="grid gap-3 md:hidden">
+        {plannedBuys.map(({ investment, currentPrice, buyQuantity, buyValue }) => (
+          <article key={investment.id} className="rounded-xl border bg-card p-4 shadow-sm">
+            <h3 className="break-words font-semibold">
+              {investment.type === 'TREASURY' && investment.treasuryProductName
+                ? investment.treasuryProductName
+                : investment.ticker}
+            </h3>
+            {investment.sector && <p className="mt-0.5 text-xs text-muted-foreground">{investment.sector}</p>}
+            <div className="mt-3 grid grid-cols-2 gap-x-3 gap-y-3 border-t pt-3">
+              <MobileMetric label="Price now" value={currentPrice !== null ? formatCurrency(currentPrice) : 'N/A'} />
+              <MobileMetric
+                label="Daily variation"
+                value={investment.type === 'STOCK' && investment.quote ? formatPercent(investment.quote.dailyChangePercent) : '—'}
+                valueClassName={investment.type === 'STOCK' && investment.quote ? profitColorClass(investment.quote.dailyChangePercent) : ''}
+              />
+              <MobileMetric label="Target sell" value={investment.targetSellPrice !== null ? formatCurrency(Number(investment.targetSellPrice)) : '—'} />
+              <MobileMetric label="Target buy" value={investment.targetBuyPrice !== null ? formatCurrency(Number(investment.targetBuyPrice)) : '—'} />
+              <MobileMetric label="Buy quantity" value={formatQuantity(buyQuantity)} />
+              <MobileMetric label="Estimated total" value={buyValue !== null ? formatCurrency(buyValue) : 'N/A'} />
+            </div>
+          </article>
+        ))}
+        <div className="flex items-center justify-between rounded-lg bg-muted/60 px-4 py-3 text-sm font-semibold">
+          <span>Combined total{hasMissingPrice ? ' (partial)' : ''}</span>
+          <span className="tabular-nums">{formatCurrency(combinedValue)}</span>
+        </div>
+      </div>
+      <p className="mt-1 text-xs text-muted-foreground">Information only. Edit planned buy quantities in the investment details above.</p>
     </section>
   );
 }
@@ -719,6 +793,133 @@ function InvestmentRow({ investment, portfolioCurrentTotal, portfolioTotalInvest
         </div>
       </TableCell>
     </TableRow>
+  );
+}
+
+function MobileInvestmentCard({ investment, portfolioCurrentTotal, onAddOrder, onArchive, onTickerClick }: InvestmentRowProps): React.JSX.Element {
+  const { mutate: saveTargetPrices, isPending: isSavingTargets } = useUpdateTargetPrices();
+  const { mutate: saveCurrentValue, isPending: isSavingCurrentValue } = useUpdateCurrentValue();
+  const isTreasury = investment.type === 'TREASURY';
+  const noOrders = hasNoOrders(investment);
+  const quantity = parseFloat(investment.position.quantity);
+  const averagePrice = parseFloat(investment.position.averagePrice);
+  const currentPrice = isTreasury
+    ? (investment.currentValue !== null ? parseFloat(investment.currentValue) : null)
+    : (investment.quote?.currentPrice ?? null);
+  const totalInvested = noOrders ? 0 : calculateTotalInvested(quantity, averagePrice);
+  const currentTotal = noOrders ? 0 : calculateCurrentTotal(quantity, currentPrice);
+  const profit = noOrders ? 0 : calculateProfit(currentTotal, totalInvested);
+  const totalVariation = noOrders ? 0 : calculateTotalVariation(profit, totalInvested);
+  const displayLabel = isTreasury && investment.treasuryProductName
+    ? investment.treasuryProductName
+    : investment.ticker;
+
+  function saveTarget(field: 'targetSellPrice' | 'targetBuyPrice' | 'targetBuyQuantity', value: number | null): void {
+    saveTargetPrices({ id: investment.id, [field]: value }, {
+      onError: () => toast.error(`Failed to save ${field} for ${displayLabel}`),
+    });
+  }
+
+  return (
+    <article className="rounded-xl border bg-card p-4 shadow-sm">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <button
+            type="button"
+            onClick={() => onTickerClick(investment.id, investment.ticker, investment.sector, investment.recommendation)}
+            aria-label={`View comments for ${displayLabel}`}
+            className={`break-words text-left text-base font-semibold underline-offset-2 hover:underline focus-visible:outline-none focus-visible:underline ${getRecommendationColorClass(investment.recommendation)}`}
+          >
+            {displayLabel}
+          </button>
+          {investment.sector && <p className="mt-0.5 text-xs text-muted-foreground">{investment.sector}</p>}
+        </div>
+        <div className="flex shrink-0 gap-1">
+          <Button variant="outline" size="sm" className="h-9 px-2.5" onClick={() => onAddOrder(investment)} aria-label={`Add order for ${displayLabel}`}>
+            <PlusCircle className="mr-1.5 h-4 w-4" /> Order
+          </Button>
+          <Button variant="ghost" size="sm" className="h-9 w-9 p-0 text-destructive hover:text-destructive" onClick={() => onArchive(investment)} aria-label={`Archive ${displayLabel}`}>
+            <Archive className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
+
+      <div className="mt-4 grid grid-cols-2 gap-x-3 gap-y-3 border-t pt-3">
+        <MobileMetric label="Quantity" value={noOrders ? '—' : formatQuantity(quantity)} />
+        <MobileMetric label="Price now" value={currentPrice === null ? 'N/A' : formatCurrency(currentPrice)} />
+        <MobileMetric label="Position value" value={noOrders ? '—' : currentTotal !== null ? formatCurrency(currentTotal) : 'N/A'} />
+        <MobileMetric
+          label="Profit"
+          value={noOrders ? '—' : profit !== null ? formatCurrency(profit) : 'N/A'}
+          valueClassName={noOrders ? '' : profitColorClass(profit)}
+        />
+      </div>
+
+      <details className="mt-3 border-t pt-2 text-sm">
+        <summary className="cursor-pointer py-1 font-medium text-primary">More details and targets</summary>
+        <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-3">
+          <MobileMetric label="Average price" value={noOrders || isTreasury ? '—' : formatCurrency(averagePrice)} />
+          <MobileMetric label="Variation" value={noOrders ? '—' : totalVariation !== null ? formatPercent(totalVariation) : 'N/A'} valueClassName={noOrders ? '' : profitColorClass(totalVariation)} />
+          <div className="grid gap-1">
+            <span className="text-xs text-muted-foreground">Target sell</span>
+            <EditablePriceCell
+              value={investment.targetSellPrice !== null ? Number(investment.targetSellPrice) : null}
+              onSave={(value) => saveTarget('targetSellPrice', value)}
+              isPending={isSavingTargets}
+              ariaLabel={`Edit Target Sell price for ${displayLabel}`}
+            />
+          </div>
+          <div className="grid gap-1">
+            <span className="text-xs text-muted-foreground">Target buy</span>
+            <EditablePriceCell
+              value={investment.targetBuyPrice !== null ? Number(investment.targetBuyPrice) : null}
+              onSave={(value) => saveTarget('targetBuyPrice', value)}
+              isPending={isSavingTargets}
+              ariaLabel={`Edit Target Buy price for ${displayLabel}`}
+            />
+          </div>
+          <div className="grid gap-1">
+            <span className="text-xs text-muted-foreground">Target buy quantity</span>
+            <EditablePriceCell
+              value={investment.targetBuyQuantity !== null ? Number(investment.targetBuyQuantity) : null}
+              onSave={(value) => saveTarget('targetBuyQuantity', value)}
+              isPending={isSavingTargets}
+              formatValue={formatQuantity}
+              step="0.00000001"
+              ariaLabel={`Edit Target Buy Quantity for ${displayLabel}`}
+            />
+          </div>
+          {isTreasury && (
+            <div className="grid gap-1">
+              <span className="text-xs text-muted-foreground">Current value</span>
+              <EditablePriceCell
+                value={investment.currentValue !== null ? Number(investment.currentValue) : null}
+                onSave={(value) => saveCurrentValue({ id: investment.id, currentValue: value }, { onError: () => toast.error(`Failed to save Current Value for ${displayLabel}`) })}
+                isPending={isSavingCurrentValue}
+                ariaLabel={`Edit Current Value for ${displayLabel}`}
+              />
+            </div>
+          )}
+          <div className="col-span-2 flex items-center justify-between border-t pt-2">
+            <span className="text-xs text-muted-foreground">Portfolio weight</span>
+            <span>{noOrders ? '—' : formatPortfolioPercent(calculatePortfolioWeight(currentTotal ?? totalInvested, portfolioCurrentTotal) ?? 0)}</span>
+          </div>
+          <div className="col-span-2 flex items-center justify-between">
+            <span className="text-xs text-muted-foreground">Last comment</span>
+            <LatestCommentDate investmentId={investment.id} />
+          </div>
+        </div>
+      </details>
+    </article>
+  );
+}
+
+function MobileMetric({ label, value, valueClassName = '' }: { label: string; value: string; valueClassName?: string }): React.JSX.Element {
+  return (
+    <div className="min-w-0">
+      <div className="text-xs text-muted-foreground">{label}</div>
+      <div className={`mt-0.5 truncate font-semibold tabular-nums ${valueClassName}`} title={value}>{value}</div>
+    </div>
   );
 }
 

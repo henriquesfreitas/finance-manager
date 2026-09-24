@@ -28,6 +28,10 @@ export function HomePage(): React.JSX.Element {
   const { data: investments = [], isLoading, isError, refetch } = useActiveInvestments();
   const { logout, admin } = useAuth();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const hasPlannedBuys = investments.some((investment) => investment.targetBuyQuantity !== null
+    && Number.isFinite(Number(investment.targetBuyQuantity))
+    && Number(investment.targetBuyQuantity) > 0);
+  const hasWatchlist = investments.some((investment) => Number(investment.position.quantity) === 0);
 
   async function handleLogout(): Promise<void> {
     setIsLoggingOut(true);
@@ -102,10 +106,14 @@ export function HomePage(): React.JSX.Element {
   return (
     <div className="min-h-screen bg-background">
       {/* ── Header ──────────────────────────────────────────────────────────── */}
-      <header className="bg-blue-600 text-white shadow-md">
-        <div className="container mx-auto flex min-h-16 items-center justify-between gap-3 px-4 py-3">
-          <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">Finance Investment Manager</h1>
-          <div className="flex items-center gap-2">
+      <header id="top" className="scroll-mt-0 bg-blue-600 text-white shadow-md">
+        <div className="container mx-auto flex min-h-16 flex-col items-stretch gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+          <h1 className="text-lg font-semibold tracking-tight sm:text-2xl">Finance Investment Manager</h1>
+          <nav aria-label="Page sections" className="-mx-1 flex gap-4 overflow-x-auto border-y border-white/20 py-2 text-sm sm:mx-0 sm:border-0 sm:py-0">
+            {hasPlannedBuys && <a href="#planned-buys" className="shrink-0 text-white/90 hover:text-white hover:underline">Planned Buys</a>}
+            {hasWatchlist && <a href="#watchlist" className="shrink-0 text-white/90 hover:text-white hover:underline">Watchlist</a>}
+          </nav>
+          <div className="flex flex-wrap items-center justify-between gap-2 sm:justify-end">
             <PortfolioAllocationDialog investments={investments} />
             <Button
               variant="ghost"
