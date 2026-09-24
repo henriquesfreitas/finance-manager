@@ -8,6 +8,7 @@ import { ArchiveConfirmDialog } from '@/components/ArchiveConfirmDialog';
 import { ArchiveSection } from '@/components/ArchiveSection';
 import { AllOrdersSection } from '@/components/AllOrdersSection';
 import { CommentModal } from '@/components/CommentModal';
+import { PortfolioAllocationDialog } from '@/components/PortfolioAllocationDialog';
 import { useActiveInvestments } from '@/hooks/useInvestments';
 import { useAuth } from '@/contexts/auth-context';
 import type { InvestmentListItem } from '@/types/investment';
@@ -104,25 +105,28 @@ export function HomePage(): React.JSX.Element {
       <div className="mb-6">
         <div className="mb-4 flex items-center justify-between">
           <h1 className="text-2xl font-bold tracking-tight">Finance Investment Manager</h1>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => void handleLogout()}
-            disabled={isLoggingOut}
-            aria-label="Sign out"
-          >
-            {isLoggingOut ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <>
-                <LogOut className="mr-2 h-4 w-4" />
-                {admin?.username && (
-                  <span className="hidden sm:inline">{admin.username}</span>
-                )}
-                <span className="sr-only sm:not-sr-only sm:ml-1">Sign out</span>
-              </>
-            )}
-          </Button>
+          <div className="flex items-center gap-2">
+            <PortfolioAllocationDialog investments={investments} />
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => void handleLogout()}
+              disabled={isLoggingOut}
+              aria-label="Sign out"
+            >
+              {isLoggingOut ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <>
+                  <LogOut className="mr-2 h-4 w-4" />
+                  {admin?.username && (
+                    <span className="hidden sm:inline">{admin.username}</span>
+                  )}
+                  <span className="sr-only sm:not-sr-only sm:ml-1">Sign out</span>
+                </>
+              )}
+            </Button>
+          </div>
         </div>
         <AddInvestmentForm />
       </div>
