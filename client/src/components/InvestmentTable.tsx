@@ -23,6 +23,7 @@ import { useUpdateTargetPrices, useUpdateCurrentValue } from '@/hooks/useInvestm
 import { toast } from 'sonner';
 import { formatQuantity } from '@/lib/utils';
 import { getRecommendationColorClass } from '@/lib/recommendation';
+import { useComments } from '@/hooks/useComments';
 
 interface InvestmentTableProps {
   investments: InvestmentListItem[];
@@ -152,7 +153,7 @@ export function InvestmentTable({
           <TableBody>
             {Array.from({ length: 3 }).map((_, i) => (
               <TableRow key={i}>
-                {Array.from({ length: 15 }).map((_, j) => (
+                {Array.from({ length: 16 }).map((_, j) => (
                   <TableCell key={j}>
                     <div className="h-4 w-full animate-pulse rounded bg-muted" />
                   </TableCell>
@@ -174,7 +175,7 @@ export function InvestmentTable({
           </TableHeader>
           <TableBody>
             <TableRow>
-              <TableCell colSpan={15} className="py-12 text-center text-muted-foreground">
+              <TableCell colSpan={16} className="py-12 text-center text-muted-foreground">
                 No investments yet. Click "Add Investment" to get started.
               </TableCell>
             </TableRow>
@@ -358,8 +359,9 @@ function TableHeaderRow({ sort, onSort }: TableHeaderRowProps): React.JSX.Elemen
       <SortableTableHead label="Total Invested" sortKey="totalInvested" sort={sort} onSort={onSort} className="text-right" />
       <SortableTableHead label="Current Total" sortKey="currentTotal" sort={sort} onSort={onSort} className="text-right" />
       <SortableTableHead label="Profit" sortKey="profit" sort={sort} onSort={onSort} className="text-right" />
-      <SortableTableHead label="Variation %" sortKey="totalVariation" sort={sort} onSort={onSort} className="text-right" />
-      <SortableTableHead label="Portfolio %" sortKey="portfolioWeight" sort={sort} onSort={onSort} className="text-right" />
+      <SortableTableHead label="Var %" title="Variation %" sortKey="totalVariation" sort={sort} onSort={onSort} className="text-right" />
+      <SortableTableHead label="%" title="Portfolio %" sortKey="portfolioWeight" sort={sort} onSort={onSort} className="text-right" />
+      <TableHead className="text-right" title="Last comment or update">Comment Date</TableHead>
       <TableHead className="text-right">Actions</TableHead>
     </TableRow>
   );
@@ -692,6 +694,9 @@ function InvestmentRow({ investment, portfolioCurrentTotal, portfolioTotalInvest
         )}
       </TableCell>
       <TableCell className="text-right">
+        <LatestCommentDate investmentId={investment.id} />
+      </TableCell>
+      <TableCell className="text-right">
         <div className="flex justify-end gap-1">
           <Button
             variant="ghost"
@@ -714,5 +719,23 @@ function InvestmentRow({ investment, portfolioCurrentTotal, portfolioTotalInvest
         </div>
       </TableCell>
     </TableRow>
+  );
+}
+
+function LatestCommentDate({ investmentId }: { investmentId: string }): React.JSX.Element {
+  const { data: comments, isLoading, isError } = useComments(investmentId);
+  if (isLoading) return <span className="text-muted-foreground">…</span>;
+  if (isError) return <span className="text-muted-foreground" title="Could not load comments">—</span>;
+  if (!comments?.length) return <span className="text-muted-foreground">—</span>;
+
+  const latestTimestamp = Math.max(...comments.flatMap((comment) => [
+    new Date(comment.createdAt).getTime(),
+    new Date(comment.updatedAt).getTime(),
+  ]));
+  const latestDate = new Date(latestTimestamp);
+  return (
+    <span title={latestDate.toLocaleString('pt-BR')}>
+      {latestDate.toLocaleDateString('pt-BR')}
+    </span>
   );
 }

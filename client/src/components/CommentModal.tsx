@@ -9,6 +9,10 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { useComments, useCreateComment, useUpdateComment, useDeleteComment } from '@/hooks/useComments';
+import { useOrders } from '@/hooks/useOrders';
+import type { OrderListItem } from '@/types/order';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { ChevronDown } from 'lucide-react';
 import { useUpdateInvestmentRecommendation, useUpdateInvestmentSector } from '@/hooks/useInvestments';
 import { INVESTMENT_SECTORS } from '@/lib/investment-sectors';
 import { getRecommendationColorClass } from '@/lib/recommendation';
@@ -378,6 +382,7 @@ export function CommentModal({
         </DialogHeader>
 
         <div className="grid gap-5 py-2">
+          <TickerOrderHistory investmentId={investmentId} ticker={ticker} />
           {/* Sector editor — inline, saves immediately on change */}
           <SectorEditor investmentId={investmentId} currentSector={sector} />
 
@@ -396,5 +401,64 @@ export function CommentModal({
         </div>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function TickerOrderHistory({ investmentId, ticker }: { investmentId: string; ticker: string }): React.JSX.Element {
+  const [showAllOrders, setShowAllOrders] = useState(false);
+  const { data: orders, isLoading, isError } = useOrders(investmentId);
+
+  return (
+    <section className="grid gap-2">
+      <h3 className="flex items-center gap-2 text-sm font-semibold">
+        <ChevronDown className="h-4 w-4" />
+        Order History — {ticker}
+      </h3>
+      {
+        isLoading ? (
+          <p className="py-3 text-center text-sm text-muted-foreground">Loading orders…</p>
+        ) : isError ? (
+          <p className="py-3 text-center text-sm text-destructive" role="alert">Could not load orders.</p>
+        ) : !orders?.length ? (
+          <p className="py-3 text-center text-sm text-muted-foreground">No orders recorded yet.</p>
+        ) : (
+          <div className="overflow-x-auto rounded-md border">
+            <Table className="min-w-[480px]">
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Type</TableHead>
+                  <TableHead className="text-right">Quantity</TableHead>
+                  <TableHead className="text-right">Price (R$)</TableHead>
+                  <TableHead className="text-right">Date</TableHead>
+                  <TableHead className="text-right">Total (R$)</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {orders.slice(0, showAllOrders ? orders.length : 5).map((order: OrderListItem) => (
+                  <TableRow key={order.id}>
+                    <TableCell className="font-medium">{order.type}</TableCell>
+                    <TableCell className="text-right">{Number(order.quantity).toLocaleString('pt-BR')}</TableCell>
+                    <TableCell className="text-right">{order.type === 'SPLIT' ? '—' : Number(order.price).toFixed(2)}</TableCell>
+                    <TableCell className="text-right">{new Date(`${order.orderDate}T12:00:00`).toLocaleDateString('pt-BR')}</TableCell>
+                    <TableCell className="text-right">{order.type === 'SPLIT' ? '—' : (Number(order.quantity) * Number(order.price)).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        )
+      }
+      {!isLoading && !isError && (orders?.length ?? 0) > 5 && (
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="justify-self-center"
+          onClick={() => setShowAllOrders((value) => !value)}
+        >
+          {showAllOrders ? 'Show less' : 'Show all orders'}
+        </Button>
+      )}
+    </section>
   );
 }
