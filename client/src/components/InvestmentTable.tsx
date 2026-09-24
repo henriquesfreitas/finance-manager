@@ -824,14 +824,24 @@ function MobileInvestmentCard({ investment, portfolioCurrentTotal, onAddOrder, o
     <article className="rounded-xl border bg-card p-4 shadow-sm">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <button
-            type="button"
-            onClick={() => onTickerClick(investment.id, investment.ticker, investment.sector, investment.recommendation)}
-            aria-label={`View comments for ${displayLabel}`}
-            className={`break-words text-left text-base font-semibold underline-offset-2 hover:underline focus-visible:outline-none focus-visible:underline ${getRecommendationColorClass(investment.recommendation)}`}
-          >
-            {displayLabel}
-          </button>
+          <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+            <button
+              type="button"
+              onClick={() => onTickerClick(investment.id, investment.ticker, investment.sector, investment.recommendation)}
+              aria-label={`View comments for ${displayLabel}`}
+              className={`max-w-full break-words text-left text-base font-semibold underline-offset-2 hover:underline focus-visible:outline-none focus-visible:underline ${getRecommendationColorClass(investment.recommendation)}`}
+            >
+              {displayLabel}
+            </button>
+            <span
+              title="Daily variation"
+              className={`shrink-0 rounded-md bg-muted px-2 py-1 text-xs font-semibold tabular-nums ${investment.type === 'STOCK' && investment.quote ? profitColorClass(investment.quote.dailyChangePercent) : 'text-muted-foreground'}`}
+            >
+              {investment.type === 'STOCK' && investment.quote
+                ? formatPercent(investment.quote.dailyChangePercent)
+                : '—'}
+            </span>
+          </div>
           {investment.sector && <p className="mt-0.5 text-xs text-muted-foreground">{investment.sector}</p>}
         </div>
         <div className="flex shrink-0 gap-1">
