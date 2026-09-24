@@ -100,16 +100,17 @@ export function HomePage(): React.JSX.Element {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className="min-h-screen bg-background">
       {/* ── Header ──────────────────────────────────────────────────────────── */}
-      <div className="mb-6">
-        <div className="mb-4 flex items-center justify-between">
-          <h1 className="text-2xl font-bold tracking-tight">Finance Investment Manager</h1>
+      <header className="bg-blue-600 text-white shadow-md">
+        <div className="container mx-auto flex min-h-16 items-center justify-between gap-3 px-4 py-3">
+          <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">Finance Investment Manager</h1>
           <div className="flex items-center gap-2">
             <PortfolioAllocationDialog investments={investments} />
             <Button
               variant="ghost"
               size="sm"
+              className="text-white hover:bg-white/15 hover:text-white"
               onClick={() => void handleLogout()}
               disabled={isLoggingOut}
               aria-label="Sign out"
@@ -128,8 +129,12 @@ export function HomePage(): React.JSX.Element {
             </Button>
           </div>
         </div>
-        <AddInvestmentForm />
-      </div>
+      </header>
+      <main className="container mx-auto px-4 py-6 sm:py-8">
+        <section className="mb-6 rounded-xl border bg-card p-4 shadow-sm sm:p-5">
+          <h2 className="mb-3 text-lg font-semibold">Add Investment</h2>
+          <AddInvestmentForm />
+        </section>
 
       {/* ── Error state (server/DB unreachable) ─────────────────────────────── */}
       {isError && (
@@ -149,23 +154,25 @@ export function HomePage(): React.JSX.Element {
       )}
 
       {/* ── Active investments table ─────────────────────────────────────────── */}
-      <InvestmentTable
-        investments={investments}
-        isLoading={isLoading}
-        onAddOrder={handleAddOrder}
-        onArchive={handleArchiveClick}
-        onTickerClick={handleTickerClick}
-      />
+      <section className="rounded-xl border bg-card p-3 shadow-sm sm:p-5">
+        <InvestmentTable
+          investments={investments}
+          isLoading={isLoading}
+          onAddOrder={handleAddOrder}
+          onArchive={handleArchiveClick}
+          onTickerClick={handleTickerClick}
+        />
+      </section>
 
       {/* ── All orders history ───────────────────────────────────────────────── */}
-      <div className="mt-8">
+      <section className="mt-8 rounded-xl border bg-card p-4 shadow-sm sm:p-5">
         <AllOrdersSection />
-      </div>
+      </section>
 
       {/* ── Archive section ──────────────────────────────────────────────────── */}
-      <div className="mt-8">
+      <section className="mt-8 rounded-xl border bg-card p-4 shadow-sm sm:p-5">
         <ArchiveSection onTickerClick={handleTickerClick} />
-      </div>
+      </section>
 
       {/* ── Comment modal ─────────────────────────────────────────────────────── */}
       <CommentModal
@@ -191,6 +198,7 @@ export function HomePage(): React.JSX.Element {
         investment={archivingInvestment}
         onSuccess={() => setArchivingInvestment(null)}
       />
+      </main>
     </div>
   );
 }

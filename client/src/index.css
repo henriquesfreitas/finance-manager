@@ -6,25 +6,25 @@
  * first-class Tailwind utilities without any extra plugin config.
  */
 @theme {
-  --color-background: hsl(0 0% 100%);
-  --color-foreground: hsl(240 10% 3.9%);
+  --color-background: hsl(210 33% 96%);
+  --color-foreground: hsl(215 28% 17%);
   --color-card: hsl(0 0% 100%);
   --color-card-foreground: hsl(240 10% 3.9%);
   --color-popover: hsl(0 0% 100%);
   --color-popover-foreground: hsl(240 10% 3.9%);
-  --color-primary: hsl(240 5.9% 10%);
+  --color-primary: hsl(217 91% 55%);
   --color-primary-foreground: hsl(0 0% 98%);
-  --color-secondary: hsl(240 4.8% 95.9%);
-  --color-secondary-foreground: hsl(240 5.9% 10%);
-  --color-muted: hsl(240 4.8% 95.9%);
-  --color-muted-foreground: hsl(240 3.8% 46.1%);
-  --color-accent: hsl(240 4.8% 95.9%);
-  --color-accent-foreground: hsl(240 5.9% 10%);
+  --color-secondary: hsl(210 28% 92%);
+  --color-secondary-foreground: hsl(215 28% 17%);
+  --color-muted: hsl(210 28% 92%);
+  --color-muted-foreground: hsl(215 14% 45%);
+  --color-accent: hsl(210 28% 92%);
+  --color-accent-foreground: hsl(215 28% 17%);
   --color-destructive: hsl(0 84.2% 60.2%);
   --color-destructive-foreground: hsl(0 0% 98%);
-  --color-border: hsl(240 5.9% 90%);
-  --color-input: hsl(240 5.9% 90%);
-  --color-ring: hsl(240 10% 3.9%);
+  --color-border: hsl(214 25% 86%);
+  --color-input: hsl(214 25% 86%);
+  --color-ring: hsl(217 91% 55%);
   --radius: 0.5rem;
 }
 
@@ -38,5 +38,9 @@
     color: var(--color-foreground);
     font-family: Calibri, "Segoe UI", sans-serif;
     font-size: 10pt;
+  }
+
+  h1, h2, h3 {
+    letter-spacing: -0.015em;
   }
 }

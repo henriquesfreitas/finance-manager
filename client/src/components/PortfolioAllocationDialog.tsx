@@ -57,40 +57,51 @@ export function PortfolioAllocationDialog({ investments }: { investments: Invest
 
   return (
     <>
-      <Button type="button" variant="outline" size="sm" onClick={() => setOpen(true)}>
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        className="border-white/40 bg-white/10 text-white hover:bg-white/20 hover:text-white"
+        onClick={() => setOpen(true)}
+      >
         <PieChart className="mr-2 h-4 w-4" />
         Portfolio Allocation
       </Button>
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="sm:max-w-[640px]">
+        <DialogContent className="sm:max-w-[760px]">
           <DialogHeader>
-            <DialogTitle>Portfolio Allocation</DialogTitle>
+            <DialogTitle className="text-blue-700">Portfolio Allocation</DialogTitle>
           </DialogHeader>
           {allocation.length === 0 ? (
             <p className="py-8 text-center text-sm text-muted-foreground">No investment value available.</p>
           ) : (
-            <div className="grid items-center gap-6 py-3 sm:grid-cols-[240px_1fr]">
-              <div
-                role="img"
-                aria-label={`Portfolio allocation pie chart. Total ${formatCurrency(total)}`}
-                className="mx-auto aspect-square w-56 rounded-full"
-                style={{ background: `conic-gradient(${gradient})` } as CSSProperties}
-              />
-              <ul className="grid gap-3">
+            <div className="grid gap-5 rounded-xl border bg-slate-50 p-4 sm:grid-cols-[260px_1fr] sm:gap-7 sm:p-6">
+              <div className="grid place-items-center">
+                <div
+                  role="img"
+                  aria-label={`Portfolio allocation pie chart. Total ${formatCurrency(total)}`}
+                  className="relative grid aspect-square w-56 place-items-center rounded-full shadow-inner"
+                  style={{ background: `conic-gradient(${gradient})` } as CSSProperties}
+                >
+                  <div className="grid h-[62%] w-[62%] content-center justify-items-center rounded-full border bg-card text-center shadow-sm">
+                    <span className="text-xs text-muted-foreground">Portfolio value</span>
+                    <span className="mt-1 px-2 text-sm font-bold tabular-nums text-foreground">{formatCurrency(total)}</span>
+                  </div>
+                </div>
+              </div>
+              <ul className="grid content-center gap-1">
                 {allocation.map((group) => (
-                  <li key={group.name} className="flex items-center justify-between gap-3 text-sm">
+                  <li key={group.name} className="flex items-center justify-between gap-3 border-b border-slate-200 py-2.5 text-sm last:border-0">
                     <span className="flex items-center gap-2">
-                      <span className="h-3 w-3 rounded-sm" style={{ backgroundColor: group.color }} aria-hidden="true" />
-                      {group.name}
+                      <span className="h-3 w-3 rounded-sm ring-2 ring-white" style={{ backgroundColor: group.color }} aria-hidden="true" />
+                      <span className="font-medium">{group.name}</span>
                     </span>
                     <span className="text-right tabular-nums">
-                      {formatCurrency(group.value)} <span className="text-muted-foreground">({(group.value / total * 100).toFixed(1)}%)</span>
+                      <span className="font-semibold">{formatCurrency(group.value)}</span>{' '}
+                      <span className="text-muted-foreground">{(group.value / total * 100).toFixed(1)}%</span>
                     </span>
                   </li>
                 ))}
-                <li className="mt-1 flex justify-between border-t pt-3 text-sm font-semibold">
-                  <span>Total</span><span>{formatCurrency(total)}</span>
-                </li>
               </ul>
             </div>
           )}

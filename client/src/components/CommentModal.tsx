@@ -384,13 +384,14 @@ export function CommentModal({
         <div className="grid gap-5 py-2">
           <TickerOrderHistory investmentId={investmentId} ticker={ticker} />
           {/* Sector editor — inline, saves immediately on change */}
-          <SectorEditor investmentId={investmentId} currentSector={sector} />
-
-          <RecommendationEditor
-            key={investmentId}
-            investmentId={investmentId}
-            recommendation={recommendation}
-          />
+          <div className="flex flex-wrap items-center gap-x-6 gap-y-3 rounded-lg border bg-muted/40 px-3 py-3">
+            <SectorEditor investmentId={investmentId} currentSector={sector} />
+            <RecommendationEditor
+              key={investmentId}
+              investmentId={investmentId}
+              recommendation={recommendation}
+            />
+          </div>
 
           <AddCommentForm investmentId={investmentId} />
 
