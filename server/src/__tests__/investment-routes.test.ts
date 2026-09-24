@@ -12,6 +12,8 @@ import type { InvestmentRecord } from '../types/investment.js';
  */
 class FakeInvestmentService {
   listActiveInvestments = vi.fn<[], Promise<EnrichedInvestment[]>>();
+  listActiveInvestmentRecords = vi.fn<[], Promise<EnrichedInvestment[]>>();
+  listActiveInvestmentQuotes = vi.fn<[], Promise<Record<string, { currentPrice: number; dailyChangePercent: number } | null>>>();
   listArchivedInvestments = vi.fn<[], Promise<ArchivedInvestment[]>>();
   createInvestment = vi.fn<[object], Promise<InvestmentRecord>>();
   archiveInvestment = vi.fn<[string], Promise<InvestmentRecord>>();
@@ -294,6 +296,38 @@ describe('PATCH /api/investments/:id/recommendation', () => {
 
     expect(res.status).toBe(400);
     expect(fakeService.updateRecommendation).not.toHaveBeenCalled();
+  });
+});
+
+describe('GET /api/investments/active-data and /api/investments/quotes', () => {
+  beforeEach(() => {
+    fakeService = new FakeInvestmentService();
+    vi.clearAllMocks();
+  });
+
+  it('returns active investment records without waiting for quotes', async () => {
+    fakeService.listActiveInvestmentRecords.mockResolvedValueOnce([{ ...ENRICHED, quote: null }]);
+    const app = buildApp();
+
+    const res = await request(app).get('/api/investments/active-data');
+
+    expect(res.status).toBe(200);
+    expect(res.body[0].ticker).toBe('ITUB3');
+    expect(res.body[0].quote).toBeNull();
+    expect(fakeService.listActiveInvestmentRecords).toHaveBeenCalledOnce();
+  });
+
+  it('returns market quotes keyed by ticker', async () => {
+    fakeService.listActiveInvestmentQuotes.mockResolvedValueOnce({
+      ITUB3: { currentPrice: 29.5, dailyChangePercent: 1.2 },
+    });
+    const app = buildApp();
+
+    const res = await request(app).get('/api/investments/quotes');
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ ITUB3: { currentPrice: 29.5, dailyChangePercent: 1.2 } });
+    expect(fakeService.listActiveInvestmentQuotes).toHaveBeenCalledOnce();
   });
 });
 

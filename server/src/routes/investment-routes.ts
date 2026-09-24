@@ -24,6 +24,17 @@ export function createInvestmentRouter(): Router {
   const router = Router();
   const service = createInvestmentService(prisma);
 
+  // Return stored ticker and position data before Yahoo quotes finish loading.
+  router.get('/investments/active-data', async (_req: Request, res: Response) => {
+    const investments = await service.listActiveInvestmentRecords();
+    res.json(investments);
+  });
+
+  router.get('/investments/quotes', async (_req: Request, res: Response) => {
+    const quotes = await service.listActiveInvestmentQuotes();
+    res.json(quotes);
+  });
+
   // GET /api/investments — list active investments enriched with quotes/currentValue
   router.get('/investments', async (_req: Request, res: Response) => {
     const investments = await service.listActiveInvestments();

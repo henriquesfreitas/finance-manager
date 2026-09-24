@@ -28,6 +28,7 @@ import { useComments } from '@/hooks/useComments';
 interface InvestmentTableProps {
   investments: InvestmentListItem[];
   isLoading: boolean;
+  pricesLoading?: boolean;
   onAddOrder: (investment: InvestmentListItem) => void;
   onArchive: (investment: InvestmentListItem) => void;
   onTickerClick: (id: string, ticker: string, sector: string | null, recommendation: number | null) => void;
@@ -96,6 +97,7 @@ function profitColorClass(value: number | null): string {
 export function InvestmentTable({
   investments,
   isLoading,
+  pricesLoading = false,
   onAddOrder,
   onArchive,
   onTickerClick,
@@ -214,6 +216,7 @@ export function InvestmentTable({
               <InvestmentRow
                 key={investment.id}
                 investment={investment}
+                pricesLoading={pricesLoading}
                 portfolioCurrentTotal={portfolioCurrentTotal}
                 portfolioTotalInvested={portfolioTotalInvested}
                 onAddOrder={onAddOrder}
@@ -230,6 +233,7 @@ export function InvestmentTable({
           <MobileInvestmentCard
             key={investment.id}
             investment={investment}
+            pricesLoading={pricesLoading}
             portfolioCurrentTotal={portfolioCurrentTotal}
             portfolioTotalInvested={portfolioTotalInvested}
             onAddOrder={onAddOrder}
@@ -239,7 +243,7 @@ export function InvestmentTable({
         ))}
       </div>
 
-      <BuyPlanTable investments={investments} />
+      <BuyPlanTable investments={investments} pricesLoading={pricesLoading} />
 
       {watchlist.length > 0 && (
         <section id="watchlist" className="mt-6 scroll-mt-4">
@@ -257,6 +261,7 @@ export function InvestmentTable({
                   <InvestmentRow
                     key={investment.id}
                     investment={investment}
+                    pricesLoading={pricesLoading}
                     portfolioCurrentTotal={portfolioCurrentTotal}
                     portfolioTotalInvested={portfolioTotalInvested}
                     onAddOrder={onAddOrder}
@@ -272,6 +277,7 @@ export function InvestmentTable({
               <MobileInvestmentCard
                 key={investment.id}
                 investment={investment}
+                pricesLoading={pricesLoading}
                 portfolioCurrentTotal={portfolioCurrentTotal}
                 portfolioTotalInvested={portfolioTotalInvested}
                 onAddOrder={onAddOrder}
@@ -287,7 +293,7 @@ export function InvestmentTable({
 }
 
 /** Read-only summary of intended purchases, based on editable target buy quantities. */
-function BuyPlanTable({ investments }: { investments: InvestmentListItem[] }): React.JSX.Element | null {
+function BuyPlanTable({ investments, pricesLoading = false }: { investments: InvestmentListItem[]; pricesLoading?: boolean }): React.JSX.Element | null {
   const plannedBuys = investments
     .filter((investment) => investment.targetBuyQuantity !== null
       && Number.isFinite(Number(investment.targetBuyQuantity))
@@ -309,6 +315,7 @@ function BuyPlanTable({ investments }: { investments: InvestmentListItem[] }): R
   if (plannedBuys.length === 0) return null;
 
   const hasMissingPrice = plannedBuys.some((buy) => buy.buyValue === null);
+  const plannedPricesLoading = pricesLoading && plannedBuys.some(({ investment }) => investment.type === 'STOCK');
   const combinedValue = plannedBuys.reduce((total, buy) => total + (buy.buyValue ?? 0), 0);
 
   return (
@@ -339,7 +346,9 @@ function BuyPlanTable({ investments }: { investments: InvestmentListItem[] }): R
                     : investment.ticker}
                 </TableCell>
                 <TableCell className="text-right">
-                  {currentPrice !== null ? formatCurrency(currentPrice) : <span className="text-muted-foreground">N/A</span>}
+                  {plannedPricesLoading && investment.type === 'STOCK'
+                    ? <span className="animate-pulse text-muted-foreground">Loading…</span>
+                    : currentPrice !== null ? formatCurrency(currentPrice) : <span className="text-muted-foreground">N/A</span>}
                 </TableCell>
                 <TableCell className={`text-right ${investment.type === 'STOCK' && investment.quote ? profitColorClass(investment.quote.dailyChangePercent) : 'text-muted-foreground'}`}>
                   {investment.type === 'STOCK' && investment.quote
@@ -358,7 +367,9 @@ function BuyPlanTable({ investments }: { investments: InvestmentListItem[] }): R
                 </TableCell>
                 <TableCell className="text-right">{formatQuantity(buyQuantity)}</TableCell>
                 <TableCell className="text-right">
-                  {buyValue !== null ? formatCurrency(buyValue) : <span className="text-muted-foreground">N/A</span>}
+                  {plannedPricesLoading && investment.type === 'STOCK'
+                    ? <span className="animate-pulse text-muted-foreground">Loading…</span>
+                    : buyValue !== null ? formatCurrency(buyValue) : <span className="text-muted-foreground">N/A</span>}
                 </TableCell>
               </TableRow>
             ))}
@@ -366,7 +377,9 @@ function BuyPlanTable({ investments }: { investments: InvestmentListItem[] }): R
               <TableCell colSpan={6} className="text-right font-semibold">
                 Combined total{hasMissingPrice ? ' (partial)' : ''}
               </TableCell>
-              <TableCell className="text-right font-semibold">{formatCurrency(combinedValue)}</TableCell>
+              <TableCell className="text-right font-semibold">
+                {plannedPricesLoading ? <span className="animate-pulse text-muted-foreground">Loading…</span> : formatCurrency(combinedValue)}
+              </TableCell>
             </TableRow>
           </TableBody>
         </Table>
@@ -381,7 +394,7 @@ function BuyPlanTable({ investments }: { investments: InvestmentListItem[] }): R
             </h3>
             {investment.sector && <p className="mt-0.5 text-xs text-muted-foreground">{investment.sector}</p>}
             <div className="mt-3 grid grid-cols-2 gap-x-3 gap-y-3 border-t pt-3">
-              <MobileMetric label="Price now" value={currentPrice !== null ? formatCurrency(currentPrice) : 'N/A'} />
+              <MobileMetric label="Price now" value={plannedPricesLoading && investment.type === 'STOCK' ? 'Loading…' : currentPrice !== null ? formatCurrency(currentPrice) : 'N/A'} />
               <MobileMetric
                 label="Daily variation"
                 value={investment.type === 'STOCK' && investment.quote ? formatPercent(investment.quote.dailyChangePercent) : '—'}
@@ -390,13 +403,13 @@ function BuyPlanTable({ investments }: { investments: InvestmentListItem[] }): R
               <MobileMetric label="Target sell" value={investment.targetSellPrice !== null ? formatCurrency(Number(investment.targetSellPrice)) : '—'} />
               <MobileMetric label="Target buy" value={investment.targetBuyPrice !== null ? formatCurrency(Number(investment.targetBuyPrice)) : '—'} />
               <MobileMetric label="Buy quantity" value={formatQuantity(buyQuantity)} />
-              <MobileMetric label="Estimated total" value={buyValue !== null ? formatCurrency(buyValue) : 'N/A'} />
+              <MobileMetric label="Estimated total" value={plannedPricesLoading && investment.type === 'STOCK' ? 'Loading…' : buyValue !== null ? formatCurrency(buyValue) : 'N/A'} />
             </div>
           </article>
         ))}
         <div className="flex items-center justify-between rounded-lg bg-muted/60 px-4 py-3 text-sm font-semibold">
           <span>Combined total{hasMissingPrice ? ' (partial)' : ''}</span>
-          <span className="tabular-nums">{formatCurrency(combinedValue)}</span>
+          <span className="tabular-nums">{plannedPricesLoading ? 'Loading…' : formatCurrency(combinedValue)}</span>
         </div>
       </div>
       <p className="mt-1 text-xs text-muted-foreground">Information only. Edit planned buy quantities in the investment details above.</p>
@@ -532,6 +545,7 @@ function getSortValue(
 
 interface InvestmentRowProps {
   investment: InvestmentListItem;
+  pricesLoading?: boolean;
   portfolioCurrentTotal: number;
   portfolioTotalInvested: number;
   onAddOrder: (investment: InvestmentListItem) => void;
@@ -544,11 +558,12 @@ function hasNoOrders(investment: InvestmentListItem): boolean {
   return parseFloat(investment.position.quantity) === 0;
 }
 
-function InvestmentRow({ investment, portfolioCurrentTotal, portfolioTotalInvested, onAddOrder, onArchive, onTickerClick }: InvestmentRowProps): React.JSX.Element {
+function InvestmentRow({ investment, pricesLoading = false, portfolioCurrentTotal, portfolioTotalInvested, onAddOrder, onArchive, onTickerClick }: InvestmentRowProps): React.JSX.Element {
   const { mutate: saveTargetPrices, isPending: isSavingTargets } = useUpdateTargetPrices();
   const { mutate: saveCurrentValue, isPending: isSavingCurrentValue } = useUpdateCurrentValue();
 
   const isTreasury = investment.type === 'TREASURY';
+  const quoteIsLoading = pricesLoading && !isTreasury;
 
   const quantity = parseFloat(investment.position.quantity);
   const averagePrice = parseFloat(investment.position.averagePrice);
@@ -686,6 +701,8 @@ function InvestmentRow({ investment, portfolioCurrentTotal, portfolioTotalInvest
             isPending={isSavingCurrentValue}
             ariaLabel={`Edit Current Value for ${displayLabel}`}
           />
+        ) : quoteIsLoading ? (
+          <span className="animate-pulse text-muted-foreground">Loading…</span>
         ) : currentPrice !== null ? (
           formatCurrency(currentPrice)
         ) : (
@@ -696,7 +713,9 @@ function InvestmentRow({ investment, portfolioCurrentTotal, portfolioTotalInvest
       <TableCell className={`text-right ${!isTreasury && !noOrders && dailyChangePercent !== null ? profitColorClass(dailyChangePercent) : 'text-muted-foreground'}`}>
         {isTreasury || noOrders
           ? '—'
-          : dailyChangePercent !== null ? formatPercent(dailyChangePercent) : 'N/A'}
+          : quoteIsLoading
+            ? <span className="animate-pulse text-muted-foreground">Loading…</span>
+            : dailyChangePercent !== null ? formatPercent(dailyChangePercent) : 'N/A'}
       </TableCell>
       <TableCell className={`text-right ${sellTargetClass}`}>
         <EditablePriceCell
@@ -735,27 +754,35 @@ function InvestmentRow({ investment, portfolioCurrentTotal, portfolioTotalInvest
       <TableCell className="text-right">
         {noOrders
           ? <span className="text-muted-foreground">—</span>
-          : currentTotal !== null
+          : quoteIsLoading
+            ? <span className="animate-pulse text-muted-foreground">Loading…</span>
+            : currentTotal !== null
             ? formatCurrency(currentTotal)
             : <span className="text-muted-foreground">N/A</span>}
       </TableCell>
       <TableCell className={`text-right ${noOrders ? 'text-muted-foreground' : profitColorClass(profit)}`}>
         {noOrders
           ? '—'
-          : profit !== null
+          : quoteIsLoading
+            ? <span className="animate-pulse text-muted-foreground">Loading…</span>
+            : profit !== null
             ? formatCurrency(profit)
             : <span className="text-muted-foreground">N/A</span>}
       </TableCell>
       <TableCell className={`text-right ${noOrders ? 'text-muted-foreground' : profitColorClass(totalVariation)}`}>
         {noOrders
           ? '—'
-          : totalVariation !== null
+          : quoteIsLoading
+            ? <span className="animate-pulse text-muted-foreground">Loading…</span>
+            : totalVariation !== null
             ? formatPercent(totalVariation)
             : <span className="text-muted-foreground">N/A</span>}
       </TableCell>
       <TableCell className="text-right">
         {noOrders ? (
           <span className="text-muted-foreground">—</span>
+        ) : quoteIsLoading ? (
+          <span className="animate-pulse text-muted-foreground">Loading…</span>
         ) : portfolioWeight !== null ? (
           <span
             title={portfolioWeightTooltip}
@@ -796,10 +823,11 @@ function InvestmentRow({ investment, portfolioCurrentTotal, portfolioTotalInvest
   );
 }
 
-function MobileInvestmentCard({ investment, portfolioCurrentTotal, onAddOrder, onArchive, onTickerClick }: InvestmentRowProps): React.JSX.Element {
+function MobileInvestmentCard({ investment, pricesLoading = false, portfolioCurrentTotal, onAddOrder, onArchive, onTickerClick }: InvestmentRowProps): React.JSX.Element {
   const { mutate: saveTargetPrices, isPending: isSavingTargets } = useUpdateTargetPrices();
   const { mutate: saveCurrentValue, isPending: isSavingCurrentValue } = useUpdateCurrentValue();
   const isTreasury = investment.type === 'TREASURY';
+  const quoteIsLoading = pricesLoading && !isTreasury;
   const noOrders = hasNoOrders(investment);
   const quantity = parseFloat(investment.position.quantity);
   const averagePrice = parseFloat(investment.position.averagePrice);
@@ -837,9 +865,11 @@ function MobileInvestmentCard({ investment, portfolioCurrentTotal, onAddOrder, o
               title="Daily variation"
               className={`shrink-0 rounded-md bg-muted px-2 py-1 text-xs font-semibold tabular-nums ${investment.type === 'STOCK' && investment.quote ? profitColorClass(investment.quote.dailyChangePercent) : 'text-muted-foreground'}`}
             >
-              {investment.type === 'STOCK' && investment.quote
-                ? formatPercent(investment.quote.dailyChangePercent)
-                : '—'}
+              {quoteIsLoading
+                ? 'Loading…'
+                : investment.type === 'STOCK' && investment.quote
+                  ? formatPercent(investment.quote.dailyChangePercent)
+                  : '—'}
             </span>
           </div>
           {investment.sector && <p className="mt-0.5 text-xs text-muted-foreground">{investment.sector}</p>}
@@ -856,12 +886,12 @@ function MobileInvestmentCard({ investment, portfolioCurrentTotal, onAddOrder, o
 
       <div className="mt-4 grid grid-cols-2 gap-x-3 gap-y-3 border-t pt-3">
         <MobileMetric label="Quantity" value={noOrders ? '—' : formatQuantity(quantity)} />
-        <MobileMetric label="Price now" value={currentPrice === null ? 'N/A' : formatCurrency(currentPrice)} />
-        <MobileMetric label="Position value" value={noOrders ? '—' : currentTotal !== null ? formatCurrency(currentTotal) : 'N/A'} />
+        <MobileMetric label="Price now" value={quoteIsLoading ? 'Loading…' : currentPrice === null ? 'N/A' : formatCurrency(currentPrice)} />
+        <MobileMetric label="Position value" value={noOrders ? '—' : quoteIsLoading ? 'Loading…' : currentTotal !== null ? formatCurrency(currentTotal) : 'N/A'} />
         <MobileMetric
           label="Profit"
-          value={noOrders ? '—' : profit !== null ? formatCurrency(profit) : 'N/A'}
-          valueClassName={noOrders ? '' : profitColorClass(profit)}
+          value={noOrders ? '—' : quoteIsLoading ? 'Loading…' : profit !== null ? formatCurrency(profit) : 'N/A'}
+          valueClassName={noOrders || quoteIsLoading ? '' : profitColorClass(profit)}
         />
       </div>
 
@@ -869,7 +899,7 @@ function MobileInvestmentCard({ investment, portfolioCurrentTotal, onAddOrder, o
         <summary className="cursor-pointer py-1 font-medium text-primary">More details and targets</summary>
         <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-3">
           <MobileMetric label="Average price" value={noOrders || isTreasury ? '—' : formatCurrency(averagePrice)} />
-          <MobileMetric label="Variation" value={noOrders ? '—' : totalVariation !== null ? formatPercent(totalVariation) : 'N/A'} valueClassName={noOrders ? '' : profitColorClass(totalVariation)} />
+          <MobileMetric label="Variation" value={noOrders ? '—' : quoteIsLoading ? 'Loading…' : totalVariation !== null ? formatPercent(totalVariation) : 'N/A'} valueClassName={noOrders || quoteIsLoading ? '' : profitColorClass(totalVariation)} />
           <div className="grid gap-1">
             <span className="text-xs text-muted-foreground">Target sell</span>
             <EditablePriceCell
@@ -912,7 +942,7 @@ function MobileInvestmentCard({ investment, portfolioCurrentTotal, onAddOrder, o
           )}
           <div className="col-span-2 flex items-center justify-between border-t pt-2">
             <span className="text-xs text-muted-foreground">Portfolio weight</span>
-            <span>{noOrders ? '—' : formatPortfolioPercent(calculatePortfolioWeight(currentTotal ?? totalInvested, portfolioCurrentTotal) ?? 0)}</span>
+            <span>{noOrders ? '—' : quoteIsLoading ? 'Loading…' : formatPortfolioPercent(calculatePortfolioWeight(currentTotal ?? totalInvested, portfolioCurrentTotal) ?? 0)}</span>
           </div>
           <div className="col-span-2 flex items-center justify-between">
             <span className="text-xs text-muted-foreground">Last comment</span>

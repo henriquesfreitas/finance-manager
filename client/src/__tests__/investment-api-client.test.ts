@@ -8,6 +8,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
   fetchActiveInvestments,
+  fetchActiveInvestmentRecords,
+  fetchActiveInvestmentQuotes,
   fetchArchivedInvestments,
   createInvestment,
 } from '../services/investment-api-client';
@@ -40,6 +42,24 @@ describe('investment-api-client — credentials', () => {
     expect(fetchSpy).toHaveBeenCalledOnce();
     const [, init] = fetchSpy.mock.calls[0] as [string, RequestInit];
     expect(init.credentials).toBe('include');
+  });
+
+  it('fetches active ticker records through the fast data endpoint', async () => {
+    fetchSpy.mockResolvedValue(makeFetchResponse([]));
+
+    await fetchActiveInvestmentRecords();
+
+    expect(fetchSpy.mock.calls[0]?.[0]).toContain('/api/investments/active-data');
+    expect((fetchSpy.mock.calls[0]?.[1] as RequestInit).credentials).toBe('include');
+  });
+
+  it('fetches market quotes through the separate quote endpoint', async () => {
+    fetchSpy.mockResolvedValue(makeFetchResponse({ ITUB3: null }));
+
+    await fetchActiveInvestmentQuotes();
+
+    expect(fetchSpy.mock.calls[0]?.[0]).toContain('/api/investments/quotes');
+    expect((fetchSpy.mock.calls[0]?.[1] as RequestInit).credentials).toBe('include');
   });
 
   it('sends credentials: include on archived GET requests', async () => {

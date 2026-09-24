@@ -191,6 +191,44 @@ describe('listActiveInvestments', () => {
   });
 });
 
+describe('listActiveInvestmentRecords and listActiveInvestmentQuotes', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it('returns active tickers and computed positions without waiting for quotes', async () => {
+    const row = {
+      ...makeRow({ ticker: 'ITUB3' }),
+      orders: [makeOrderRow('BUY', 12, 10)],
+    };
+    const db = makeFakePrisma({ findMany: vi.fn().mockResolvedValue([row]) });
+
+    const result = await createInvestmentService(db).listActiveInvestmentRecords();
+
+    expect(result).toHaveLength(1);
+    expect(result[0]?.ticker).toBe('ITUB3');
+    expect(result[0]?.position.quantity).toBe('12.00000000');
+    expect(result[0]?.quote).toBeNull();
+    expect(mockedFetchQuotes).not.toHaveBeenCalled();
+  });
+
+  it('fetches quotes only for active stocks and serializes them by ticker', async () => {
+    const findMany = vi.fn().mockResolvedValue([{ ticker: 'ITUB3' }, { ticker: 'VALE3' }]);
+    const db = makeFakePrisma({ findMany });
+    mockedFetchQuotes.mockResolvedValueOnce(new Map([
+      ['ITUB3', MOCK_QUOTE],
+      ['VALE3', null],
+    ]));
+
+    const result = await createInvestmentService(db).listActiveInvestmentQuotes();
+
+    expect(findMany).toHaveBeenCalledWith({
+      where: { archivedAt: null, type: 'STOCK' },
+      select: { ticker: true },
+    });
+    expect(mockedFetchQuotes).toHaveBeenCalledWith(['ITUB3', 'VALE3']);
+    expect(result).toEqual({ ITUB3: MOCK_QUOTE, VALE3: null });
+  });
+});
+
 // ─── listArchivedInvestments ──────────────────────────────────────────────────
 
 describe('listArchivedInvestments', () => {

@@ -8,6 +8,7 @@ import type {
   UpdateInvestmentRecommendationInput,
   UpdateCurrentValueInput,
   InvestmentRecord,
+  MarketQuote,
 } from '../types/investment.js';
 import type { EnrichedInvestment, ArchivedInvestment, ComputedPosition } from '../types/order.js';
 
@@ -168,6 +169,30 @@ export function createInvestmentService(db: PrismaClient) {
         position: computeSerializedPosition(row.orders),
         quote: row.type === 'STOCK' ? (quoteMap.get(row.ticker) ?? null) : null,
       }));
+    },
+
+    /** Returns active investments and computed positions without waiting for market quotes. */
+    async listActiveInvestmentRecords(): Promise<EnrichedInvestment[]> {
+      const rows = await db.investment.findMany({
+        where: { archivedAt: null },
+        include: includeOrdersAndProduct,
+        orderBy: { createdAt: 'asc' },
+      });
+      return rows.map((row) => ({
+        ...toRecord(row),
+        position: computeSerializedPosition(row.orders),
+        quote: null,
+      }));
+    },
+
+    /** Fetches quotes separately so the portfolio can render its tickers first. */
+    async listActiveInvestmentQuotes(): Promise<Record<string, MarketQuote | null>> {
+      const rows = await db.investment.findMany({
+        where: { archivedAt: null, type: 'STOCK' },
+        select: { ticker: true },
+      });
+      const quotes = rows.length > 0 ? await fetchQuotes(rows.map((row) => row.ticker)) : new Map();
+      return Object.fromEntries(quotes);
     },
 
     /**

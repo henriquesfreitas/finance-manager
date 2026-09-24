@@ -25,7 +25,7 @@ import type { InvestmentListItem } from '@/types/investment';
  * @example <HomePage />
  */
 export function HomePage(): React.JSX.Element {
-  const { data: investments = [], isLoading, isError, refetch } = useActiveInvestments();
+  const { data: investments = [], isLoading, isError, refetch, pricesLoading } = useActiveInvestments();
   const { logout, admin } = useAuth();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const hasPlannedBuys = investments.some((investment) => investment.targetBuyQuantity !== null
@@ -166,6 +166,7 @@ export function HomePage(): React.JSX.Element {
         <InvestmentTable
           investments={investments}
           isLoading={isLoading}
+          pricesLoading={pricesLoading}
           onAddOrder={handleAddOrder}
           onArchive={handleArchiveClick}
           onTickerClick={handleTickerClick}

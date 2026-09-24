@@ -6,7 +6,8 @@ import {
   type UseQueryResult,
 } from '@tanstack/react-query';
 import {
-  fetchActiveInvestments,
+  fetchActiveInvestmentRecords,
+  fetchActiveInvestmentQuotes,
   fetchArchivedInvestments,
   createInvestment,
   archiveInvestment,
@@ -31,15 +32,49 @@ export const ACTIVE_INVESTMENTS_QUERY_KEY = ['investments', 'active'] as const;
 export const ARCHIVED_INVESTMENTS_QUERY_KEY = ['investments', 'archived'] as const;
 
 /**
- * Fetches all active investments enriched with computed position and live market quotes.
- * Stale after 5 minutes, matching the server-side quote cache TTL.
+ * Fetches stored investment data first, then loads live market quotes in a
+ * separate query so the UI can show tickers while prices are still loading.
+ * Both queries are stale after 5 minutes, matching the server-side quote cache TTL.
  */
-export function useActiveInvestments(): UseQueryResult<InvestmentListItem[], Error> {
-  return useQuery({
+export type ActiveInvestmentsQueryResult = {
+  data: InvestmentListItem[] | undefined;
+  isLoading: boolean;
+  isError: boolean;
+  error: Error | null;
+  refetch: UseQueryResult<InvestmentListItem[], Error>['refetch'];
+  pricesLoading: boolean;
+};
+
+export function useActiveInvestments(): ActiveInvestmentsQueryResult {
+  const investmentsQuery = useQuery({
     queryKey: ACTIVE_INVESTMENTS_QUERY_KEY,
-    queryFn: fetchActiveInvestments,
+    queryFn: fetchActiveInvestmentRecords,
     staleTime: 1000 * 60 * 5,
   });
+  const stockTickers = investmentsQuery.data
+    ?.filter((investment) => investment.type === 'STOCK')
+    .map((investment) => investment.ticker)
+    .sort() ?? [];
+  const tickerKey = stockTickers.join('|');
+  const quotesQuery = useQuery({
+    queryKey: ['investments', 'quotes', tickerKey],
+    queryFn: fetchActiveInvestmentQuotes,
+    enabled: investmentsQuery.data !== undefined && stockTickers.length > 0,
+    staleTime: 1000 * 60 * 5,
+  });
+  const data = investmentsQuery.data?.map((investment) => ({
+    ...investment,
+    quote: investment.type === 'STOCK' ? (quotesQuery.data?.[investment.ticker] ?? null) : null,
+  }));
+
+  return {
+    data,
+    isLoading: investmentsQuery.isLoading,
+    isError: investmentsQuery.isError,
+    error: investmentsQuery.error,
+    refetch: investmentsQuery.refetch,
+    pricesLoading: stockTickers.length > 0 && quotesQuery.isPending,
+  };
 }
 
 /**

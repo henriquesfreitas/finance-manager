@@ -14,6 +14,10 @@ vi.mock('@/hooks/useComments', () => ({
   useDeleteComment: () => ({ mutate: vi.fn(), isPending: false }),
 }));
 
+vi.mock('@/hooks/useOrders', () => ({
+  useOrders: () => ({ data: [], isLoading: false, isError: false }),
+}));
+
 vi.mock('@/hooks/useInvestments', () => ({
   useUpdateInvestmentSector: () => ({ mutate: vi.fn(), isPending: false }),
   useUpdateInvestmentRecommendation: () => ({ mutate: mocks.recommendationMutate, isPending: false }),

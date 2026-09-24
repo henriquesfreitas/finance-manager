@@ -2,6 +2,7 @@ import type {
   ArchivedInvestmentItem,
   InvestmentListItem,
   InvestmentRecord,
+  MarketQuote,
   TreasuryProduct,
 } from '../types/investment';
 
@@ -40,6 +41,16 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
  */
 export function fetchActiveInvestments(): Promise<InvestmentListItem[]> {
   return request<InvestmentListItem[]>('/api/investments');
+}
+
+/** Fetches active investment records and positions without waiting for market quotes. */
+export function fetchActiveInvestmentRecords(): Promise<InvestmentListItem[]> {
+  return request<InvestmentListItem[]>('/api/investments/active-data');
+}
+
+/** Fetches market quotes separately from the stored investment list. */
+export function fetchActiveInvestmentQuotes(): Promise<Record<string, MarketQuote | null>> {
+  return request<Record<string, MarketQuote | null>>('/api/investments/quotes');
 }
 
 /**
