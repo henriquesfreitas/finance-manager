@@ -262,10 +262,21 @@ The script `scripts/check-price-targets.sh` checks active investments using Yaho
 Ubuntu's standard cron uses the VPS's system timezone to schedule jobs; setting `TZ` in a user's crontab does not change when the job runs ([Ubuntu crontab manual](https://manpages.ubuntu.com/manpages/jammy/man5/crontab.5.html)). Check the VPS timezone with `timedatectl`. On the common UTC-configured VPS, Brasília is currently UTC-3, so add this entry for 11:00 Brasília time. Replace the project path as needed:
 
 ```cron
-0 14 * * 1,4 cd /opt/finance-manager && /bin/bash scripts/check-price-targets.sh >> /var/log/finance-target-alerts.log 2>&1
+0 14 * * 1,4 cd /opt/finance-manager && /bin/bash scripts/check-price-targets.sh >> /home/ubuntu/finance-target-alerts.log 2>&1
 ```
 
-If the VPS system timezone is `America/Sao_Paulo`, use `0 11 * * 1,4` instead. The script defaults to the root `.env` file.
+Use a log path writable by the crontab owner. A user crontab usually cannot write to `/var/log` unless the log file was created and permissioned for that user. If the VPS system timezone is `America/Sao_Paulo`, use `0 11 * * 1,4` instead. The script defaults to the root `.env` file.
+
+The job logs its start, quote lookup results, reached targets, Resend acceptance, and failures. To diagnose a missed run on the VPS, check:
+
+```bash
+timedatectl
+crontab -l
+tail -n 100 /home/ubuntu/finance-target-alerts.log
+sudo journalctl -u cron --since today
+```
+
+Run `test -w /home/ubuntu/finance-target-alerts.log` as the crontab owner to confirm the log is writable. A manual run can send an alert if a target is currently reached.
 
 The selected environment file must contain the existing `BACKUP_NOTIFY_EMAIL`, `BACKUP_FROM_EMAIL`, and `RESEND_API_KEY` settings. To run a manual check, use `ENV_FILE=.env /bin/bash scripts/check-price-targets.sh` from the project root. The server image must be rebuilt and deployed so it includes `dist/jobs/target-price-alerts.js`.
 

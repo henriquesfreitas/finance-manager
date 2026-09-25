@@ -75,9 +75,21 @@ async function sendTargetAlertEmail(alerts: ReturnType<typeof findReachedTargetA
     const details = await response.text();
     throw new Error(`Resend email failed (HTTP ${response.status}): ${details}`);
   }
+
+  const responseBody = await response.text();
+  let result: { id?: string } = {};
+  try {
+    result = JSON.parse(responseBody) as { id?: string };
+  } catch {
+    // Resend accepted the request; keep logging useful even if its response isn't JSON.
+  }
+  console.log(`[target-alerts] Resend accepted the email (HTTP ${response.status}${result.id ? `, id ${result.id}` : ''}).`);
 }
 
 async function run(): Promise<void> {
+  const startedAt = new Date();
+  console.log(`[target-alerts] Started at ${startedAt.toISOString()}`);
+
   try {
     const rows = await prisma.investment.findMany({
       where: {
@@ -96,6 +108,12 @@ async function run(): Promise<void> {
 
     const stockTickers = rows.filter((row) => row.type === 'STOCK').map((row) => row.ticker);
     const quotes = stockTickers.length > 0 ? await fetchQuotes(stockTickers) : new Map();
+    const missingQuotes = stockTickers.filter((ticker) => quotes.get(ticker) === null || quotes.get(ticker) === undefined);
+    console.log(`[target-alerts] Found ${rows.length} active investment(s) with targets; fetched ${stockTickers.length} stock quote(s).`);
+    if (missingQuotes.length > 0) {
+      console.warn(`[target-alerts] No quote available for: ${missingQuotes.join(', ')}`);
+    }
+
     const alerts = findReachedTargetAlerts(
       rows.map((row) => ({
         ticker: row.type === 'TREASURY' && row.treasuryProduct ? row.treasuryProduct.name : row.ticker,
@@ -109,12 +127,20 @@ async function run(): Promise<void> {
     );
 
     if (alerts.length === 0) {
-      console.log('No active buy or sell targets were reached.');
+      console.log('[target-alerts] No active buy or sell targets were reached; no email sent.');
       return;
     }
 
+    for (const alert of alerts) {
+      console.log(`[target-alerts] ${alert.ticker}: price ${formatCurrency(alert.currentPrice)}; reached ${alert.reached.map((action) => `${action} ${formatCurrency(action === 'SELL' ? alert.sellTarget! : alert.buyTarget!)}`).join(', ')}.`);
+    }
+
     await sendTargetAlertEmail(alerts);
-    console.log(`Sent target alert for ${alerts.length} investment(s).`);
+    console.log(`[target-alerts] Email accepted by Resend for ${alerts.length} investment(s).`);
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.stack ?? error.message : String(error);
+    console.error(`[target-alerts] Failed at ${new Date().toISOString()}: ${message}`);
+    throw error;
   } finally {
     await prisma.$disconnect();
   }
