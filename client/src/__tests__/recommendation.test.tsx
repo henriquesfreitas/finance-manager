@@ -5,17 +5,21 @@ import { describe, expect, it, vi } from 'vitest';
 import { CommentModal } from '@/components/CommentModal';
 import { getRecommendationColorClass } from '@/lib/recommendation';
 
-const mocks = vi.hoisted(() => ({ recommendationMutate: vi.fn() }));
+const mocks = vi.hoisted(() => ({ recommendationMutate: vi.fn(), orders: vi.fn() }));
 
 vi.mock('@/hooks/useComments', () => ({
   useComments: () => ({ data: [], isLoading: false, isError: false, error: undefined }),
   useCreateComment: () => ({ mutate: vi.fn(), isPending: false }),
   useUpdateComment: () => ({ mutate: vi.fn(), isPending: false }),
   useDeleteComment: () => ({ mutate: vi.fn(), isPending: false }),
+  useLatestCommentDates: () => ({ data: {} }),
 }));
 
 vi.mock('@/hooks/useOrders', () => ({
-  useOrders: () => ({ data: [], isLoading: false, isError: false }),
+  useOrders: (...args: unknown[]) => {
+    mocks.orders(...args);
+    return { data: [], isLoading: false, isError: false };
+  },
 }));
 
 vi.mock('@/hooks/useInvestments', () => ({
@@ -35,6 +39,24 @@ describe('ticker recommendation', () => {
 
   it('saves the selected score from the ticker modal', async () => {
     const user = userEvent.setup();
+    const investment = {
+      id: 'investment-1',
+      ticker: 'ACME3',
+      type: 'STOCK' as const,
+      sector: 'Industry',
+      archivedAt: null,
+      targetSellPrice: null,
+      targetBuyPrice: null,
+      targetBuyQuantity: null,
+      recommendation: null,
+      currentValue: null,
+      treasuryProductId: null,
+      treasuryProductName: null,
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+      position: { quantity: '10', averagePrice: '20' },
+      quote: { currentPrice: 25, dailyChangePercent: 1.5 },
+    };
     render(
       <CommentModal
         open
@@ -43,9 +65,22 @@ describe('ticker recommendation', () => {
         ticker="ACME3"
         sector="Industry"
         recommendation={null}
+        investment={investment}
+        activeInvestments={[investment]}
       />,
     );
 
+    expect(screen.getByRole('button', { name: 'Investment Details' })).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.getByRole('button', { name: 'Order History — ACME3' })).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByRole('combobox', { name: 'Ticker recommendation' })).not.toBeInTheDocument();
+    expect(mocks.orders).toHaveBeenLastCalledWith('investment-1', false);
+
+    await user.click(screen.getByRole('button', { name: 'Order History — ACME3' }));
+    expect(screen.getByRole('button', { name: 'Order History — ACME3' })).toHaveAttribute('aria-expanded', 'true');
+    expect(mocks.orders).toHaveBeenLastCalledWith('investment-1', true);
+
+    await user.click(screen.getByRole('button', { name: 'Investment Details' }));
+    expect(screen.getByText('Current total')).toBeInTheDocument();
     await user.selectOptions(screen.getByRole('combobox', { name: 'Ticker recommendation' }), '5');
 
     expect(mocks.recommendationMutate).toHaveBeenCalledWith(
