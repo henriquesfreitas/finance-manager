@@ -118,7 +118,7 @@ export function HomePage(): React.JSX.Element {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen w-full max-w-full overflow-x-clip bg-background">
       {/* ── Header ──────────────────────────────────────────────────────────── */}
       <header id="top" className="scroll-mt-0 bg-blue-600 text-white shadow-md">
         <div className="container mx-auto flex min-h-16 flex-col items-stretch gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">

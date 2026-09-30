@@ -464,6 +464,17 @@ function TickerInvestmentDetails({
   const currentTotal = calculateCurrentTotal(quantity, currentPrice);
   const profit = calculateProfit(currentTotal, totalInvested);
   const totalVariation = calculateTotalVariation(profit, totalInvested);
+  const dailyVariation = investment.type === 'STOCK' && hasPosition
+    ? quote?.dailyChangePercent ?? null
+    : null;
+  const targetSellPrice = investment.targetSellPrice !== null ? Number(investment.targetSellPrice) : null;
+  const targetBuyPrice = investment.targetBuyPrice !== null ? Number(investment.targetBuyPrice) : null;
+  const targetSellColor = currentPrice !== null && targetSellPrice !== null && currentPrice >= targetSellPrice
+    ? 'text-green-600 dark:text-green-400'
+    : '';
+  const targetBuyColor = currentPrice !== null && targetBuyPrice !== null && currentPrice <= targetBuyPrice
+    ? 'text-green-600 dark:text-green-400'
+    : '';
   const portfolioCurrentTotal = activeInvestments.reduce((total, item) => {
     const itemQuantity = Number(item.position.quantity);
     const itemAveragePrice = Number(item.position.averagePrice);
@@ -494,14 +505,18 @@ function TickerInvestmentDetails({
         <DetailField label="Quantity" value={hasPosition ? formatQuantity(quantity) : '—'} />
         <DetailField label="Average price" value={hasPosition && investment.type === 'STOCK' ? formatCurrency(averagePrice) : '—'} />
         <DetailField label="Price now" value={formatCurrency(currentPrice)} />
-        <DetailField label="Daily variation" value={investment.type === 'STOCK' && hasPosition ? formatPercent(quote?.dailyChangePercent ?? null) : '—'} />
-        <DetailField label="Target sell" value={investment.targetSellPrice !== null ? formatCurrency(Number(investment.targetSellPrice)) : '—'} />
-        <DetailField label="Target buy" value={investment.targetBuyPrice !== null ? formatCurrency(Number(investment.targetBuyPrice)) : '—'} />
+        <DetailField
+          label="Daily variation"
+          value={investment.type === 'STOCK' && hasPosition ? formatPercent(dailyVariation) : '—'}
+          valueClassName={investment.type === 'STOCK' && hasPosition ? profitColorClass(dailyVariation) : 'text-muted-foreground'}
+        />
+        <DetailField label="Target sell" value={targetSellPrice !== null ? formatCurrency(targetSellPrice) : '—'} valueClassName={targetSellColor} />
+        <DetailField label="Target buy" value={targetBuyPrice !== null ? formatCurrency(targetBuyPrice) : '—'} valueClassName={targetBuyColor} />
         <DetailField label="Target buy quantity" value={investment.targetBuyQuantity !== null ? formatQuantity(Number(investment.targetBuyQuantity)) : '—'} />
         <DetailField label="Total invested" value={hasPosition ? formatCurrency(totalInvested) : '—'} />
         <DetailField label="Current total" value={hasPosition ? formatCurrency(currentTotal) : '—'} />
-        <DetailField label="Profit" value={hasPosition ? formatCurrency(profit) : '—'} />
-        <DetailField label="Variation" value={hasPosition ? formatPercent(totalVariation) : '—'} />
+        <DetailField label="Profit" value={hasPosition ? formatCurrency(profit) : '—'} valueClassName={hasPosition ? profitColorClass(profit) : 'text-muted-foreground'} />
+        <DetailField label="Variation" value={hasPosition ? formatPercent(totalVariation) : '—'} valueClassName={hasPosition ? profitColorClass(totalVariation) : 'text-muted-foreground'} />
         <DetailField label="Portfolio %" value={hasPosition && portfolioWeight !== null ? `${portfolioWeight.toFixed(1)}%` : '—'} />
         <DetailField label="Comment date" value={commentDate ? new Date(commentDate).toLocaleDateString('pt-BR') : '—'} />
       </dl>
@@ -517,13 +532,20 @@ function TickerInvestmentDetails({
   );
 }
 
-function DetailField({ label, value }: { label: string; value: string }): React.JSX.Element {
+function DetailField({ label, value, valueClassName = '' }: { label: string; value: string; valueClassName?: string }): React.JSX.Element {
   return (
     <div className="min-w-0">
       <dt className="text-xs text-muted-foreground">{label}</dt>
-      <dd className="mt-0.5 break-words text-sm font-medium">{value}</dd>
+      <dd className={`mt-0.5 break-words text-sm font-medium ${valueClassName}`}>{value}</dd>
     </div>
   );
+}
+
+function profitColorClass(value: number | null): string {
+  if (value === null) return 'text-muted-foreground';
+  if (value > 0) return 'text-green-600 dark:text-green-400';
+  if (value < 0) return 'text-red-600 dark:text-red-400';
+  return 'text-foreground';
 }
 
 function TickerOrderHistory({ investmentId, ticker }: { investmentId: string; ticker: string }): React.JSX.Element {

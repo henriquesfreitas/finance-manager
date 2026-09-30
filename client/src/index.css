@@ -28,6 +28,16 @@
   --radius: 0.5rem;
 }
 
+@media (max-width: 767px) {
+  html,
+  body,
+  #root {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: clip;
+  }
+}
+
 @layer components {
   [data-slot="table-header"] th {
     position: sticky;
@@ -55,9 +65,11 @@
   }
 }
 
-/* Keep horizontal overflow from becoming the sticky headers' scroll container. */
-[data-slot="table-container"] {
-  overflow-x: visible;
+/* Keep horizontal overflow from becoming the sticky headers' scroll container on desktop. */
+@media (min-width: 768px) {
+  [data-slot="table-container"] {
+    overflow-x: visible;
+  }
 }
 
 [data-slot="table-header"] th {
