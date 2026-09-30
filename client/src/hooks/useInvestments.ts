@@ -1,3 +1,4 @@
+import { useRef } from 'react';
 import {
   useQuery,
   useMutation,
@@ -25,6 +26,9 @@ import type {
   TreasuryProduct,
 } from '../types/investment';
 
+const QUOTE_RETRY_WINDOW_MS = 15_000;
+const QUOTE_RETRY_INTERVAL_MS = 1_500;
+
 /** Cache key for the active investments list. */
 export const ACTIVE_INVESTMENTS_QUERY_KEY = ['investments', 'active'] as const;
 
@@ -34,7 +38,7 @@ export const ARCHIVED_INVESTMENTS_QUERY_KEY = ['investments', 'archived'] as con
 /**
  * Fetches stored investment data first, then loads live market quotes in a
  * separate query so the UI can show tickers while prices are still loading.
- * Both queries are stale after 5 minutes, matching the server-side quote cache TTL.
+ * Missing prices are retried briefly while successful quotes use the server cache.
  */
 export type ActiveInvestmentsQueryResult = {
   data: InvestmentListItem[] | undefined;
@@ -46,6 +50,7 @@ export type ActiveInvestmentsQueryResult = {
 };
 
 export function useActiveInvestments(): ActiveInvestmentsQueryResult {
+  const quoteRetryWindow = useRef({ tickerKey: '', startedAt: Date.now() });
   const investmentsQuery = useQuery({
     queryKey: ACTIVE_INVESTMENTS_QUERY_KEY,
     queryFn: fetchActiveInvestmentRecords,
@@ -56,11 +61,21 @@ export function useActiveInvestments(): ActiveInvestmentsQueryResult {
     .map((investment) => investment.ticker)
     .sort() ?? [];
   const tickerKey = stockTickers.join('|');
+  if (quoteRetryWindow.current.tickerKey !== tickerKey) {
+    quoteRetryWindow.current = { tickerKey, startedAt: Date.now() };
+  }
   const quotesQuery = useQuery({
     queryKey: ['investments', 'quotes', tickerKey],
     queryFn: fetchActiveInvestmentQuotes,
     enabled: investmentsQuery.data !== undefined && stockTickers.length > 0,
-    staleTime: 1000 * 60 * 5,
+    staleTime: 0,
+    refetchInterval: (query) => {
+      const quotes = query.state.data;
+      const allQuotesAvailable = quotes !== undefined
+        && stockTickers.every((ticker) => quotes[ticker] != null);
+      const retryWindowOpen = Date.now() - quoteRetryWindow.current.startedAt < QUOTE_RETRY_WINDOW_MS;
+      return allQuotesAvailable || !retryWindowOpen ? false : QUOTE_RETRY_INTERVAL_MS;
+    },
   });
   const data = investmentsQuery.data?.map((investment) => ({
     ...investment,
@@ -73,7 +88,13 @@ export function useActiveInvestments(): ActiveInvestmentsQueryResult {
     isError: investmentsQuery.isError,
     error: investmentsQuery.error,
     refetch: investmentsQuery.refetch,
-    pricesLoading: stockTickers.length > 0 && quotesQuery.isPending,
+    pricesLoading: stockTickers.length > 0 && (
+      quotesQuery.isPending
+      || (
+        !stockTickers.every((ticker) => quotesQuery.data?.[ticker] != null)
+        && Date.now() - quoteRetryWindow.current.startedAt < QUOTE_RETRY_WINDOW_MS
+      )
+    ),
   };
 }
 

@@ -3,7 +3,7 @@ import type { MarketQuote } from '../types/investment.js';
 
 /** Cached entry: value + expiry timestamp (ms). */
 interface CacheEntry {
-  value: MarketQuote | null;
+  value: MarketQuote;
   expiresAt: number;
 }
 
@@ -42,7 +42,11 @@ export async function fetchQuote(ticker: string): Promise<MarketQuote | null> {
   }
 
   const quote = await fetchRawQuote(symbol);
-  quoteCache.set(symbol, { value: quote, expiresAt: Date.now() + CACHE_TTL_MS });
+  // A transient Yahoo/network failure must not turn into a five-minute outage.
+  // Cache only usable quotes so the next request can try Yahoo again.
+  if (quote !== null) {
+    quoteCache.set(symbol, { value: quote, expiresAt: Date.now() + CACHE_TTL_MS });
+  }
   return quote;
 }
 
