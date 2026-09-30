@@ -27,6 +27,19 @@ function toCommentRecord(row: {
  */
 export function createCommentService(db: PrismaClient) {
   return {
+    /** Returns the latest created/updated timestamp for every investment with comments. */
+    async listLatestCommentDates(): Promise<Record<string, string>> {
+      const rows = await db.comment.groupBy({
+        by: ['investmentId'],
+        _max: { createdAt: true, updatedAt: true },
+      });
+      return Object.fromEntries(rows.map((row) => {
+        const createdAt = row._max.createdAt?.getTime() ?? 0;
+        const updatedAt = row._max.updatedAt?.getTime() ?? 0;
+        return [row.investmentId, new Date(Math.max(createdAt, updatedAt)).toISOString()] as const;
+      }));
+    },
+
     /**
      * Returns all comments for an investment, newest first.
      */

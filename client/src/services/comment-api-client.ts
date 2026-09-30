@@ -1,6 +1,11 @@
 import { request } from './api-client';
 import type { CommentItem } from '../types/comment';
 
+/** Fetches the latest comment/update timestamp for each investment in one request. */
+export function fetchLatestCommentDates(): Promise<Record<string, string>> {
+  return request<Record<string, string>>('/api/investments/comment-dates');
+}
+
 /**
  * Fetches all comments for an investment, newest first.
  *

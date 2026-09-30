@@ -29,12 +29,12 @@ const ALL_ORDERS_QUERY_KEY = ['orders', 'all'] as const;
  * so the user always sees the latest order history without stale data.
  * enabled: !!investmentId prevents fetching when no investment is selected.
  */
-export function useOrders(investmentId: string): UseQueryResult<OrderListItem[], Error> {
+export function useOrders(investmentId: string, enabled = true): UseQueryResult<OrderListItem[], Error> {
   return useQuery({
     queryKey: ['orders', investmentId],
     queryFn: () => fetchOrders(investmentId),
     staleTime: 0,
-    enabled: !!investmentId,
+    enabled: !!investmentId && enabled,
   });
 }
 

@@ -171,6 +171,7 @@ interface OrderHistorySubRowProps {
 
 /** Loads and displays the order history for one archived investment. */
 function OrderHistorySubRow({ investmentId, ticker }: OrderHistorySubRowProps): React.JSX.Element {
+  const [showAllOrders, setShowAllOrders] = useState(false);
   const { data: orders, isLoading, isError } = useOrders(investmentId);
 
   if (isLoading) {
@@ -198,6 +199,8 @@ function OrderHistorySubRow({ investmentId, ticker }: OrderHistorySubRowProps): 
     );
   }
 
+  const visibleOrders = showAllOrders ? orders : orders.slice(0, 15);
+
   return (
     <div className="px-8 py-3">
       <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
@@ -214,11 +217,23 @@ function OrderHistorySubRow({ investmentId, ticker }: OrderHistorySubRowProps): 
           </TableRow>
         </TableHeader>
         <TableBody>
-          {orders.map((order) => (
+          {visibleOrders.map((order) => (
             <OrderRow key={order.id} order={order} />
           ))}
         </TableBody>
       </Table>
+      {orders.length > 15 && (
+        <div className="mt-2 flex justify-center">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => setShowAllOrders((current) => !current)}
+          >
+            {showAllOrders ? 'Show latest 15 orders' : `Show all ${orders.length} orders`}
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

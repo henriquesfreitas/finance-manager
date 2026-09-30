@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Pencil, Trash2, Check, X } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { Pencil, Trash2, Check, X, ChevronDown, ChevronRight } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   Dialog,
@@ -8,15 +8,23 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { useComments, useCreateComment, useUpdateComment, useDeleteComment } from '@/hooks/useComments';
+import { useComments, useCreateComment, useUpdateComment, useDeleteComment, useLatestCommentDates } from '@/hooks/useComments';
 import { useOrders } from '@/hooks/useOrders';
 import type { OrderListItem } from '@/types/order';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { ChevronDown } from 'lucide-react';
 import { useUpdateInvestmentRecommendation, useUpdateInvestmentSector } from '@/hooks/useInvestments';
 import { INVESTMENT_SECTORS } from '@/lib/investment-sectors';
 import { getRecommendationColorClass } from '@/lib/recommendation';
 import type { CommentItem } from '@/types/comment';
+import type { ArchivedInvestmentItem, InvestmentListItem } from '@/types/investment';
+import {
+  calculateCurrentTotal,
+  calculatePortfolioWeight,
+  calculateProfit,
+  calculateTotalInvested,
+  calculateTotalVariation,
+} from '@/lib/investment-calculator';
+import { formatQuantity } from '@/lib/utils';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -346,6 +354,8 @@ interface CommentModalProps {
   ticker: string | null;
   sector: string | null;
   recommendation: number | null;
+  investment?: InvestmentListItem | ArchivedInvestmentItem | null;
+  activeInvestments?: InvestmentListItem[];
 }
 
 /**
@@ -371,7 +381,14 @@ export function CommentModal({
   ticker,
   sector,
   recommendation,
+  investment = null,
+  activeInvestments = [],
 }: CommentModalProps): React.JSX.Element | null {
+  const [showInvestmentDetails, setShowInvestmentDetails] = useState(false);
+  useEffect(() => {
+    setShowInvestmentDetails(false);
+  }, [open, investmentId]);
+
   if (!investmentId || !ticker) return null;
 
   return (
@@ -382,16 +399,30 @@ export function CommentModal({
         </DialogHeader>
 
         <div className="grid gap-5 py-2">
-          <TickerOrderHistory investmentId={investmentId} ticker={ticker} />
-          {/* Sector editor — inline, saves immediately on change */}
-          <div className="flex flex-wrap items-center gap-x-6 gap-y-3 rounded-lg border bg-muted/40 px-3 py-3">
-            <SectorEditor investmentId={investmentId} currentSector={sector} />
-            <RecommendationEditor
-              key={investmentId}
-              investmentId={investmentId}
-              recommendation={recommendation}
-            />
-          </div>
+          <TickerOrderHistory key={`${investmentId}-${open}`} investmentId={investmentId} ticker={ticker} />
+          {investment && (
+            <section className="rounded-lg border">
+              <Button
+                type="button"
+                variant="ghost"
+                className="flex w-full justify-between px-3 py-3 text-left"
+                aria-expanded={showInvestmentDetails}
+                onClick={() => setShowInvestmentDetails((visible) => !visible)}
+              >
+                <span className="font-semibold">Investment Details</span>
+                {showInvestmentDetails ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+              </Button>
+              {showInvestmentDetails && (
+                <TickerInvestmentDetails
+                  investment={investment}
+                  activeInvestments={activeInvestments}
+                  investmentId={investmentId}
+                  sector={sector}
+                  recommendation={recommendation}
+                />
+              )}
+            </section>
+          )}
 
           <AddCommentForm investmentId={investmentId} />
 
@@ -405,17 +436,114 @@ export function CommentModal({
   );
 }
 
+interface TickerInvestmentDetailsProps {
+  investment: InvestmentListItem | ArchivedInvestmentItem;
+  activeInvestments: InvestmentListItem[];
+  investmentId: string;
+  sector: string | null;
+  recommendation: number | null;
+}
+
+function TickerInvestmentDetails({
+  investment,
+  activeInvestments,
+  investmentId,
+  sector,
+  recommendation,
+}: TickerInvestmentDetailsProps): React.JSX.Element {
+  const { data: latestCommentDates } = useLatestCommentDates();
+  const quantity = Number(investment.position.quantity);
+  const averagePrice = Number(investment.position.averagePrice);
+  const hasPosition = quantity > 0;
+  const isArchived = investment.archivedAt !== null;
+  const quote = 'quote' in investment ? investment.quote : null;
+  const currentPrice = investment.type === 'TREASURY'
+    ? investment.currentValue !== null ? Number(investment.currentValue) : null
+    : quote?.currentPrice ?? null;
+  const totalInvested = calculateTotalInvested(quantity, averagePrice);
+  const currentTotal = calculateCurrentTotal(quantity, currentPrice);
+  const profit = calculateProfit(currentTotal, totalInvested);
+  const totalVariation = calculateTotalVariation(profit, totalInvested);
+  const portfolioCurrentTotal = activeInvestments.reduce((total, item) => {
+    const itemQuantity = Number(item.position.quantity);
+    const itemAveragePrice = Number(item.position.averagePrice);
+    const itemPrice = item.type === 'TREASURY'
+      ? item.currentValue !== null ? Number(item.currentValue) : null
+      : item.quote?.currentPrice ?? null;
+    return total + (
+      calculateCurrentTotal(itemQuantity, itemPrice)
+      ?? calculateTotalInvested(itemQuantity, itemAveragePrice)
+    );
+  }, 0);
+  const portfolioWeight = isArchived
+    ? null
+    : calculatePortfolioWeight(currentTotal ?? totalInvested, portfolioCurrentTotal);
+  const commentDate = latestCommentDates?.[investment.id];
+  const formatCurrency = (value: number | null): string => value === null
+    ? 'N/A'
+    : value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  const formatPercent = (value: number | null): string => value === null
+    ? 'N/A'
+    : `${value >= 0 ? '+' : ''}${value.toFixed(2)}%`;
+
+  return (
+    <div className="grid gap-3 border-t px-3 py-3">
+      <dl className="grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-3">
+        <DetailField label="Ticker" value={investment.ticker} />
+        <DetailField label="Sector" value={sector ?? '—'} />
+        <DetailField label="Quantity" value={hasPosition ? formatQuantity(quantity) : '—'} />
+        <DetailField label="Average price" value={hasPosition && investment.type === 'STOCK' ? formatCurrency(averagePrice) : '—'} />
+        <DetailField label="Price now" value={formatCurrency(currentPrice)} />
+        <DetailField label="Daily variation" value={investment.type === 'STOCK' && hasPosition ? formatPercent(quote?.dailyChangePercent ?? null) : '—'} />
+        <DetailField label="Target sell" value={investment.targetSellPrice !== null ? formatCurrency(Number(investment.targetSellPrice)) : '—'} />
+        <DetailField label="Target buy" value={investment.targetBuyPrice !== null ? formatCurrency(Number(investment.targetBuyPrice)) : '—'} />
+        <DetailField label="Target buy quantity" value={investment.targetBuyQuantity !== null ? formatQuantity(Number(investment.targetBuyQuantity)) : '—'} />
+        <DetailField label="Total invested" value={hasPosition ? formatCurrency(totalInvested) : '—'} />
+        <DetailField label="Current total" value={hasPosition ? formatCurrency(currentTotal) : '—'} />
+        <DetailField label="Profit" value={hasPosition ? formatCurrency(profit) : '—'} />
+        <DetailField label="Variation" value={hasPosition ? formatPercent(totalVariation) : '—'} />
+        <DetailField label="Portfolio %" value={hasPosition && portfolioWeight !== null ? `${portfolioWeight.toFixed(1)}%` : '—'} />
+        <DetailField label="Comment date" value={commentDate ? new Date(commentDate).toLocaleDateString('pt-BR') : '—'} />
+      </dl>
+      <div className="flex flex-wrap items-center gap-x-6 gap-y-3 rounded-lg bg-muted/40 px-3 py-3">
+        <SectorEditor investmentId={investmentId} currentSector={sector} />
+        <RecommendationEditor
+          key={investmentId}
+          investmentId={investmentId}
+          recommendation={recommendation}
+        />
+      </div>
+    </div>
+  );
+}
+
+function DetailField({ label, value }: { label: string; value: string }): React.JSX.Element {
+  return (
+    <div className="min-w-0">
+      <dt className="text-xs text-muted-foreground">{label}</dt>
+      <dd className="mt-0.5 break-words text-sm font-medium">{value}</dd>
+    </div>
+  );
+}
+
 function TickerOrderHistory({ investmentId, ticker }: { investmentId: string; ticker: string }): React.JSX.Element {
+  const [isExpanded, setIsExpanded] = useState(false);
   const [showAllOrders, setShowAllOrders] = useState(false);
-  const { data: orders, isLoading, isError } = useOrders(investmentId);
+  const { data: orders, isLoading, isError } = useOrders(investmentId, isExpanded);
 
   return (
     <section className="grid gap-2">
-      <h3 className="flex items-center gap-2 text-sm font-semibold">
-        <ChevronDown className="h-4 w-4" />
-        Order History — {ticker}
-      </h3>
-      {
+      <Button
+        type="button"
+        variant="outline"
+        className="flex w-full justify-between"
+        aria-expanded={isExpanded}
+        onClick={() => setIsExpanded((expanded) => !expanded)}
+      >
+        <span>Order History — {ticker}</span>
+        {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+      </Button>
+      {isExpanded && (
         isLoading ? (
           <p className="py-3 text-center text-sm text-muted-foreground">Loading orders…</p>
         ) : isError ? (
@@ -423,42 +551,44 @@ function TickerOrderHistory({ investmentId, ticker }: { investmentId: string; ti
         ) : !orders?.length ? (
           <p className="py-3 text-center text-sm text-muted-foreground">No orders recorded yet.</p>
         ) : (
-          <div className="overflow-x-auto rounded-md border">
-            <Table className="min-w-[480px]">
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Type</TableHead>
-                  <TableHead className="text-right">Quantity</TableHead>
-                  <TableHead className="text-right">Price (R$)</TableHead>
-                  <TableHead className="text-right">Date</TableHead>
-                  <TableHead className="text-right">Total (R$)</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {orders.slice(0, showAllOrders ? orders.length : 5).map((order: OrderListItem) => (
-                  <TableRow key={order.id}>
-                    <TableCell className="font-medium">{order.type}</TableCell>
-                    <TableCell className="text-right">{Number(order.quantity).toLocaleString('pt-BR')}</TableCell>
-                    <TableCell className="text-right">{order.type === 'SPLIT' ? '—' : Number(order.price).toFixed(2)}</TableCell>
-                    <TableCell className="text-right">{new Date(`${order.orderDate}T12:00:00`).toLocaleDateString('pt-BR')}</TableCell>
-                    <TableCell className="text-right">{order.type === 'SPLIT' ? '—' : (Number(order.quantity) * Number(order.price)).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</TableCell>
+          <>
+            <div className="rounded-md border">
+              <Table className="min-w-[480px]">
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Type</TableHead>
+                    <TableHead className="text-right">Quantity</TableHead>
+                    <TableHead className="text-right">Price (R$)</TableHead>
+                    <TableHead className="text-right">Date</TableHead>
+                    <TableHead className="text-right">Total (R$)</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
+                </TableHeader>
+                <TableBody>
+                  {orders.slice(0, showAllOrders ? orders.length : 5).map((order: OrderListItem) => (
+                    <TableRow key={order.id}>
+                      <TableCell className="font-medium">{order.type}</TableCell>
+                      <TableCell className="text-right">{Number(order.quantity).toLocaleString('pt-BR')}</TableCell>
+                      <TableCell className="text-right">{order.type === 'SPLIT' ? '—' : Number(order.price).toFixed(2)}</TableCell>
+                      <TableCell className="text-right">{new Date(`${order.orderDate}T12:00:00`).toLocaleDateString('pt-BR')}</TableCell>
+                      <TableCell className="text-right">{order.type === 'SPLIT' ? '—' : (Number(order.quantity) * Number(order.price)).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+            {orders.length > 5 && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="justify-self-center"
+                onClick={() => setShowAllOrders((value) => !value)}
+              >
+                {showAllOrders ? 'Show less' : 'Show all orders'}
+              </Button>
+            )}
+          </>
         )
-      }
-      {!isLoading && !isError && (orders?.length ?? 0) > 5 && (
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          className="justify-self-center"
-          onClick={() => setShowAllOrders((value) => !value)}
-        >
-          {showAllOrders ? 'Show less' : 'Show all orders'}
-        </Button>
       )}
     </section>
   );

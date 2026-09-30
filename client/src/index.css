@@ -28,6 +28,16 @@
   --radius: 0.5rem;
 }
 
+@layer components {
+  [data-slot="table-header"] th {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    background-color: var(--color-background);
+    font-weight: 700;
+  }
+}
+
 @layer base {
   * {
     border-color: var(--color-border);
@@ -43,4 +53,13 @@
   h1, h2, h3 {
     letter-spacing: -0.015em;
   }
+}
+
+/* Keep horizontal overflow from becoming the sticky headers' scroll container. */
+[data-slot="table-container"] {
+  overflow-x: visible;
+}
+
+[data-slot="table-header"] th {
+  font-weight: 700;
 }

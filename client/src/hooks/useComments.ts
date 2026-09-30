@@ -7,6 +7,7 @@ import {
 } from '@tanstack/react-query';
 import {
   fetchComments,
+  fetchLatestCommentDates,
   createComment,
   updateComment,
   deleteComment,
@@ -15,6 +16,17 @@ import type { CommentItem } from '../types/comment';
 
 function commentsKey(investmentId: string) {
   return ['comments', investmentId] as const;
+}
+
+const LATEST_COMMENT_DATES_QUERY_KEY = ['comments', 'latest-dates'] as const;
+
+/** Shares one request across every row that displays its latest comment date. */
+export function useLatestCommentDates(): UseQueryResult<Record<string, string>, Error> {
+  return useQuery({
+    queryKey: LATEST_COMMENT_DATES_QUERY_KEY,
+    queryFn: fetchLatestCommentDates,
+    staleTime: 60_000,
+  });
 }
 
 /**
@@ -40,7 +52,7 @@ export function useCreateComment(
   return useMutation({
     mutationFn: (content: string) => createComment(investmentId, content),
     onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: commentsKey(investmentId) });
+      void qc.invalidateQueries({ queryKey: ['comments'] });
     },
   });
 }
@@ -56,7 +68,7 @@ export function useUpdateComment(
     mutationFn: ({ commentId, content }: { commentId: string; content: string }) =>
       updateComment(investmentId, commentId, content),
     onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: commentsKey(investmentId) });
+      void qc.invalidateQueries({ queryKey: ['comments'] });
     },
   });
 }
@@ -71,7 +83,7 @@ export function useDeleteComment(
   return useMutation({
     mutationFn: (commentId: string) => deleteComment(investmentId, commentId),
     onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: commentsKey(investmentId) });
+      void qc.invalidateQueries({ queryKey: ['comments'] });
     },
   });
 }

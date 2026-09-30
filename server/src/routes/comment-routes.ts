@@ -17,6 +17,12 @@ export function createCommentRouter(): Router {
   const router = Router();
   const service = createCommentService(prisma);
 
+  // GET /api/investments/comment-dates — one batched summary for the portfolio table
+  router.get('/investments/comment-dates', async (_req: Request, res: Response) => {
+    const dates = await service.listLatestCommentDates();
+    res.json(dates);
+  });
+
   // GET /api/investments/:id/comments — list all comments (newest first)
   router.get('/investments/:id/comments', async (req: Request, res: Response) => {
     const id = req.params['id'] as string;

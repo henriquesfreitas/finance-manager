@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useEffect, useState } from 'react';
 import {
   useQuery,
   useMutation,
@@ -50,7 +50,7 @@ export type ActiveInvestmentsQueryResult = {
 };
 
 export function useActiveInvestments(): ActiveInvestmentsQueryResult {
-  const quoteRetryWindow = useRef({ tickerKey: '', startedAt: Date.now() });
+  const [quoteRetryWindow, setQuoteRetryWindow] = useState({ tickerKey: '', expired: false });
   const investmentsQuery = useQuery({
     queryKey: ACTIVE_INVESTMENTS_QUERY_KEY,
     queryFn: fetchActiveInvestmentRecords,
@@ -61,19 +61,25 @@ export function useActiveInvestments(): ActiveInvestmentsQueryResult {
     .map((investment) => investment.ticker)
     .sort() ?? [];
   const tickerKey = stockTickers.join('|');
-  if (quoteRetryWindow.current.tickerKey !== tickerKey) {
-    quoteRetryWindow.current = { tickerKey, startedAt: Date.now() };
-  }
+  useEffect(() => {
+    if (!tickerKey) return;
+
+    setQuoteRetryWindow({ tickerKey, expired: false });
+    const timeoutId = setTimeout(() => {
+      setQuoteRetryWindow({ tickerKey, expired: true });
+    }, QUOTE_RETRY_WINDOW_MS);
+    return () => clearTimeout(timeoutId);
+  }, [tickerKey]);
+  const retryWindowOpen = quoteRetryWindow.tickerKey !== tickerKey || !quoteRetryWindow.expired;
   const quotesQuery = useQuery({
     queryKey: ['investments', 'quotes', tickerKey],
-    queryFn: fetchActiveInvestmentQuotes,
+    queryFn: ({ signal }) => fetchActiveInvestmentQuotes(signal),
     enabled: investmentsQuery.data !== undefined && stockTickers.length > 0,
     staleTime: 0,
     refetchInterval: (query) => {
       const quotes = query.state.data;
       const allQuotesAvailable = quotes !== undefined
         && stockTickers.every((ticker) => quotes[ticker] != null);
-      const retryWindowOpen = Date.now() - quoteRetryWindow.current.startedAt < QUOTE_RETRY_WINDOW_MS;
       return allQuotesAvailable || !retryWindowOpen ? false : QUOTE_RETRY_INTERVAL_MS;
     },
   });
@@ -88,13 +94,9 @@ export function useActiveInvestments(): ActiveInvestmentsQueryResult {
     isError: investmentsQuery.isError,
     error: investmentsQuery.error,
     refetch: investmentsQuery.refetch,
-    pricesLoading: stockTickers.length > 0 && (
-      quotesQuery.isPending
-      || (
-        !stockTickers.every((ticker) => quotesQuery.data?.[ticker] != null)
-        && Date.now() - quoteRetryWindow.current.startedAt < QUOTE_RETRY_WINDOW_MS
-      )
-    ),
+    pricesLoading: stockTickers.length > 0
+      && !stockTickers.every((ticker) => quotesQuery.data?.[ticker] != null)
+      && retryWindowOpen,
   };
 }
 

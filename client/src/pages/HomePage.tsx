@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { AlertCircle, RefreshCw, LogOut, Loader2 } from 'lucide-react';
+import { AlertCircle, RefreshCw, LogOut, Loader2, Menu, X, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { AddInvestmentForm } from '@/components/AddInvestmentForm';
 import { InvestmentTable } from '@/components/InvestmentTable';
@@ -9,7 +9,7 @@ import { ArchiveSection } from '@/components/ArchiveSection';
 import { AllOrdersSection } from '@/components/AllOrdersSection';
 import { CommentModal } from '@/components/CommentModal';
 import { PortfolioAllocationDialog } from '@/components/PortfolioAllocationDialog';
-import { useActiveInvestments } from '@/hooks/useInvestments';
+import { useActiveInvestments, useArchivedInvestments } from '@/hooks/useInvestments';
 import { useAuth } from '@/contexts/auth-context';
 import type { InvestmentListItem } from '@/types/investment';
 
@@ -26,8 +26,11 @@ import type { InvestmentListItem } from '@/types/investment';
  */
 export function HomePage(): React.JSX.Element {
   const { data: investments = [], isLoading, isError, refetch, pricesLoading } = useActiveInvestments();
+  const { data: archivedInvestments = [] } = useArchivedInvestments();
   const { logout, admin } = useAuth();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [watchlistOpen, setWatchlistOpen] = useState(false);
+  const [floatingMenuOpen, setFloatingMenuOpen] = useState(false);
   const hasPlannedBuys = investments.some((investment) => investment.targetBuyQuantity !== null
     && Number.isFinite(Number(investment.targetBuyQuantity))
     && Number(investment.targetBuyQuantity) > 0);
@@ -52,6 +55,9 @@ export function HomePage(): React.JSX.Element {
   const [commentTicker, setCommentTicker] = useState<string | null>(null);
   const [commentSector, setCommentSector] = useState<string | null>(null);
   const [commentRecommendation, setCommentRecommendation] = useState<number | null>(null);
+  const modalInvestment = investments.find((investment) => investment.id === commentInvestmentId)
+    ?? archivedInvestments.find((investment) => investment.id === commentInvestmentId)
+    ?? null;
 
   // ── Archive dialog state ─────────────────────────────────────────────────────
   const [archiveDialogOpen, setArchiveDialogOpen] = useState(false);
@@ -103,15 +109,32 @@ export function HomePage(): React.JSX.Element {
     }
   }
 
+  function navigateToSection(sectionId: string): void {
+    if (sectionId === 'watchlist') setWatchlistOpen(true);
+    setFloatingMenuOpen(false);
+    requestAnimationFrame(() => {
+      document.getElementById(sectionId)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  }
+
   return (
     <div className="min-h-screen bg-background">
       {/* ── Header ──────────────────────────────────────────────────────────── */}
       <header id="top" className="scroll-mt-0 bg-blue-600 text-white shadow-md">
         <div className="container mx-auto flex min-h-16 flex-col items-stretch gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
           <h1 className="text-lg font-semibold tracking-tight sm:text-2xl">Finance Investment Manager</h1>
+          <TickerSearch
+            investments={investments}
+            onSelect={(investment) => handleTickerClick(
+              investment.id,
+              investment.ticker,
+              investment.sector,
+              investment.recommendation,
+            )}
+          />
           <nav aria-label="Page sections" className="-mx-1 flex gap-4 overflow-x-auto border-y border-white/20 py-2 text-sm sm:mx-0 sm:border-0 sm:py-0">
             {hasPlannedBuys && <a href="#planned-buys" className="shrink-0 text-white/90 hover:text-white hover:underline">Planned Buys</a>}
-            {hasWatchlist && <a href="#watchlist" className="shrink-0 text-white/90 hover:text-white hover:underline">Watchlist</a>}
+            {hasWatchlist && <a href="#watchlist" onClick={() => setWatchlistOpen(true)} className="shrink-0 text-white/90 hover:text-white hover:underline">Watchlist</a>}
           </nav>
           <div className="flex flex-wrap items-center justify-between gap-2 sm:justify-end">
             <PortfolioAllocationDialog investments={investments} />
@@ -170,6 +193,8 @@ export function HomePage(): React.JSX.Element {
           onAddOrder={handleAddOrder}
           onArchive={handleArchiveClick}
           onTickerClick={handleTickerClick}
+          watchlistOpen={watchlistOpen}
+          onToggleWatchlist={() => setWatchlistOpen((open) => !open)}
         />
       </section>
 
@@ -184,6 +209,59 @@ export function HomePage(): React.JSX.Element {
       </section>
 
       {/* ── Comment modal ─────────────────────────────────────────────────────── */}
+      <div
+        className="fixed bottom-4 right-4 z-50 flex flex-col items-end sm:bottom-6 sm:right-6"
+        onKeyDown={(event) => {
+          if (event.key === 'Escape') setFloatingMenuOpen(false);
+        }}
+      >
+        {floatingMenuOpen && (
+          <nav
+            id="floating-page-navigation"
+            aria-label="Page navigation menu"
+            className="mb-3 grid min-w-44 gap-1 rounded-lg border bg-popover p-2 text-popover-foreground shadow-xl"
+          >
+            <button
+              type="button"
+              className="rounded-md px-3 py-2 text-left text-sm hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              onClick={() => navigateToSection('top')}
+            >
+              Go to top
+            </button>
+            {hasPlannedBuys && (
+              <button
+                type="button"
+                className="rounded-md px-3 py-2 text-left text-sm hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                onClick={() => navigateToSection('planned-buys')}
+              >
+                Planned Buys
+              </button>
+            )}
+            {hasWatchlist && (
+              <button
+                type="button"
+                className="rounded-md px-3 py-2 text-left text-sm hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                onClick={() => navigateToSection('watchlist')}
+              >
+                Watchlist
+              </button>
+            )}
+          </nav>
+        )}
+        <Button
+          type="button"
+          size="icon"
+          aria-label={floatingMenuOpen ? 'Close page navigation' : 'Open page navigation'}
+          aria-haspopup="true"
+          aria-expanded={floatingMenuOpen}
+          aria-controls="floating-page-navigation"
+          className="h-14 w-14 rounded-full shadow-lg"
+          onClick={() => setFloatingMenuOpen((open) => !open)}
+        >
+          {floatingMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+        </Button>
+      </div>
+
       <CommentModal
         open={commentModalOpen}
         onOpenChange={handleCommentModalOpenChange}
@@ -191,6 +269,8 @@ export function HomePage(): React.JSX.Element {
         ticker={commentTicker}
         sector={commentSector}
         recommendation={commentRecommendation}
+        investment={modalInvestment}
+        activeInvestments={investments}
       />
 
       {/* ── Order modal ──────────────────────────────────────────────────────── */}
@@ -208,6 +288,89 @@ export function HomePage(): React.JSX.Element {
         onSuccess={() => setArchivingInvestment(null)}
       />
       </main>
+    </div>
+  );
+}
+
+interface TickerSearchProps {
+  investments: InvestmentListItem[];
+  onSelect: (investment: InvestmentListItem) => void;
+}
+
+function TickerSearch({ investments, onSelect }: TickerSearchProps): React.JSX.Element {
+  const [searchText, setSearchText] = useState('');
+  const [isOpen, setIsOpen] = useState(false);
+  const normalizedSearch = searchText.trim().toLocaleLowerCase();
+  const results = normalizedSearch
+    ? investments.filter((investment) => [
+        investment.ticker,
+        investment.sector ?? '',
+        investment.treasuryProductName ?? '',
+      ].some((value) => value.toLocaleLowerCase().includes(normalizedSearch))).slice(0, 8)
+    : [];
+
+  function selectInvestment(investment: InvestmentListItem): void {
+    onSelect(investment);
+    setSearchText('');
+    setIsOpen(false);
+  }
+
+  return (
+    <div className="relative w-full sm:w-52 sm:shrink-0 lg:w-64">
+      <label htmlFor="ticker-search" className="sr-only">Search tickers</label>
+      <div className="relative">
+        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+        <input
+          id="ticker-search"
+          type="search"
+          role="combobox"
+          aria-autocomplete="list"
+          aria-expanded={isOpen && normalizedSearch.length > 0}
+          aria-controls="ticker-search-results"
+          aria-label="Search tickers"
+          autoComplete="off"
+          placeholder="Search ticker or name"
+          value={searchText}
+          onFocus={() => setIsOpen(true)}
+          onChange={(event) => {
+            setSearchText(event.target.value);
+            setIsOpen(true);
+          }}
+          onKeyDown={(event) => {
+            if (event.key === 'Escape') setIsOpen(false);
+            if (event.key === 'Enter' && results[0]) selectInvestment(results[0]);
+          }}
+          className="h-10 w-full rounded-md border border-white/40 bg-white pl-9 pr-3 text-sm text-slate-900 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-white/70"
+        />
+      </div>
+      {isOpen && normalizedSearch.length > 0 && (
+        <div
+          id="ticker-search-results"
+          role="listbox"
+          className="absolute left-0 right-0 top-full z-50 mt-1 max-h-72 overflow-y-auto rounded-md border bg-popover p-1 text-popover-foreground shadow-lg"
+        >
+          {results.length > 0 ? results.map((investment) => (
+            <button
+              key={investment.id}
+              type="button"
+              role="option"
+              aria-selected="false"
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={() => selectInvestment(investment)}
+              className="flex w-full flex-col rounded-sm px-3 py-2 text-left hover:bg-accent focus-visible:bg-accent focus-visible:outline-none"
+            >
+              <span className="text-sm font-semibold">{investment.ticker}</span>
+              {(investment.treasuryProductName || investment.sector) && (
+                <span className="text-xs text-muted-foreground">
+                  {investment.treasuryProductName ?? investment.sector}
+                </span>
+              )}
+            </button>
+          )) : (
+            <p className="px-3 py-2 text-sm text-muted-foreground">No matching tickers</p>
+          )}
+        </div>
+      )}
     </div>
   );
 }

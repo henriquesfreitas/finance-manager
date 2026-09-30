@@ -11,6 +11,7 @@ import { useAllOrders } from '@/hooks/useOrders';
 import type { OrderWithTicker } from '@/types/order';
 import { calculateSellTotalInvested, calculateSellProfit } from '@/lib/investment-calculator';
 import { formatQuantity } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
 
 /** Returns Tailwind text-color class based on order type. */
 function orderTypeColorClass(type: string): string {
@@ -33,13 +34,15 @@ function formatOrderDate(dateStr: string): string {
  */
 export function AllOrdersSection(): React.JSX.Element {
   const { data: orders, isLoading, isError } = useAllOrders();
+  const [showAllOrders, setShowAllOrders] = React.useState(false);
+  const visibleOrders = showAllOrders ? orders : orders?.slice(0, 15);
 
   return (
     <div className="grid gap-3">
       <h2 className="text-lg font-semibold tracking-tight">Order History</h2>
 
       {isLoading && (
-        <div className="overflow-x-auto rounded-md border">
+        <div className="rounded-md border">
           <Table className="min-w-[480px]">
             <TableHeader>
               <OrdersTableHeaderRow />
@@ -72,13 +75,13 @@ export function AllOrdersSection(): React.JSX.Element {
       )}
 
       {!isLoading && !isError && orders && orders.length > 0 && (
-        <div className="overflow-x-auto rounded-md border">
+        <div className="rounded-md border">
           <Table className="min-w-[480px]">
             <TableHeader>
               <OrdersTableHeaderRow />
             </TableHeader>
             <TableBody>
-              {orders.map((order: OrderWithTicker) => {
+              {visibleOrders?.map((order: OrderWithTicker) => {
                 const isSellWithPm = order.type === 'SELL' && order.averagePriceAtSell !== null;
                 const qty = parseFloat(order.quantity);
                 const sellPrice = parseFloat(order.price);
@@ -160,6 +163,18 @@ export function AllOrdersSection(): React.JSX.Element {
               })}
             </TableBody>
           </Table>
+          {orders.length > 15 && (
+            <div className="flex justify-center border-t p-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setShowAllOrders((current) => !current)}
+              >
+                {showAllOrders ? 'Show latest 15 orders' : `Show all ${orders.length} orders`}
+              </Button>
+            </div>
+          )}
         </div>
       )}
     </div>

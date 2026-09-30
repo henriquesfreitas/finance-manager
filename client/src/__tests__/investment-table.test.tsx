@@ -15,6 +15,7 @@ vi.mock('@/hooks/useInvestments', () => ({
 
 vi.mock('@/hooks/useComments', () => ({
   useComments: () => ({ data: [], isLoading: false, isError: false }),
+  useLatestCommentDates: () => ({ data: {}, isLoading: false, isError: false }),
 }));
 
 afterEach(() => cleanup());

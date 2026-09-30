@@ -1,5 +1,5 @@
 import React from 'react';
-import { PlusCircle, Archive, ArrowDown, ArrowUp, ArrowUpDown } from 'lucide-react';
+import { PlusCircle, Archive, ArrowDown, ArrowUp, ArrowUpDown, ChevronDown, ChevronRight } from 'lucide-react';
 import {
   Table,
   TableBody,
@@ -23,7 +23,7 @@ import { useUpdateTargetPrices, useUpdateCurrentValue } from '@/hooks/useInvestm
 import { toast } from 'sonner';
 import { formatQuantity } from '@/lib/utils';
 import { getRecommendationColorClass } from '@/lib/recommendation';
-import { useComments } from '@/hooks/useComments';
+import { useLatestCommentDates } from '@/hooks/useComments';
 
 interface InvestmentTableProps {
   investments: InvestmentListItem[];
@@ -32,6 +32,8 @@ interface InvestmentTableProps {
   onAddOrder: (investment: InvestmentListItem) => void;
   onArchive: (investment: InvestmentListItem) => void;
   onTickerClick: (id: string, ticker: string, sector: string | null, recommendation: number | null) => void;
+  watchlistOpen?: boolean;
+  onToggleWatchlist?: () => void;
 }
 
 type SortKey =
@@ -101,6 +103,8 @@ export function InvestmentTable({
   onAddOrder,
   onArchive,
   onTickerClick,
+  watchlistOpen = false,
+  onToggleWatchlist = () => undefined,
 }: InvestmentTableProps): React.JSX.Element {
   const [sort, setSort] = React.useState<SortState>({ key: null, direction: 'ascending' });
 
@@ -243,15 +247,28 @@ export function InvestmentTable({
         ))}
       </div>
 
-      <BuyPlanTable investments={investments} pricesLoading={pricesLoading} />
+      <BuyPlanTable
+        investments={investments}
+        pricesLoading={pricesLoading}
+        onTickerClick={onTickerClick}
+      />
 
       {watchlist.length > 0 && (
         <section id="watchlist" className="mt-6 scroll-mt-4">
           <div className="mb-2 flex items-center justify-between gap-3">
-            <h2 className="text-lg font-semibold">Watchlist</h2>
+            <button
+              type="button"
+              className="flex items-center gap-1 text-left text-lg font-semibold hover:underline focus-visible:outline-none focus-visible:underline"
+              aria-expanded={watchlistOpen}
+              aria-controls="watchlist-investments"
+              onClick={onToggleWatchlist}
+            >
+              {watchlistOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+              Watchlist ({watchlist.length})
+            </button>
             <a href="#top" className="shrink-0 text-xs font-medium text-primary hover:underline">Back to top ↑</a>
           </div>
-          <div className="hidden rounded-md border md:block">
+          {watchlistOpen && <div id="watchlist-investments" className="hidden rounded-md border md:block">
             <Table className="[&_th]:px-0.5 [&_td]:px-0.5">
               <TableHeader>
                 <TableHeaderRow sort={sort} onSort={handleSort} />
@@ -271,8 +288,8 @@ export function InvestmentTable({
                 ))}
               </TableBody>
             </Table>
-          </div>
-          <div className="grid gap-3 md:hidden">
+          </div>}
+          {watchlistOpen && <div id="watchlist-investments-mobile" className="grid gap-3 md:hidden">
             {watchlist.map((investment) => (
               <MobileInvestmentCard
                 key={investment.id}
@@ -285,7 +302,7 @@ export function InvestmentTable({
                 onTickerClick={onTickerClick}
               />
             ))}
-          </div>
+          </div>}
         </section>
       )}
     </>
@@ -293,7 +310,15 @@ export function InvestmentTable({
 }
 
 /** Read-only summary of intended purchases, based on editable target buy quantities. */
-function BuyPlanTable({ investments, pricesLoading = false }: { investments: InvestmentListItem[]; pricesLoading?: boolean }): React.JSX.Element | null {
+function BuyPlanTable({
+  investments,
+  pricesLoading = false,
+  onTickerClick,
+}: {
+  investments: InvestmentListItem[];
+  pricesLoading?: boolean;
+  onTickerClick: InvestmentTableProps['onTickerClick'];
+}): React.JSX.Element | null {
   const plannedBuys = investments
     .filter((investment) => investment.targetBuyQuantity !== null
       && Number.isFinite(Number(investment.targetBuyQuantity))
@@ -315,7 +340,8 @@ function BuyPlanTable({ investments, pricesLoading = false }: { investments: Inv
   if (plannedBuys.length === 0) return null;
 
   const hasMissingPrice = plannedBuys.some((buy) => buy.buyValue === null);
-  const plannedPricesLoading = pricesLoading && plannedBuys.some(({ investment }) => investment.type === 'STOCK');
+  const plannedPricesLoading = pricesLoading && plannedBuys.some(({ investment }) =>
+    investment.type === 'STOCK' && investment.quote === null);
   const combinedValue = plannedBuys.reduce((total, buy) => total + (buy.buyValue ?? 0), 0);
 
   return (
@@ -324,7 +350,7 @@ function BuyPlanTable({ investments, pricesLoading = false }: { investments: Inv
         <h2 id="buy-plan-heading" className="text-lg font-semibold">Planned Buys</h2>
         <a href="#top" className="shrink-0 text-xs font-medium text-primary hover:underline">Back to top ↑</a>
       </div>
-      <div className="hidden overflow-x-auto rounded-md border md:block">
+      <div className="hidden rounded-md border md:block">
         <Table className="min-w-[640px] [&_th]:px-2 [&_td]:px-2">
           <TableHeader>
             <TableRow>
@@ -341,12 +367,19 @@ function BuyPlanTable({ investments, pricesLoading = false }: { investments: Inv
             {plannedBuys.map(({ investment, currentPrice, buyQuantity, buyValue }) => (
               <TableRow key={investment.id}>
                 <TableCell className="font-medium">
-                  {investment.type === 'TREASURY' && investment.treasuryProductName
-                    ? investment.treasuryProductName
-                    : investment.ticker}
+                  <button
+                    type="button"
+                    onClick={() => onTickerClick(investment.id, investment.ticker, investment.sector, investment.recommendation)}
+                    aria-label={`View comments for ${investment.treasuryProductName ?? investment.ticker}`}
+                    className={`cursor-pointer text-left underline-offset-2 hover:underline focus-visible:outline-none focus-visible:underline ${getRecommendationColorClass(investment.recommendation)}`}
+                  >
+                    {investment.type === 'TREASURY' && investment.treasuryProductName
+                      ? investment.treasuryProductName
+                      : investment.ticker}
+                  </button>
                 </TableCell>
                 <TableCell className="text-right">
-                  {plannedPricesLoading && investment.type === 'STOCK'
+                  {pricesLoading && investment.type === 'STOCK' && !investment.quote
                     ? <span className="animate-pulse text-muted-foreground">Loading…</span>
                     : currentPrice !== null ? formatCurrency(currentPrice) : <span className="text-muted-foreground">N/A</span>}
                 </TableCell>
@@ -367,7 +400,7 @@ function BuyPlanTable({ investments, pricesLoading = false }: { investments: Inv
                 </TableCell>
                 <TableCell className="text-right">{formatQuantity(buyQuantity)}</TableCell>
                 <TableCell className="text-right">
-                  {plannedPricesLoading && investment.type === 'STOCK'
+                  {pricesLoading && investment.type === 'STOCK' && !investment.quote
                     ? <span className="animate-pulse text-muted-foreground">Loading…</span>
                     : buyValue !== null ? formatCurrency(buyValue) : <span className="text-muted-foreground">N/A</span>}
                 </TableCell>
@@ -388,13 +421,20 @@ function BuyPlanTable({ investments, pricesLoading = false }: { investments: Inv
         {plannedBuys.map(({ investment, currentPrice, buyQuantity, buyValue }) => (
           <article key={investment.id} className="rounded-xl border bg-card p-4 shadow-sm">
             <h3 className="break-words font-semibold">
-              {investment.type === 'TREASURY' && investment.treasuryProductName
-                ? investment.treasuryProductName
-                : investment.ticker}
+              <button
+                type="button"
+                onClick={() => onTickerClick(investment.id, investment.ticker, investment.sector, investment.recommendation)}
+                aria-label={`View comments for ${investment.treasuryProductName ?? investment.ticker}`}
+                className={`text-left underline-offset-2 hover:underline focus-visible:outline-none focus-visible:underline ${getRecommendationColorClass(investment.recommendation)}`}
+              >
+                {investment.type === 'TREASURY' && investment.treasuryProductName
+                  ? investment.treasuryProductName
+                  : investment.ticker}
+              </button>
             </h3>
             {investment.sector && <p className="mt-0.5 text-xs text-muted-foreground">{investment.sector}</p>}
             <div className="mt-3 grid grid-cols-2 gap-x-3 gap-y-3 border-t pt-3">
-              <MobileMetric label="Price now" value={plannedPricesLoading && investment.type === 'STOCK' ? 'Loading…' : currentPrice !== null ? formatCurrency(currentPrice) : 'N/A'} />
+              <MobileMetric label="Price now" value={pricesLoading && investment.type === 'STOCK' && !investment.quote ? 'Loading…' : currentPrice !== null ? formatCurrency(currentPrice) : 'N/A'} />
               <MobileMetric
                 label="Daily variation"
                 value={investment.type === 'STOCK' && investment.quote ? formatPercent(investment.quote.dailyChangePercent) : '—'}
@@ -403,7 +443,7 @@ function BuyPlanTable({ investments, pricesLoading = false }: { investments: Inv
               <MobileMetric label="Target sell" value={investment.targetSellPrice !== null ? formatCurrency(Number(investment.targetSellPrice)) : '—'} />
               <MobileMetric label="Target buy" value={investment.targetBuyPrice !== null ? formatCurrency(Number(investment.targetBuyPrice)) : '—'} />
               <MobileMetric label="Buy quantity" value={formatQuantity(buyQuantity)} />
-              <MobileMetric label="Estimated total" value={plannedPricesLoading && investment.type === 'STOCK' ? 'Loading…' : buyValue !== null ? formatCurrency(buyValue) : 'N/A'} />
+              <MobileMetric label="Estimated total" value={pricesLoading && investment.type === 'STOCK' && !investment.quote ? 'Loading…' : buyValue !== null ? formatCurrency(buyValue) : 'N/A'} />
             </div>
           </article>
         ))}
@@ -563,7 +603,7 @@ function InvestmentRow({ investment, pricesLoading = false, portfolioCurrentTota
   const { mutate: saveCurrentValue, isPending: isSavingCurrentValue } = useUpdateCurrentValue();
 
   const isTreasury = investment.type === 'TREASURY';
-  const quoteIsLoading = pricesLoading && !isTreasury;
+  const quoteIsLoading = pricesLoading && !isTreasury && investment.quote === null;
 
   const quantity = parseFloat(investment.position.quantity);
   const averagePrice = parseFloat(investment.position.averagePrice);
@@ -827,7 +867,7 @@ function MobileInvestmentCard({ investment, pricesLoading = false, portfolioCurr
   const { mutate: saveTargetPrices, isPending: isSavingTargets } = useUpdateTargetPrices();
   const { mutate: saveCurrentValue, isPending: isSavingCurrentValue } = useUpdateCurrentValue();
   const isTreasury = investment.type === 'TREASURY';
-  const quoteIsLoading = pricesLoading && !isTreasury;
+  const quoteIsLoading = pricesLoading && !isTreasury && investment.quote === null;
   const noOrders = hasNoOrders(investment);
   const quantity = parseFloat(investment.position.quantity);
   const averagePrice = parseFloat(investment.position.averagePrice);
@@ -964,16 +1004,13 @@ function MobileMetric({ label, value, valueClassName = '' }: { label: string; va
 }
 
 function LatestCommentDate({ investmentId }: { investmentId: string }): React.JSX.Element {
-  const { data: comments, isLoading, isError } = useComments(investmentId);
+  const { data: dates, isLoading, isError } = useLatestCommentDates();
   if (isLoading) return <span className="text-muted-foreground">…</span>;
   if (isError) return <span className="text-muted-foreground" title="Could not load comments">—</span>;
-  if (!comments?.length) return <span className="text-muted-foreground">—</span>;
+  const latestDateValue = dates?.[investmentId];
+  if (!latestDateValue) return <span className="text-muted-foreground">—</span>;
 
-  const latestTimestamp = Math.max(...comments.flatMap((comment) => [
-    new Date(comment.createdAt).getTime(),
-    new Date(comment.updatedAt).getTime(),
-  ]));
-  const latestDate = new Date(latestTimestamp);
+  const latestDate = new Date(latestDateValue);
   return (
     <span title={latestDate.toLocaleString('pt-BR')}>
       {latestDate.toLocaleDateString('pt-BR')}

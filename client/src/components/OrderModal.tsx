@@ -615,7 +615,7 @@ function OrderHistory({ investmentId, isTreasury }: OrderHistoryProps): React.JS
   }
 
   return (
-    <div className="overflow-x-auto rounded-md border">
+    <div className="rounded-md border">
       <Table className="min-w-[520px]">
         <TableHeader>
           <TableRow>
