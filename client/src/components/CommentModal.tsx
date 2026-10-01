@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Pencil, Trash2, Check, X, ChevronDown, ChevronRight } from 'lucide-react';
+import { Pencil, Trash2, Check, X, ChevronDown, ChevronRight, ListOrdered } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   Dialog,
@@ -356,6 +356,7 @@ interface CommentModalProps {
   recommendation: number | null;
   investment?: InvestmentListItem | ArchivedInvestmentItem | null;
   activeInvestments?: InvestmentListItem[];
+  onOpenOrders?: (investmentId: string) => void;
 }
 
 /**
@@ -383,6 +384,7 @@ export function CommentModal({
   recommendation,
   investment = null,
   activeInvestments = [],
+  onOpenOrders,
 }: CommentModalProps): React.JSX.Element | null {
   const [showInvestmentDetails, setShowInvestmentDetails] = useState(false);
   useEffect(() => {
@@ -394,8 +396,20 @@ export function CommentModal({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[720px]">
-        <DialogHeader>
-          <DialogTitle>Comments — {ticker}</DialogTitle>
+        <DialogHeader className="flex-row items-center justify-between space-y-0 pr-8">
+          <DialogTitle>{ticker}</DialogTitle>
+          {onOpenOrders && activeInvestments.some((item) => item.id === investmentId) && (
+            <Button
+              type="button"
+              variant="link"
+              size="sm"
+              className="h-auto shrink-0 px-0"
+              onClick={() => onOpenOrders(investmentId)}
+            >
+              <ListOrdered className="mr-1.5 h-4 w-4" />
+              Open orders
+            </Button>
+          )}
         </DialogHeader>
 
         <div className="grid gap-5 py-2">

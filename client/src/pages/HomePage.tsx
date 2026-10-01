@@ -78,6 +78,24 @@ export function HomePage(): React.JSX.Element {
     setCommentModalOpen(true);
   }
 
+  function handleOpenTickerOrders(investmentId: string): void {
+    const investment = investments.find((item) => item.id === investmentId);
+    if (!investment) return;
+
+    setSelectedInvestment(investment);
+    setOrderModalOpen(true);
+    handleCommentModalOpenChange(false);
+  }
+
+  function handleOpenTickerModal(investment: InvestmentListItem): void {
+    setCommentInvestmentId(investment.id);
+    setCommentTicker(investment.ticker);
+    setCommentSector(investment.sector);
+    setCommentRecommendation(investment.recommendation);
+    setCommentModalOpen(true);
+    handleOrderModalOpenChange(false);
+  }
+
   function handleCommentModalOpenChange(open: boolean): void {
     setCommentModalOpen(open);
     if (!open) {
@@ -132,32 +150,34 @@ export function HomePage(): React.JSX.Element {
               investment.recommendation,
             )}
           />
-          <nav aria-label="Page sections" className="-mx-1 flex gap-4 overflow-x-auto border-y border-white/20 py-2 text-sm sm:mx-0 sm:border-0 sm:py-0">
-            {hasPlannedBuys && <a href="#planned-buys" className="shrink-0 text-white/90 hover:text-white hover:underline">Planned Buys</a>}
-            {hasWatchlist && <a href="#watchlist" onClick={() => setWatchlistOpen(true)} className="shrink-0 text-white/90 hover:text-white hover:underline">Watchlist</a>}
-          </nav>
-          <div className="flex flex-wrap items-center justify-between gap-2 sm:justify-end">
-            <PortfolioAllocationDialog investments={investments} />
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-white hover:bg-white/15 hover:text-white"
-              onClick={() => void handleLogout()}
-              disabled={isLoggingOut}
-              aria-label="Sign out"
-            >
-              {isLoggingOut ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <>
-                  <LogOut className="mr-2 h-4 w-4" />
-                  {admin?.username && (
-                    <span className="hidden sm:inline">{admin.username}</span>
-                  )}
-                  <span className="sr-only sm:not-sr-only sm:ml-1">Sign out</span>
-                </>
-              )}
-            </Button>
+          <div className="flex w-full items-center justify-between gap-2 sm:w-auto sm:justify-end sm:gap-5">
+            <nav aria-label="Page sections" className="flex min-w-0 flex-1 gap-3 overflow-x-auto py-1 text-sm sm:flex-none sm:gap-4 sm:overflow-visible sm:py-0 sm:text-base lg:text-lg">
+              {hasPlannedBuys && <a href="#planned-buys" className="shrink-0 text-white/90 hover:text-white hover:underline">Planned Buys</a>}
+              {hasWatchlist && <a href="#watchlist" onClick={() => setWatchlistOpen(true)} className="shrink-0 text-white/90 hover:text-white hover:underline">Watchlist</a>}
+            </nav>
+            <div className="flex shrink-0 items-center gap-1 sm:gap-2">
+              <PortfolioAllocationDialog investments={investments} />
+              <Button
+                variant="ghost"
+                size="sm"
+                className="shrink-0 px-2 text-white hover:bg-white/15 hover:text-white sm:px-3"
+                onClick={() => void handleLogout()}
+                disabled={isLoggingOut}
+                aria-label="Sign out"
+              >
+                {isLoggingOut ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <>
+                    <LogOut className="h-4 w-4 sm:mr-2" />
+                    {admin?.username && (
+                      <span className="hidden sm:inline">{admin.username}</span>
+                    )}
+                    <span className="sr-only sm:not-sr-only sm:ml-1">Sign out</span>
+                  </>
+                )}
+              </Button>
+            </div>
           </div>
         </div>
       </header>
@@ -271,6 +291,7 @@ export function HomePage(): React.JSX.Element {
         recommendation={commentRecommendation}
         investment={modalInvestment}
         activeInvestments={investments}
+        onOpenOrders={handleOpenTickerOrders}
       />
 
       {/* ── Order modal ──────────────────────────────────────────────────────── */}
@@ -278,6 +299,7 @@ export function HomePage(): React.JSX.Element {
         open={orderModalOpen}
         onOpenChange={handleOrderModalOpenChange}
         investment={selectedInvestment}
+        onOpenTicker={handleOpenTickerModal}
       />
 
       {/* ── Archive confirmation dialog ──────────────────────────────────────── */}

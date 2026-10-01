@@ -3,7 +3,7 @@ import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { toast } from 'sonner';
-import { Pencil, X, Check, Trash2 } from 'lucide-react';
+import { Pencil, X, Check, Trash2, MessageCircle } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -616,16 +616,16 @@ function OrderHistory({ investmentId, isTreasury }: OrderHistoryProps): React.JS
 
   return (
     <div className="rounded-md border">
-      <Table className="min-w-[520px]">
+      <Table className="table-fixed text-[10px] sm:text-sm">
         <TableHeader>
           <TableRow>
-            <TableHead>Type</TableHead>
-            <TableHead className="text-right">Quantity</TableHead>
-            <TableHead className="text-right">Price (R$)</TableHead>
-            {isTreasury && <TableHead className="text-right">Rate (%)</TableHead>}
-            <TableHead className="text-right">Date</TableHead>
-            <TableHead className="text-right">Total (R$)</TableHead>
-            <TableHead className="text-right">Actions</TableHead>
+            <TableHead className="overflow-hidden px-0.5">Type</TableHead>
+            <TableHead className="overflow-hidden px-0.5 text-right">Quantity</TableHead>
+            <TableHead className="overflow-hidden px-0.5 text-right">Price</TableHead>
+            {isTreasury && <TableHead className="overflow-hidden px-0.5 text-right">Rate</TableHead>}
+            <TableHead className="overflow-hidden px-0.5 text-right">Date</TableHead>
+            <TableHead className="overflow-hidden px-0.5 text-right">Total</TableHead>
+            <TableHead className="overflow-hidden px-0.5 text-right">Actions</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -680,37 +680,38 @@ function OrderHistory({ investmentId, isTreasury }: OrderHistoryProps): React.JS
             return (
               <React.Fragment key={order.id}>
                 <TableRow>
-                  <TableCell>
+                  <TableCell className="overflow-hidden px-0.5">
                     <span className={`${orderTypeColorClass(order.type)} font-medium`}>
                       {order.type}
                     </span>
                   </TableCell>
-                  <TableCell className="text-right">
+                  <TableCell className="overflow-hidden px-0.5 text-right">
                     {order.type === 'SPLIT'
                       ? `×${formatQuantity(parseFloat(order.quantity))}`
                       : formatQuantity(parseFloat(order.quantity))}
                   </TableCell>
-                  <TableCell className="text-right">
+                  <TableCell className="overflow-hidden px-0.5 text-right">
                     {order.type === 'SPLIT' ? '—' : parseFloat(order.price).toFixed(2)}
                   </TableCell>
                   {isTreasury && (
-                    <TableCell className="text-right">
+                    <TableCell className="overflow-hidden px-0.5 text-right">
                       {order.contractedRate !== null && order.contractedRate !== undefined
                         ? `${parseFloat(order.contractedRate).toFixed(2)}%`
                         : <span className="text-muted-foreground">—</span>}
                     </TableCell>
                   )}
-                  <TableCell className="text-right">
+                  <TableCell className="overflow-hidden px-0.5 text-right">
                     {formatOrderDate(order.orderDate)}
                   </TableCell>
-                  <TableCell className="text-right">
+                  <TableCell className="overflow-hidden px-0.5 text-right">
                     {order.type === 'SPLIT' ? '—' : computeTotal(order.quantity, order.price)}
                   </TableCell>
-                  <TableCell className="text-right">
+                  <TableCell className="overflow-hidden px-0.5 text-right">
                     <div className="flex justify-end gap-0.5">
                       <Button
                         variant="ghost"
                         size="sm"
+                        className="h-7 w-7 p-0 sm:h-9 sm:w-9"
                         onClick={() => { setEditingOrderId(order.id); setConfirmDeleteId(null); }}
                         aria-label={`Edit order from ${formatOrderDate(order.orderDate)}`}
                       >
@@ -719,6 +720,7 @@ function OrderHistory({ investmentId, isTreasury }: OrderHistoryProps): React.JS
                       <Button
                         variant="ghost"
                         size="sm"
+                        className="h-7 w-7 p-0 sm:h-9 sm:w-9"
                         onClick={() => { setConfirmDeleteId(order.id); setEditingOrderId(null); }}
                         aria-label={`Delete order from ${formatOrderDate(order.orderDate)}`}
                       >
@@ -786,6 +788,7 @@ interface OrderModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   investment: InvestmentListItem | null;
+  onOpenTicker: (investment: InvestmentListItem) => void;
 }
 
 /**
@@ -809,6 +812,7 @@ export function OrderModal({
   open,
   onOpenChange,
   investment,
+  onOpenTicker,
 }: OrderModalProps): React.JSX.Element | null {
   if (!investment) return null;
 
@@ -816,13 +820,19 @@ export function OrderModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[860px]">
-        <DialogHeader>
-          <DialogTitle>
-            Orders — {isTreasury && investment.treasuryProductName
-              ? investment.treasuryProductName
-              : investment.ticker}
-          </DialogTitle>
+      <DialogContent className="w-[calc(100vw-1rem)] max-w-[860px] overflow-x-hidden p-4 sm:w-full sm:p-6">
+        <DialogHeader className="flex-row items-center justify-between space-y-0 pr-8">
+          <DialogTitle className="truncate">{investment.ticker}</DialogTitle>
+          <Button
+            type="button"
+            variant="link"
+            size="sm"
+            className="h-auto shrink-0 px-0"
+            onClick={() => onOpenTicker(investment)}
+          >
+            <MessageCircle className="mr-1.5 h-4 w-4" />
+            Open ticker
+          </Button>
         </DialogHeader>
 
         <div className="grid gap-6 py-2">

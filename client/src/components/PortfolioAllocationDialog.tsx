@@ -61,11 +61,11 @@ export function PortfolioAllocationDialog({ investments }: { investments: Invest
         type="button"
         variant="outline"
         size="sm"
-        className="border-white/40 bg-white/10 text-white hover:bg-white/20 hover:text-white"
+        className="border-white/40 bg-white/10 px-2 text-white hover:bg-white/20 hover:text-white sm:px-3"
         onClick={() => setOpen(true)}
       >
-        <PieChart className="mr-2 h-4 w-4" />
-        Portfolio Allocation
+        <PieChart className="h-4 w-4 sm:mr-2" />
+        <span className="sr-only sm:not-sr-only">Portfolio Allocation</span>
       </Button>
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="sm:max-w-[760px]">
