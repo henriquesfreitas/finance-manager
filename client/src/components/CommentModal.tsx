@@ -25,6 +25,7 @@ import {
   calculateTotalVariation,
 } from '@/lib/investment-calculator';
 import { formatQuantity } from '@/lib/utils';
+import { sanitizeCommentHtml } from '@/lib/sanitize-comment-html';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -178,7 +179,7 @@ function AddCommentForm({ investmentId }: AddCommentFormProps): React.JSX.Elemen
         maxLength={2000}
       />
       <div className="flex items-center justify-between">
-        <span className="text-xs text-muted-foreground">{content.length}/2000</span>
+        <span className="text-xs text-muted-foreground">HTML and pasted tables supported · {content.length}/2000</span>
         <Button type="submit" size="sm" disabled={!content.trim() || createComment.isPending}>
           {createComment.isPending ? 'Adding…' : 'Add Comment'}
         </Button>
@@ -246,6 +247,7 @@ function CommentRow({ comment, investmentId }: CommentRowProps): React.JSX.Eleme
             value={editContent}
             onChange={(e) => setEditContent(e.target.value)}
             aria-label="Edit comment"
+            placeholder="HTML formatting supported"
             maxLength={2000}
             autoFocus
           />
@@ -271,7 +273,10 @@ function CommentRow({ comment, investmentId }: CommentRowProps): React.JSX.Eleme
         </>
       ) : (
         <>
-          <p className="whitespace-pre-wrap text-sm">{comment.content}</p>
+          <div
+            className="overflow-x-auto whitespace-pre-wrap text-sm [&_a]:text-primary [&_a]:underline [&_blockquote]:border-l-2 [&_blockquote]:pl-3 [&_blockquote]:italic [&_h1]:text-lg [&_h1]:font-semibold [&_h2]:text-base [&_h2]:font-semibold [&_h3]:font-semibold [&_ol]:list-decimal [&_ol]:pl-5 [&_table]:w-full [&_table]:border-collapse [&_th]:border [&_th]:bg-muted [&_th]:px-2 [&_th]:py-1 [&_th]:text-left [&_td]:border [&_td]:px-2 [&_td]:py-1 [&_ul]:list-disc [&_ul]:pl-5"
+            dangerouslySetInnerHTML={{ __html: sanitizeCommentHtml(comment.content) }}
+          />
           <div className="flex items-center justify-between">
             <span className="text-xs text-muted-foreground">
               {formatDateTime(comment.createdAt)}
