@@ -207,8 +207,8 @@ The script `scripts/backup-db.sh` runs a PostgreSQL dump, uploads it to Cloudfla
 
 ### How it works
 
-- Queries `MAX(updatedAt)` across `investments`, `orders`, `comments`, and `treasury_products`
-- Compares against a timestamp marker saved after the last successful backup
+- Queries the latest change across `investments`, `orders`, `comments`, `treasury_products`, `bills`, and `bill_month_settlements`
+- Compares timestamps and fingerprints of both bills tables against the last successful backup marker
 - If nothing changed, exits silently — no dump, no email
 - On change: runs `pg_dump | gzip`, uploads via `rclone`, sends success email with a summary of the last 7 days of activity
 - On any failure (DB down, rclone error, etc): sends a failure alert email instead

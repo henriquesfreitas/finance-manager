@@ -132,7 +132,11 @@ HTMLEOF
 # ── Check if any user data changed since last backup ─────────────────────────
 # Queries are passed via stdin to avoid bash mangling double-quoted column names.
 LATEST_CHANGE=$(psql_query '
-  SELECT COALESCE(MAX(latest), '"'"'epoch'"'"'::timestamptz)
+  SELECT COALESCE(MAX(latest)::text, '"'"'epoch'"'"')
+    || '"'"'|'"'"'
+    || (SELECT md5(COALESCE(string_agg(to_jsonb(b)::text, '"'"''"'"' ORDER BY b.id), '"'"''"'"')) FROM bills)
+    || '"'"'|'"'"'
+    || (SELECT md5(COALESCE(string_agg(to_jsonb(s)::text, '"'"''"'"' ORDER BY s.month), '"'"''"'"')) FROM bill_month_settlements)
   FROM (
     SELECT MAX("updatedAt") AS latest FROM investments
     UNION ALL
@@ -141,6 +145,8 @@ LATEST_CHANGE=$(psql_query '
     SELECT MAX("updatedAt") AS latest FROM comments
     UNION ALL
     SELECT MAX("createdAt") AS latest FROM treasury_products
+    UNION ALL
+    SELECT MAX("updatedAt") AS latest FROM bill_month_settlements
   ) sub;
 ' 2>&1) || { send_failure_email "Could not query database: ${LATEST_CHANGE}"; exit 1; }
 
@@ -152,11 +158,7 @@ fi
 if [[ -f "$LAST_BACKUP_MARKER" ]]; then
   LAST_BACKUP_TS=$(cat "$LAST_BACKUP_MARKER")
 
-  HAS_NEW_DATA=$(psql_query "
-    SELECT ('${LATEST_CHANGE}'::timestamptz > '${LAST_BACKUP_TS}'::timestamptz);
-  " 2>&1) || { send_failure_email "Could not compare timestamps: ${HAS_NEW_DATA}"; exit 1; }
-
-  if [[ "$HAS_NEW_DATA" != "t" ]]; then
+  if [[ "$LATEST_CHANGE" == "$LAST_BACKUP_TS" ]]; then
     echo "→ No data changes since last backup (${LAST_BACKUP_TS}). Skipping."
     exit 0
   fi

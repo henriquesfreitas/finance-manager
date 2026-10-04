@@ -1,0 +1,1 @@
+ALTER TABLE "bills" ADD COLUMN "detail" VARCHAR(500);

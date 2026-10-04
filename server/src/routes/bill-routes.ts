@@ -5,7 +5,8 @@ import { prisma } from '../lib/prisma-client.js';
 const createBillSchema = z.object({
   amount: z.number().finite().positive(),
   type: z.enum(['INTERNET', 'CLEANING', 'CONDOMINIO', 'ENERGY', 'OTHER']),
-  billDate: z.iso.date(),
+  detail: z.string().trim().max(500).nullable().optional(),
+  billMonth: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/),
   paidBy: z.enum(['HENRIQUE', 'AMANDA']).nullable().optional(),
   isPaid: z.boolean(),
 });
@@ -14,8 +15,15 @@ const updatePaidSchema = z.object({ isPaid: z.boolean() });
 const settlementPaidSchema = z.object({ settlementPaid: z.boolean() });
 const monthSchema = z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/);
 
-function billMonth(date: Date): string {
+function monthForDate(date: Date): string {
   return date.toISOString().slice(0, 7);
+}
+
+function lastDayOfBillMonth(month: string): Date {
+  const year = Number(month.slice(0, 4));
+  const monthNumber = Number(month.slice(5, 7));
+  const lastDay = new Date(Date.UTC(year, monthNumber, 0)).getUTCDate();
+  return new Date(`${month}-${String(lastDay).padStart(2, '0')}T00:00:00.000Z`);
 }
 
 async function resetSettlement(month: string): Promise<void> {
@@ -66,17 +74,18 @@ export function createBillRouter(): Router {
       return;
     }
 
-    const { amount, type, billDate, paidBy, isPaid } = result.data;
+    const { amount, type, detail, billMonth, paidBy, isPaid } = result.data;
     const bill = await prisma.bill.create({
       data: {
         amount,
         type,
-        billDate: new Date(`${billDate}T00:00:00.000Z`),
+        detail: type === 'OTHER' ? detail || null : null,
+        billDate: lastDayOfBillMonth(billMonth),
         paidBy: paidBy ?? null,
         isPaid,
       },
     });
-    await resetSettlement(billMonth(bill.billDate));
+    await resetSettlement(monthForDate(bill.billDate));
     res.status(201).json(bill);
   });
 
@@ -92,13 +101,20 @@ export function createBillRouter(): Router {
       res.status(404).json({ error: 'Bill not found' });
       return;
     }
-    const { amount, type, billDate, paidBy, isPaid } = result.data;
+    const { amount, type, detail, billMonth, paidBy, isPaid } = result.data;
     const bill = await prisma.bill.update({
       where: { id },
-      data: { amount, type, billDate: new Date(`${billDate}T00:00:00.000Z`), paidBy: paidBy ?? null, isPaid },
+      data: {
+        amount,
+        type,
+        detail: type === 'OTHER' ? detail || null : null,
+        billDate: lastDayOfBillMonth(billMonth),
+        paidBy: paidBy ?? null,
+        isPaid,
+      },
     });
-    await resetSettlement(billMonth(existing.billDate));
-    await resetSettlement(billMonth(bill.billDate));
+    await resetSettlement(monthForDate(existing.billDate));
+    await resetSettlement(monthForDate(bill.billDate));
     res.json(bill);
   });
 
@@ -110,7 +126,7 @@ export function createBillRouter(): Router {
       return;
     }
     await prisma.bill.delete({ where: { id } });
-    await resetSettlement(billMonth(existing.billDate));
+    await resetSettlement(monthForDate(existing.billDate));
     res.status(204).end();
   });
 
@@ -127,7 +143,7 @@ export function createBillRouter(): Router {
       return;
     }
     const bill = await prisma.bill.update({ where: { id }, data: { isPaid: result.data.isPaid } });
-    await resetSettlement(billMonth(bill.billDate));
+    await resetSettlement(monthForDate(bill.billDate));
     res.json(bill);
   });
 

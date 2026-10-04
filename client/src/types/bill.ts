@@ -5,6 +5,7 @@ export interface Bill {
   id: string;
   amount: string;
   type: BillType;
+  detail: string | null;
   billDate: string;
   paidBy: BillPayer | null;
   isPaid: boolean;
@@ -14,7 +15,8 @@ export interface Bill {
 export interface CreateBillData {
   amount: number;
   type: BillType;
-  billDate: string;
+  detail: string | null;
+  billMonth: string;
   paidBy: BillPayer | null;
   isPaid: boolean;
 }

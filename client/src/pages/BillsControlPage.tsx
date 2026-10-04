@@ -21,21 +21,24 @@ import {
   useSetBillMonthSettlementPaid,
   useUpdateBillPaid,
 } from '@/hooks/useBills';
-import type { Bill, BillPayer, BillType } from '@/types/bill';
+import type { Bill, BillPayer, BillType, CreateBillData } from '@/types/bill';
 import { useAuth } from '@/contexts/auth-context';
 import { toast } from 'sonner';
 
-function todayAsLocalDate(): string {
+function defaultBillMonth(): string {
   const now = new Date();
+  if (now.getDate() <= 10) now.setMonth(now.getMonth() - 1);
   const year = now.getFullYear();
   const month = String(now.getMonth() + 1).padStart(2, '0');
-  const day = String(now.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
+  return `${year}-${month}`;
 }
 
 function formatBillDate(value: string): string {
-  const [year, month, day] = value.slice(0, 10).split('-');
-  return `${day}/${month}/${year}`;
+  const parts = value.slice(0, 7).split('-');
+  const year = Number(parts[0]);
+  const month = Number(parts[1]);
+  return new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' })
+    .format(new Date(year, month - 1, 1, 12));
 }
 
 function formatAmount(value: string): string {
@@ -68,6 +71,8 @@ interface BillMonthGroup {
   paidByAmandaCents: number;
   paidUnassignedCents: number;
 }
+
+const duplicatePromptTypes = new Set<BillType>(['INTERNET', 'CONDOMINIO', 'ENERGY']);
 
 function groupBillsByMonth(bills: Bill[]): BillMonthGroup[] {
   const groups = new Map<string, BillMonthGroup>();
@@ -113,13 +118,15 @@ export function BillsControlPage(): React.JSX.Element {
   const { logout, admin } = useAuth();
   const [amount, setAmount] = useState('');
   const [type, setType] = useState<BillType | ''>('');
-  const [billDate, setBillDate] = useState(todayAsLocalDate);
+  const [detail, setDetail] = useState('');
+  const [billMonth, setBillMonth] = useState(defaultBillMonth);
   const [paidBy, setPaidBy] = useState<BillPayer | ''>('');
-  const [isPaid, setIsPaid] = useState(false);
+  const [isPaid, setIsPaid] = useState(true);
   const [formError, setFormError] = useState('');
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [billToEdit, setBillToEdit] = useState<Bill | null>(null);
   const [billToDelete, setBillToDelete] = useState<Bill | null>(null);
+  const [duplicateBillConfirmation, setDuplicateBillConfirmation] = useState<CreateBillData | null>(null);
   const [replicatingBillId, setReplicatingBillId] = useState<string | null>(null);
   const addBillFormRef = useRef<HTMLElement | null>(null);
   const monthGroups = groupBillsByMonth(bills);
@@ -128,7 +135,8 @@ export function BillsControlPage(): React.JSX.Element {
   function replicateBill(bill: Bill): void {
     setAmount(String(Number(bill.amount)));
     setType(bill.type);
-    setBillDate(todayAsLocalDate());
+    setDetail(bill.detail ?? '');
+    setBillMonth(defaultBillMonth());
     setPaidBy(bill.paidBy ?? '');
     setIsPaid(bill.isPaid);
     setFormError('');
@@ -148,6 +156,21 @@ export function BillsControlPage(): React.JSX.Element {
     });
   }
 
+  async function saveBill(data: CreateBillData): Promise<void> {
+    try {
+      await createBill.mutateAsync(data);
+      setAmount('');
+      setType('');
+      setDetail('');
+      setBillMonth(defaultBillMonth());
+      setPaidBy('');
+      setIsPaid(true);
+      setReplicatingBillId(null);
+    } catch (error) {
+      setFormError(error instanceof Error ? error.message : 'Unable to save this bill.');
+    }
+  }
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
     setFormError('');
@@ -156,21 +179,24 @@ export function BillsControlPage(): React.JSX.Element {
       setFormError('Enter an amount greater than zero.');
       return;
     }
-    try {
-      if (!type) {
-        setFormError('Select a bill type.');
-        return;
-      }
-      await createBill.mutateAsync({ amount: parsedAmount, type, billDate, paidBy: paidBy || null, isPaid });
-      setAmount('');
-      setType('');
-      setBillDate(todayAsLocalDate());
-      setPaidBy('');
-      setIsPaid(false);
-      setReplicatingBillId(null);
-    } catch (error) {
-      setFormError(error instanceof Error ? error.message : 'Unable to save this bill.');
+    if (!type) {
+      setFormError('Select a bill type.');
+      return;
     }
+    const data: CreateBillData = { amount: parsedAmount, type, detail: type === 'OTHER' ? detail.trim() || null : null, billMonth, paidBy: paidBy || null, isPaid };
+    const isDuplicate = bills.some((bill) => bill.type === type && bill.billDate.slice(0, 7) === billMonth);
+    if (duplicatePromptTypes.has(type) && isDuplicate) {
+      setDuplicateBillConfirmation(data);
+      return;
+    }
+    await saveBill(data);
+  }
+
+  function confirmDuplicateAdd(): void {
+    if (!duplicateBillConfirmation) return;
+    const data = duplicateBillConfirmation;
+    setDuplicateBillConfirmation(null);
+    void saveBill(data);
   }
 
   async function handleLogout(): Promise<void> {
@@ -219,7 +245,7 @@ export function BillsControlPage(): React.JSX.Element {
             <div>
               <h2 className="text-lg font-semibold">Add a bill</h2>
               <p className="text-sm text-muted-foreground">
-                {replicatingBillId ? 'Bill values copied below. Review and edit them before adding.' : 'Record the amount, date, payer, and payment status.'}
+                {replicatingBillId ? 'Bill values copied below. Review and edit them before adding.' : 'Record the amount, allocation month, payer, and payment status.'}
               </p>
             </div>
           </div>
@@ -239,9 +265,15 @@ export function BillsControlPage(): React.JSX.Element {
                 <option value="OTHER">Other</option>
               </select>
             </label>
+            {type === 'OTHER' && (
+              <label className="grid gap-1.5 text-sm font-medium">
+                Details <span className="font-normal text-muted-foreground">(optional)</span>
+                <Input type="text" maxLength={500} value={detail} onChange={(event) => setDetail(event.target.value)} placeholder="What is this bill for?" />
+              </label>
+            )}
             <label className="grid gap-1.5 text-sm font-medium">
-              Date
-              <Input type="date" value={billDate} onChange={(event) => setBillDate(event.target.value)} required />
+              Month
+              <Input type="month" value={billMonth} onChange={(event) => setBillMonth(event.target.value)} required />
             </label>
             <label className="grid gap-1.5 text-sm font-medium">
               Who paid <span className="font-normal text-muted-foreground">(optional)</span>
@@ -255,7 +287,7 @@ export function BillsControlPage(): React.JSX.Element {
               <input type="checkbox" checked={isPaid} onChange={(event) => setIsPaid(event.target.checked)} className="h-4 w-4 accent-primary" />
               Bill is paid
             </label>
-            <Button type="submit" disabled={createBill.isPending} className="w-full">
+            <Button type="submit" disabled={createBill.isPending || isLoading} className="w-full">
               {createBill.isPending ? <Loader2 className="animate-spin" /> : <Check />}
               Add bill
             </Button>
@@ -334,6 +366,7 @@ export function BillsControlPage(): React.JSX.Element {
                             <PaidToggle billId={bill.id} isPaid={bill.isPaid} pending={updatePaid.isPending} onChange={(next) => updatePaid.mutate({ id: bill.id, isPaid: next })} />
                           </div>
                           <p className="mt-3 text-sm"><span className="text-muted-foreground">Type:</span> {billTypeName(bill.type)}</p>
+                          {bill.detail && <p className="mt-1 text-sm"><span className="text-muted-foreground">Details:</span> {bill.detail}</p>}
                           <p className="mt-1 text-sm"><span className="text-muted-foreground">Paid by:</span> {payerName(bill.paidBy)}</p>
                           <div className="mt-3 flex justify-end gap-2 border-t pt-3">
                             <Button type="button" size="sm" variant="outline" onClick={() => replicateBill(bill)} aria-label={`Replicate bill ${formatAmount(bill.amount)}`}><Copy /> Replicate</Button>
@@ -345,12 +378,12 @@ export function BillsControlPage(): React.JSX.Element {
                     </div>
                     <div className="hidden overflow-x-auto md:block">
                       <table className="w-full min-w-[620px] text-left text-sm">
-                        <thead><tr className="border-b text-muted-foreground"><th className="px-3 py-3 font-medium">Date</th><th className="px-3 py-3 font-medium">Amount</th><th className="px-3 py-3 font-medium">Type</th><th className="px-3 py-3 font-medium">Paid by</th><th className="px-3 py-3 font-medium">Status</th><th className="px-3 py-3 font-medium">Actions</th></tr></thead>
+                        <thead><tr className="border-b text-muted-foreground"><th className="px-3 py-3 font-medium">Month</th><th className="px-3 py-3 font-medium">Amount</th><th className="px-3 py-3 font-medium">Type</th><th className="px-3 py-3 font-medium">Paid by</th><th className="px-3 py-3 font-medium">Status</th><th className="px-3 py-3 font-medium">Actions</th></tr></thead>
                         <tbody>{group.bills.map((bill) => (
                           <tr key={bill.id} className="border-b last:border-0">
                             <td className="px-3 py-3">{formatBillDate(bill.billDate)}</td>
                             <td className="px-3 py-3 font-semibold">{formatAmount(bill.amount)}</td>
-                            <td className="px-3 py-3">{billTypeName(bill.type)}</td>
+                            <td className="px-3 py-3">{billTypeName(bill.type)}{bill.detail && <span className="block text-xs text-muted-foreground">{bill.detail}</span>}</td>
                             <td className="px-3 py-3">{payerName(bill.paidBy)}</td>
                             <td className="px-3 py-3"><PaidToggle billId={bill.id} isPaid={bill.isPaid} pending={updatePaid.isPending} onChange={(next) => updatePaid.mutate({ id: bill.id, isPaid: next })} /></td>
                             <td className="px-3 py-3"><div className="flex gap-2">
@@ -370,6 +403,22 @@ export function BillsControlPage(): React.JSX.Element {
         </section>
       </main>
       <EditBillDialog bill={billToEdit} open={billToEdit !== null} onOpenChange={(open) => { if (!open) setBillToEdit(null); }} />
+      <AlertDialog open={duplicateBillConfirmation !== null} onOpenChange={(open) => { if (!open && !createBill.isPending) setDuplicateBillConfirmation(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>This bill type already exists this month</AlertDialogTitle>
+            <AlertDialogDescription>
+              {duplicateBillConfirmation && `${billTypeName(duplicateBillConfirmation.type)} already has a bill for ${formatBillDate(`${duplicateBillConfirmation.billMonth}-01`)}. Do you want to add another anyway?`}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={createBill.isPending}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDuplicateAdd} disabled={createBill.isPending}>
+              {createBill.isPending ? 'Adding…' : 'Add anyway'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       <AlertDialog open={billToDelete !== null} onOpenChange={(open) => { if (!open && !removeBill.isPending) setBillToDelete(null); }}>
         <AlertDialogContent>
           <AlertDialogHeader>

@@ -16,7 +16,8 @@ export function EditBillDialog({ bill, open, onOpenChange }: EditBillDialogProps
   const editBill = useEditBill();
   const [amount, setAmount] = useState('');
   const [type, setType] = useState<BillType>('OTHER');
-  const [billDate, setBillDate] = useState('');
+  const [detail, setDetail] = useState('');
+  const [billMonth, setBillMonth] = useState('');
   const [paidBy, setPaidBy] = useState<BillPayer | ''>('');
   const [isPaid, setIsPaid] = useState(false);
   const [error, setError] = useState('');
@@ -25,7 +26,8 @@ export function EditBillDialog({ bill, open, onOpenChange }: EditBillDialogProps
     if (!open || !bill) return;
     setAmount(String(Number(bill.amount)));
     setType(bill.type);
-    setBillDate(bill.billDate.slice(0, 10));
+    setDetail(bill.detail ?? '');
+    setBillMonth(bill.billDate.slice(0, 7));
     setPaidBy(bill.paidBy ?? '');
     setIsPaid(bill.isPaid);
     setError('');
@@ -43,7 +45,7 @@ export function EditBillDialog({ bill, open, onOpenChange }: EditBillDialogProps
     try {
       await editBill.mutateAsync({
         id: bill.id,
-        data: { amount: parsedAmount, type, billDate, paidBy: paidBy || null, isPaid },
+        data: { amount: parsedAmount, type, detail: type === 'OTHER' ? detail.trim() || null : null, billMonth, paidBy: paidBy || null, isPaid },
       });
       onOpenChange(false);
     } catch (cause) {
@@ -56,7 +58,7 @@ export function EditBillDialog({ bill, open, onOpenChange }: EditBillDialogProps
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Edit bill</DialogTitle>
-          <DialogDescription>Update the amount, date, payer, or payment status.</DialogDescription>
+          <DialogDescription>Update the amount, allocation month, payer, or payment status.</DialogDescription>
         </DialogHeader>
         <form onSubmit={(event) => void handleSubmit(event)} className="grid gap-4">
           <label className="grid gap-1.5 text-sm font-medium">Amount (R$)
@@ -71,8 +73,13 @@ export function EditBillDialog({ bill, open, onOpenChange }: EditBillDialogProps
               <option value="OTHER">Other</option>
             </select>
           </label>
-          <label className="grid gap-1.5 text-sm font-medium">Date
-            <Input type="date" value={billDate} onChange={(event) => setBillDate(event.target.value)} required />
+          {type === 'OTHER' && (
+            <label className="grid gap-1.5 text-sm font-medium">Details <span className="font-normal text-muted-foreground">(optional)</span>
+              <Input type="text" maxLength={500} value={detail} onChange={(event) => setDetail(event.target.value)} placeholder="What is this bill for?" />
+            </label>
+          )}
+          <label className="grid gap-1.5 text-sm font-medium">Month
+            <Input type="month" value={billMonth} onChange={(event) => setBillMonth(event.target.value)} required />
           </label>
           <label className="grid gap-1.5 text-sm font-medium">Who paid <span className="font-normal text-muted-foreground">(optional)</span>
             <select value={paidBy} onChange={(event) => setPaidBy(event.target.value as BillPayer | '')} className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm shadow-sm outline-none focus-visible:ring-1 focus-visible:ring-ring">
