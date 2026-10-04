@@ -200,7 +200,7 @@ All services follow the same factory pattern with DI:
 | `createOrderService(db)` | Order CRUD, SELL validation, position computation |
 | `createCommentService(db)` | Comment CRUD with ownership checks |
 | `createWeightedAverageCalculator()` | Pure position computation (BUY/SELL/BONUS/SPLIT) |
-| `createAuthService({ db })` | Credential verification (bcrypt), session lifecycle (create/validate/invalidate), rate limiting. Never returns or logs `passwordHash`. |
+| `createAuthService({ db })` | Credential verification (bcrypt), session lifecycle (create/validate/invalidate), permission loading, rate limiting. Never returns or logs `passwordHash`. |
 
 Tests inject fakes; the real routers inject the singleton from `lib/prisma-client.ts`.
 
@@ -736,6 +736,11 @@ npm run db:studio    # opens Prisma Studio in browser
 | 2026-07-19 | Sectors | Optional sector classification for investments |
 | 2026-07-19 | Updated PROJECT_RULES.md | Documented orders, comments, archive, sectors, weighted average calculator, updated API endpoints |
 | 2026-07-20 | Target prices | Added targetSellPrice/targetBuyPrice to investments table. Inline editable cells in InvestmentTable with color coding (green when current price hits target). PATCH /api/investments/:id/target-prices endpoint. EditablePriceCell reusable component. |
+| 2026-10-03 | Bills Control page | Added an independent authenticated page and bills API backed by its own Prisma model; bill type is Internet/Cleaning/Condomínio/Energy/Other, payer is optional (Henrique/Amanda), with bill date and paid status. |
+| 2026-10-03 | Bills Control management | Bills can be edited and deleted from the page; deletion requires confirmation. |
+| 2026-10-03 | Bills Control monthly totals | Bills are grouped by bill month with monthly totals, paid totals by payer, and a 50/50 settlement calculation based on paid bills that have a payer. |
+| 2026-10-04 | Bills Control settlement and replication | Monthly settlements can be marked paid and are reset when bill data changes; list entries can prefill the add form for review and replication. |
+| 2026-10-04 | User page permissions | AdminUser permissions are persisted as INVESTMENTS and BILLS_CONTROL. APIs enforce each permission; the client filters navigation and redirects unauthorized page access. The seed keeps the configured admin on both pages and provisions Amanda with Bills Control only from AMANDA_PASSWORD. |
 | 2026-07-20 | Fix test infrastructure | Root cause: Vite 8 (client dep) hoisted into server node_modules broke Vitest v4 workers. Fix: pin vite ^6 in server devDependencies; switch both vitest configs to pool: vmForks + fileParallelism: false (vitest#8861). All 143 server + 29 client tests now pass. |
 | 2026-07-20 | Multi-asset support (v3) | Added AssetType enum (STOCK/TREASURY), TreasuryProduct catalog table, currentValue field. New endpoints: PATCH /api/investments/:id/current-value, GET /api/treasury-products. AddInvestmentForm now has type selector. InvestmentTable shows product name for treasury rows with editable currentValue cell. Portfolio % uses hybrid calculation. 166 server + 29 client tests pass. |
 | 2026-07-20 | SELL PM snapshot (averagePriceAtSell) | Added averagePriceAtSell field to orders table. Auto-populated from weighted average on SELL create. Editable via existing update endpoint. Order history table shows PM, Investido, Vendido, Lucro sub-row for SELL orders with PM recorded. New calculator functions: calculateSellTotalInvested, calculateSellProfit. 173 server + 37 client tests pass. |

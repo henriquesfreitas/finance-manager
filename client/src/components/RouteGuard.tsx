@@ -84,7 +84,7 @@ export function RouteGuard({
   children,
   locationService = windowLocationService,
 }: RouteGuardProps): React.JSX.Element {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, admin } = useAuth();
 
   // Auth state is still being determined on initial load — show spinner so
   // we never flash the wrong page (Req 4.4).
@@ -94,6 +94,8 @@ export function RouteGuard({
 
   const currentPath = locationService.getPathname();
   const isOnLoginPage = currentPath === LOGIN_PATH;
+  const canAccessInvestments = admin?.permissions.includes('INVESTMENTS') ?? false;
+  const canAccessBills = admin?.permissions.includes('BILLS_CONTROL') ?? false;
 
   // Not authenticated and not already on login → redirect preserving path
   // so it can be restored after login (Req 4.1).
@@ -110,7 +112,25 @@ export function RouteGuard({
   if (isAuthenticated && isOnLoginPage) {
     const params = new URLSearchParams(locationService.getSearch());
     const returnTo = params.get('returnTo');
-    locationService.replace(returnTo ?? '/');
+    const safeReturnTo = returnTo?.startsWith('/') && !returnTo.startsWith('//') ? returnTo : null;
+    const returnPath = safeReturnTo?.split(/[?#]/, 1)[0];
+    const target = safeReturnTo && returnPath !== LOGIN_PATH
+      && (returnPath === '/bills-control' ? canAccessBills : canAccessInvestments)
+      ? safeReturnTo
+      : canAccessInvestments
+        ? '/'
+        : '/bills-control';
+    locationService.replace(target);
+    return <FullPageSpinner />;
+  }
+
+  if (isAuthenticated && currentPath === '/bills-control' && !canAccessBills) {
+    locationService.replace(canAccessInvestments ? '/' : '/login');
+    return <FullPageSpinner />;
+  }
+
+  if (isAuthenticated && currentPath !== '/bills-control' && !isOnLoginPage && !canAccessInvestments) {
+    locationService.replace(canAccessBills ? '/bills-control' : '/login');
     return <FullPageSpinner />;
   }
 

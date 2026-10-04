@@ -39,9 +39,36 @@ export async function seedAdmin(prisma: PrismaClient): Promise<void> {
 
   await prisma.adminUser.upsert({
     where: { username },
-    update: { passwordHash },
-    create: { username, passwordHash },
+    update: { passwordHash, permissions: ['INVESTMENTS', 'BILLS_CONTROL'] },
+    create: { username, passwordHash, permissions: ['INVESTMENTS', 'BILLS_CONTROL'] },
   });
 
   console.log(`Admin user "${username}" seeded successfully.`);
+}
+
+/** Seeds Amanda with Bills Control access only. */
+export async function seedAmanda(prisma: PrismaClient): Promise<void> {
+  const password = process.env['AMANDA_PASSWORD'];
+  const existingUser = await prisma.adminUser.findUnique({ where: { username: 'amanda' } });
+  if (!password && !existingUser) {
+    throw new Error('Missing required env var: AMANDA_PASSWORD must be set');
+  }
+
+  if (!password && existingUser) {
+    await prisma.adminUser.update({
+      where: { username: 'amanda' },
+      data: { permissions: ['BILLS_CONTROL'] },
+    });
+    console.log('Amanda permissions confirmed; existing password preserved.');
+    return;
+  }
+
+  const passwordHash = await bcrypt.hash(password, BCRYPT_COST_FACTOR);
+  await prisma.adminUser.upsert({
+    where: { username: 'amanda' },
+    update: { passwordHash, permissions: ['BILLS_CONTROL'] },
+    create: { username: 'amanda', passwordHash, permissions: ['BILLS_CONTROL'] },
+  });
+
+  console.log('Amanda user seeded with Bills Control access.');
 }

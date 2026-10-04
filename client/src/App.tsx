@@ -5,6 +5,7 @@ import { AuthProvider } from './contexts/auth-context';
 import { RouteGuard } from './components/RouteGuard';
 import { LoginPage } from './pages/LoginPage';
 import { HomePage } from './pages/HomePage';
+import { BillsControlPage } from './pages/BillsControlPage';
 
 // QueryClient is created outside the component so it isn't re-created on re-renders
 const queryClient = new QueryClient({
@@ -23,9 +24,14 @@ const queryClient = new QueryClient({
  */
 function AppContent(): React.JSX.Element {
   const isLoginPage = window.location.pathname === '/login';
+  const isBillsControlPage = window.location.pathname === '/bills-control';
 
   if (isLoginPage) {
     return <LoginPage />;
+  }
+
+  if (isBillsControlPage) {
+    return <BillsControlPage />;
   }
 
   return <HomePage />;

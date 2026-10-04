@@ -1,6 +1,6 @@
 import { randomBytes } from 'crypto';
 import bcrypt from 'bcryptjs';
-import type { PrismaClient } from '@prisma/client';
+import type { AppPermission, PrismaClient } from '@prisma/client';
 import { createRateLimiter } from '../lib/rate-limiter.js';
 
 // ---------------------------------------------------------------------------
@@ -14,11 +14,13 @@ export interface AuthServiceDeps {
 export interface LoginResult {
   token: string;
   adminId: string;
+  username: string;
+  permissions: AppPermission[];
 }
 
 export interface AuthService {
   authenticate(username: string, password: string, clientIp: string): Promise<LoginResult>;
-  validateSession(token: string): Promise<{ adminId: string } | null>;
+  validateSession(token: string): Promise<{ adminId: string; username: string; permissions: AppPermission[] } | null>;
   invalidateSession(token: string): Promise<void>;
   isRateLimited(clientIp: string): boolean;
   recordFailedAttempt(clientIp: string): void;
@@ -72,7 +74,7 @@ export function createAuthService(deps: AuthServiceDeps): AuthService {
 
     const user = await db.adminUser.findUnique({
       where: { username },
-      select: { id: true, username: true, passwordHash: true },
+      select: { id: true, username: true, passwordHash: true, permissions: true },
     });
 
     const passwordValid = user !== null && (await bcrypt.compare(password, user.passwordHash));
@@ -102,17 +104,17 @@ export function createAuthService(deps: AuthServiceDeps): AuthService {
       }),
     );
 
-    return { token, adminId: user.id };
+    return { token, adminId: user.id, username: user.username, permissions: user.permissions };
   }
 
   /**
    * Validates an existing session token and refreshes its expiry (sliding window).
    * Returns null when the token is missing, expired, or not found.
    */
-  async function validateSession(token: string): Promise<{ adminId: string } | null> {
+  async function validateSession(token: string): Promise<{ adminId: string; username: string; permissions: AppPermission[] } | null> {
     const session = await db.adminSession.findUnique({
       where: { token },
-      include: { admin: { select: { id: true } } },
+      include: { admin: { select: { id: true, username: true, permissions: true } } },
     });
 
     if (!session || session.expiresAt < new Date()) {
@@ -126,7 +128,11 @@ export function createAuthService(deps: AuthServiceDeps): AuthService {
       data: { expiresAt },
     });
 
-    return { adminId: session.adminId };
+    return {
+      adminId: session.adminId,
+      username: session.admin.username,
+      permissions: session.admin.permissions,
+    };
   }
 
   /**

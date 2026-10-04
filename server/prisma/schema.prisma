@@ -85,6 +85,27 @@ model Comment {
   @@map("comments")
 }
 
+model Bill {
+  id        String   @id @default(uuid())
+  amount    Decimal  @db.Decimal(18, 2)
+  type      BillType @default(OTHER)
+  billDate  DateTime @db.Date
+  paidBy    BillPayer?
+  isPaid    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([billDate, createdAt])
+  @@map("bills")
+}
+
+model BillMonthSettlement {
+  month           String   @id @db.VarChar(7)
+  settlementPaid  Boolean  @default(false)
+  updatedAt       DateTime @updatedAt
+
+  @@map("bill_month_settlements")
+}
+
 enum OrderType {
   BUY
   SELL
@@ -97,15 +118,34 @@ enum AssetType {
   TREASURY
 }
 
+enum BillPayer {
+  HENRIQUE
+  AMANDA
+}
+
+enum BillType {
+  INTERNET
+  CLEANING
+  CONDOMINIO
+  ENERGY
+  OTHER
+}
+
 model AdminUser {
   id           String         @id @default(uuid())
   username     String         @unique
   passwordHash String
+  permissions  AppPermission[] @default([INVESTMENTS])
   createdAt    DateTime       @default(now())
   updatedAt    DateTime       @updatedAt
   sessions     AdminSession[]
 
   @@map("admin_users")
+}
+
+enum AppPermission {
+  INVESTMENTS
+  BILLS_CONTROL
 }
 
 model AdminSession {

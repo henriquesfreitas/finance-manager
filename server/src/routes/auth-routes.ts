@@ -42,7 +42,7 @@ export function createAuthRouter(authService: AuthService): Router {
     const clientIp = req.ip ?? '0.0.0.0';
 
     try {
-      const { token, adminId } = await authService.authenticate(username, password, clientIp);
+      const { token, adminId, permissions } = await authService.authenticate(username, password, clientIp);
 
       // Req 2.5 — httpOnly, Secure, SameSite=Strict, 7-day max-age
       res.cookie(cookieName, token, {
@@ -52,7 +52,7 @@ export function createAuthRouter(authService: AuthService): Router {
         maxAge: expiryDays * 24 * 60 * 60 * 1000,
       });
 
-      res.status(200).json({ admin: { id: adminId, username } });
+      res.status(200).json({ admin: { id: adminId, username, permissions } });
     } catch (err) {
       if (err instanceof Error) {
         if (err.message.startsWith('Too many login attempts')) {
@@ -106,7 +106,13 @@ export function createAuthRouter(authService: AuthService): Router {
    */
   router.get('/me', authMiddleware, (req: Request, res: Response): void => {
     // req.adminId is guaranteed by auth middleware (Req 3.5)
-    res.status(200).json({ admin: { id: req.adminId } });
+    res.status(200).json({
+      admin: {
+        id: req.adminId,
+        username: req.adminUsername,
+        permissions: req.permissions,
+      },
+    });
   });
 
   return router;

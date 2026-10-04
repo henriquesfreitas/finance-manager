@@ -1,4 +1,5 @@
 import type { RequestHandler, Request, Response, NextFunction } from 'express';
+import type { AppPermission } from '@prisma/client';
 import type { AuthService } from '../services/auth-service.js';
 
 // ---------------------------------------------------------------------------
@@ -9,6 +10,8 @@ declare global {
   namespace Express {
     interface Request {
       adminId?: string;
+      adminUsername?: string;
+      permissions?: AppPermission[];
     }
   }
 }
@@ -72,6 +75,8 @@ export function createAuthMiddleware(deps: AuthMiddlewareDeps): RequestHandler {
 
     // Req 3.5 — attach admin identity to request for downstream handlers
     req.adminId = session.adminId;
+    req.adminUsername = session.username;
+    req.permissions = session.permissions;
     next();
   };
 }

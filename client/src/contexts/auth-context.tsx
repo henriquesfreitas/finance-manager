@@ -18,6 +18,7 @@ import React, {
 } from 'react';
 import { QueryClient } from '@tanstack/react-query';
 import * as authApiClient from '../services/auth-api-client';
+import type { AppPermission } from '../services/auth-api-client';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -26,6 +27,7 @@ import * as authApiClient from '../services/auth-api-client';
 interface AdminIdentity {
   id: string;
   username: string;
+  permissions: AppPermission[];
 }
 
 interface AuthState {
@@ -102,7 +104,7 @@ export function AuthProvider({
         setState({
           isAuthenticated: true,
           isLoading: false,
-          admin: { id: admin.id, username: admin.username },
+          admin: { id: admin.id, username: admin.username, permissions: admin.permissions },
         });
       } catch {
         // 401, timeout, or network error — not authenticated (Req 4.5)
@@ -126,7 +128,7 @@ export function AuthProvider({
       setState({
         isAuthenticated: true,
         isLoading: false,
-        admin: { id: admin.id, username: admin.username },
+        admin: { id: admin.id, username: admin.username, permissions: admin.permissions },
       });
     },
     [],
