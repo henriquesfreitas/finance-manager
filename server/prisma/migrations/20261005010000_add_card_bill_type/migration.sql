@@ -1,0 +1,1 @@
+ALTER TYPE "BillType" ADD VALUE 'CARD';

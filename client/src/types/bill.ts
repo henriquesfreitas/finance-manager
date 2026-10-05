@@ -1,5 +1,5 @@
 export type BillPayer = 'HENRIQUE' | 'AMANDA';
-export type BillType = 'INTERNET' | 'CLEANING' | 'CONDOMINIO' | 'ENERGY' | 'OTHER';
+export type BillType = 'INTERNET' | 'CLEANING' | 'CONDOMINIO' | 'ENERGY' | 'CARD' | 'OTHER';
 
 export interface Bill {
   id: string;
@@ -8,6 +8,7 @@ export interface Bill {
   detail: string | null;
   billDate: string;
   paidBy: BillPayer | null;
+  responsibleBy: BillPayer | null;
   isPaid: boolean;
   createdAt: string;
 }
@@ -18,6 +19,7 @@ export interface CreateBillData {
   detail: string | null;
   billMonth: string;
   paidBy: BillPayer | null;
+  responsibleBy: BillPayer | null;
   isPaid: boolean;
 }
 

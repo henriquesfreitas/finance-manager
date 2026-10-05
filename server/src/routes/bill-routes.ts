@@ -4,11 +4,15 @@ import { prisma } from '../lib/prisma-client.js';
 
 const createBillSchema = z.object({
   amount: z.number().finite().positive(),
-  type: z.enum(['INTERNET', 'CLEANING', 'CONDOMINIO', 'ENERGY', 'OTHER']),
+  type: z.enum(['INTERNET', 'CLEANING', 'CONDOMINIO', 'ENERGY', 'CARD', 'OTHER']),
   detail: z.string().trim().max(500).nullable().optional(),
   billMonth: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/),
   paidBy: z.enum(['HENRIQUE', 'AMANDA']).nullable().optional(),
+  responsibleBy: z.enum(['HENRIQUE', 'AMANDA']).nullable().optional(),
   isPaid: z.boolean(),
+}).refine((data) => !data.responsibleBy || (Boolean(data.paidBy) && data.paidBy !== data.responsibleBy), {
+  path: ['responsibleBy'],
+  message: 'For a full responsibility bill, select a payer and choose a different responsible person.',
 });
 
 const updatePaidSchema = z.object({ isPaid: z.boolean() });
@@ -74,7 +78,7 @@ export function createBillRouter(): Router {
       return;
     }
 
-    const { amount, type, detail, billMonth, paidBy, isPaid } = result.data;
+    const { amount, type, detail, billMonth, paidBy, responsibleBy, isPaid } = result.data;
     const bill = await prisma.bill.create({
       data: {
         amount,
@@ -82,6 +86,7 @@ export function createBillRouter(): Router {
         detail: type === 'OTHER' ? detail || null : null,
         billDate: lastDayOfBillMonth(billMonth),
         paidBy: paidBy ?? null,
+        responsibleBy: responsibleBy ?? null,
         isPaid,
       },
     });
@@ -101,7 +106,7 @@ export function createBillRouter(): Router {
       res.status(404).json({ error: 'Bill not found' });
       return;
     }
-    const { amount, type, detail, billMonth, paidBy, isPaid } = result.data;
+    const { amount, type, detail, billMonth, paidBy, responsibleBy, isPaid } = result.data;
     const bill = await prisma.bill.update({
       where: { id },
       data: {
@@ -110,6 +115,7 @@ export function createBillRouter(): Router {
         detail: type === 'OTHER' ? detail || null : null,
         billDate: lastDayOfBillMonth(billMonth),
         paidBy: paidBy ?? null,
+        responsibleBy: responsibleBy ?? null,
         isPaid,
       },
     });

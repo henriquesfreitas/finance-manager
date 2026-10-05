@@ -92,6 +92,7 @@ model Bill {
   detail    String?  @db.VarChar(500)
   billDate  DateTime @db.Date
   paidBy    BillPayer?
+  responsibleBy BillPayer?
   isPaid    Boolean  @default(false)
   createdAt DateTime @default(now())
 
@@ -129,6 +130,7 @@ enum BillType {
   CLEANING
   CONDOMINIO
   ENERGY
+  CARD
   OTHER
 }
 
