@@ -360,20 +360,20 @@ export function BillsControlPage(): React.JSX.Element {
                     </div>
                     <div className="grid gap-3 p-3 md:hidden">
                       {group.bills.map((bill) => (
-                        <article key={bill.id} className="rounded-lg border p-4">
-                          <div className="flex items-start justify-between gap-3">
-                            <div><p className="text-lg font-semibold">{formatAmount(bill.amount)}</p><p className="mt-1 text-sm text-muted-foreground">{formatBillDate(bill.billDate)}</p></div>
+                        <article key={bill.id} className="min-w-0 rounded-lg border p-4">
+                          <div className="flex min-w-0 items-start justify-between gap-3">
+                            <div className="min-w-0"><p className="text-lg font-semibold">{formatAmount(bill.amount)}</p><p className="mt-1 text-sm text-muted-foreground">{formatBillDate(bill.billDate)}</p></div>
                             <PaidToggle billId={bill.id} isPaid={bill.isPaid} pending={updatePaid.isPending} onChange={(next) => updatePaid.mutate({ id: bill.id, isPaid: next })} />
                           </div>
                           <div className="mt-3 flex flex-wrap items-baseline gap-x-4 gap-y-1 text-sm">
                             <p><span className="text-muted-foreground">Type:</span> {billTypeName(bill.type)}</p>
                             <p><span className="text-muted-foreground">Paid by:</span> {payerName(bill.paidBy)}</p>
                           </div>
-                          {bill.detail && <p className="mt-1 text-sm"><span className="text-muted-foreground">Details:</span> {bill.detail}</p>}
-                          <div className="mt-3 flex justify-end gap-2 border-t pt-3">
-                            <Button type="button" size="sm" variant="outline" onClick={() => replicateBill(bill)} aria-label={`Replicate bill ${formatAmount(bill.amount)}`}><Copy /> Replicate</Button>
-                            <Button type="button" size="sm" variant="outline" onClick={() => setBillToEdit(bill)} aria-label={`Edit bill ${formatAmount(bill.amount)}`}><Pencil /> Edit</Button>
-                            <Button type="button" size="sm" variant="destructive" onClick={() => setBillToDelete(bill)} aria-label={`Delete bill ${formatAmount(bill.amount)}`}><Trash2 /> Delete</Button>
+                          {bill.detail && <p className="mt-1 break-words text-sm"><span className="text-muted-foreground">Details:</span> {bill.detail}</p>}
+                          <div className="mt-3 grid grid-cols-3 gap-2 border-t pt-3">
+                            <Button type="button" size="sm" variant="outline" className="w-full min-w-0 flex-col gap-1 px-1 py-2 text-xs" onClick={() => replicateBill(bill)} aria-label={`Replicate bill ${formatAmount(bill.amount)}`}><Copy className="h-4 w-4" />Replicate</Button>
+                            <Button type="button" size="sm" variant="outline" className="w-full min-w-0 flex-col gap-1 px-1 py-2 text-xs" onClick={() => setBillToEdit(bill)} aria-label={`Edit bill ${formatAmount(bill.amount)}`}><Pencil className="h-4 w-4" />Edit</Button>
+                            <Button type="button" size="sm" variant="destructive" className="w-full min-w-0 flex-col gap-1 px-1 py-2 text-xs" onClick={() => setBillToDelete(bill)} aria-label={`Delete bill ${formatAmount(bill.amount)}`}><Trash2 className="h-4 w-4" />Delete</Button>
                           </div>
                         </article>
                       ))}
