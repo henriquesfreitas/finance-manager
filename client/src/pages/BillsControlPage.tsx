@@ -365,9 +365,11 @@ export function BillsControlPage(): React.JSX.Element {
                             <div><p className="text-lg font-semibold">{formatAmount(bill.amount)}</p><p className="mt-1 text-sm text-muted-foreground">{formatBillDate(bill.billDate)}</p></div>
                             <PaidToggle billId={bill.id} isPaid={bill.isPaid} pending={updatePaid.isPending} onChange={(next) => updatePaid.mutate({ id: bill.id, isPaid: next })} />
                           </div>
-                          <p className="mt-3 text-sm"><span className="text-muted-foreground">Type:</span> {billTypeName(bill.type)}</p>
+                          <div className="mt-3 flex flex-wrap items-baseline gap-x-4 gap-y-1 text-sm">
+                            <p><span className="text-muted-foreground">Type:</span> {billTypeName(bill.type)}</p>
+                            <p><span className="text-muted-foreground">Paid by:</span> {payerName(bill.paidBy)}</p>
+                          </div>
                           {bill.detail && <p className="mt-1 text-sm"><span className="text-muted-foreground">Details:</span> {bill.detail}</p>}
-                          <p className="mt-1 text-sm"><span className="text-muted-foreground">Paid by:</span> {payerName(bill.paidBy)}</p>
                           <div className="mt-3 flex justify-end gap-2 border-t pt-3">
                             <Button type="button" size="sm" variant="outline" onClick={() => replicateBill(bill)} aria-label={`Replicate bill ${formatAmount(bill.amount)}`}><Copy /> Replicate</Button>
                             <Button type="button" size="sm" variant="outline" onClick={() => setBillToEdit(bill)} aria-label={`Edit bill ${formatAmount(bill.amount)}`}><Pencil /> Edit</Button>
