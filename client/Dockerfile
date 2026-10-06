@@ -9,6 +9,7 @@ RUN npm install --legacy-peer-deps
 
 # Copy source and build
 COPY tsconfig.json tsconfig.app.json tsconfig.node.json index.html vite.config.ts components.json ./
+COPY public ./public/
 COPY src ./src/
 COPY @/ ./@/
 
