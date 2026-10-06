@@ -1011,8 +1011,24 @@ function LatestCommentDate({ investmentId }: { investmentId: string }): React.JS
   if (!latestDateValue) return <span className="text-muted-foreground">—</span>;
 
   const latestDate = new Date(latestDateValue);
+  if (Number.isNaN(latestDate.getTime())) return <span className="text-muted-foreground">—</span>;
+
+  const sixMonthsAgo = new Date();
+  sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+  const twelveMonthsAgo = new Date();
+  twelveMonthsAgo.setMonth(twelveMonthsAgo.getMonth() - 12);
+  const twentyFourMonthsAgo = new Date();
+  twentyFourMonthsAgo.setMonth(twentyFourMonthsAgo.getMonth() - 24);
+  const ageClassName = latestDate >= sixMonthsAgo
+    ? `font-bold ${getRecommendationColorClass(5)}`
+    : latestDate >= twelveMonthsAgo
+      ? `font-semibold ${getRecommendationColorClass(4)}`
+      : latestDate >= twentyFourMonthsAgo
+        ? `font-medium ${getRecommendationColorClass(3)}`
+        : getRecommendationColorClass(2);
+
   return (
-    <span title={latestDate.toLocaleString('pt-BR')}>
+    <span className={ageClassName} title={latestDate.toLocaleString('pt-BR')}>
       {latestDate.toLocaleDateString('pt-BR')}
     </span>
   );
