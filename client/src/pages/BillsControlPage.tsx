@@ -1,5 +1,5 @@
 import React, { useRef, useState, type FormEvent } from 'react';
-import { ArrowLeft, Check, CircleAlert, Copy, Loader2, LogOut, Pencil, Receipt, RotateCw, Trash2 } from 'lucide-react';
+import { ArrowLeft, Check, CircleAlert, Copy, Languages, Loader2, LogOut, Pencil, Receipt, RotateCw, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -243,9 +243,9 @@ export function BillsControlPage(): React.JSX.Element {
             {admin?.permissions.includes('INVESTMENTS') && <a href="/" className="text-white/90 hover:text-white hover:underline">{copy.investments}</a>}
             <span aria-current="page" className="font-semibold underline underline-offset-4">{copy.billsControl}</span>
             {admin?.username && <span className="hidden sm:inline">{admin.username}</span>}
-            <label className="flex items-center gap-1.5 whitespace-nowrap text-sm">
-              <span>{copy.language}</span>
-              <select aria-label={copy.language} value={language} onChange={(event) => changeLanguage(event.target.value as BillsLanguage)} className="h-8 rounded-md border border-white/30 bg-blue-700 px-2 text-white outline-none focus-visible:ring-2 focus-visible:ring-white">
+            <label title={`${copy.language}: ${language === 'pt' ? copy.portuguese : copy.english}`} className="relative inline-flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-md border border-white/30 text-white hover:bg-blue-700 focus-within:ring-2 focus-within:ring-white">
+              <Languages aria-hidden="true" className="h-4 w-4" />
+              <select aria-label={copy.language} value={language} onChange={(event) => changeLanguage(event.target.value as BillsLanguage)} className="absolute inset-0 h-full w-full cursor-pointer opacity-0 focus-visible:outline-none">
                 <option value="en" className="text-foreground">{copy.english}</option>
                 <option value="pt" className="text-foreground">{copy.portuguese}</option>
               </select>
