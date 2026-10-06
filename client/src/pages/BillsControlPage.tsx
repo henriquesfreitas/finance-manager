@@ -259,7 +259,7 @@ export function BillsControlPage(): React.JSX.Element {
               aria-label={copy.signOut}
             >
               {isLoggingOut ? <Loader2 className="h-4 w-4 animate-spin" /> : <LogOut className="h-4 w-4" />}
-              <span>{isLoggingOut ? copy.signingOut : copy.signOut}</span>
+              <span className="hidden sm:inline">{isLoggingOut ? copy.signingOut : copy.signOut}</span>
             </Button>
           </nav>
         </div>
