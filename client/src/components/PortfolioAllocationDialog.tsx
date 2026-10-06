@@ -70,12 +70,12 @@ export function PortfolioAllocationDialog({ investments }: { investments: Invest
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="sm:max-w-[760px]">
           <DialogHeader>
-            <DialogTitle className="text-blue-700">Portfolio Allocation</DialogTitle>
+            <DialogTitle className="text-primary">Portfolio Allocation</DialogTitle>
           </DialogHeader>
           {allocation.length === 0 ? (
             <p className="py-8 text-center text-sm text-muted-foreground">No investment value available.</p>
           ) : (
-            <div className="grid gap-5 rounded-xl border bg-slate-50 p-4 sm:grid-cols-[260px_1fr] sm:gap-7 sm:p-6">
+            <div className="grid gap-5 rounded-xl border bg-muted p-4 sm:grid-cols-[260px_1fr] sm:gap-7 sm:p-6">
               <div className="grid place-items-center">
                 <div
                   role="img"
@@ -91,7 +91,7 @@ export function PortfolioAllocationDialog({ investments }: { investments: Invest
               </div>
               <ul className="grid content-center gap-1">
                 {allocation.map((group) => (
-                  <li key={group.name} className="flex items-center justify-between gap-3 border-b border-slate-200 py-2.5 text-sm last:border-0">
+                  <li key={group.name} className="flex items-center justify-between gap-3 border-b py-2.5 text-sm last:border-0">
                     <span className="flex items-center gap-2">
                       <span className="h-3 w-3 rounded-sm ring-2 ring-white" style={{ backgroundColor: group.color }} aria-hidden="true" />
                       <span className="font-medium">{group.name}</span>

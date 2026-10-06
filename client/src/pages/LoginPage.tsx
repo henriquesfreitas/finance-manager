@@ -11,6 +11,7 @@ import {
   windowLocationService,
   type LocationService,
 } from '@/components/RouteGuard';
+import { ThemeToggle } from '@/components/ThemeToggle';
 
 // ---------------------------------------------------------------------------
 // Schema
@@ -117,7 +118,10 @@ export function LoginPage({
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background p-4">
+    <div className="relative flex min-h-screen items-center justify-center bg-background p-4">
+      <div className="fixed right-4 top-4 z-10">
+        <ThemeToggle />
+      </div>
       <div className="w-full max-w-sm rounded-lg border bg-card p-6 shadow-sm">
         <h1 className="mb-6 text-center text-xl font-semibold">
           Finance Manager

@@ -25,6 +25,7 @@ import type { Bill, BillPayer, BillType, CreateBillData } from '@/types/bill';
 import { useAuth } from '@/contexts/auth-context';
 import { toast } from 'sonner';
 import { billsCopy, getInitialBillsLanguage, saveBillsLanguage, type BillsLanguage } from '@/i18n/bills';
+import { ThemeToggle } from '@/components/ThemeToggle';
 
 function defaultBillMonth(): string {
   const now = new Date();
@@ -236,13 +237,14 @@ export function BillsControlPage(): React.JSX.Element {
 
   return (
     <div lang={language === 'pt' ? 'pt-BR' : 'en'} className="min-h-screen w-full max-w-full overflow-x-clip bg-background">
-      <header className="bg-blue-600 text-white shadow-md">
+      <header className="app-header bg-blue-600 text-white shadow-md">
         <div className="container mx-auto flex min-h-16 flex-wrap items-center justify-between gap-3 px-4 py-3">
           <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">{copy.billsControl}</h1>
           <nav aria-label={language === 'pt' ? 'Menu principal' : 'Main menu'} className="flex flex-wrap items-center justify-end gap-3 text-sm sm:gap-5 sm:text-base">
             {admin?.permissions.includes('INVESTMENTS') && <a href="/" className="text-white/90 hover:text-white hover:underline">{copy.investments}</a>}
             <span aria-current="page" className="font-semibold underline underline-offset-4">{copy.billsControl}</span>
             {admin?.username && <span className="hidden sm:inline">{admin.username}</span>}
+            <ThemeToggle onHeader />
             <label title={`${copy.language}: ${language === 'pt' ? copy.portuguese : copy.english}`} className="relative inline-flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-md border border-white/30 text-white hover:bg-blue-700 focus-within:ring-2 focus-within:ring-white">
               <Languages aria-hidden="true" className="h-4 w-4" />
               <select aria-label={copy.language} value={language} onChange={(event) => changeLanguage(event.target.value as BillsLanguage)} className="absolute inset-0 h-full w-full cursor-pointer opacity-0 focus-visible:outline-none">

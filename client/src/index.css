@@ -1,4 +1,51 @@
 @import "tailwindcss";
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+:root {
+  color-scheme: light;
+  --theme-background: hsl(210 33% 96%);
+  --theme-foreground: hsl(215 28% 17%);
+  --theme-card: hsl(0 0% 100%);
+  --theme-card-foreground: hsl(240 10% 3.9%);
+  --theme-popover: hsl(0 0% 100%);
+  --theme-popover-foreground: hsl(240 10% 3.9%);
+  --theme-primary: hsl(217 78% 48%);
+  --theme-primary-foreground: hsl(0 0% 98%);
+  --theme-secondary: hsl(210 28% 92%);
+  --theme-secondary-foreground: hsl(215 28% 17%);
+  --theme-muted: hsl(210 28% 92%);
+  --theme-muted-foreground: hsl(215 14% 45%);
+  --theme-accent: hsl(210 28% 92%);
+  --theme-accent-foreground: hsl(215 28% 17%);
+  --theme-destructive: hsl(0 72% 51%);
+  --theme-destructive-foreground: hsl(0 0% 98%);
+  --theme-border: hsl(214 25% 86%);
+  --theme-input: hsl(214 25% 86%);
+  --theme-ring: hsl(217 78% 48%);
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --theme-background: hsl(216 20% 19%);
+  --theme-foreground: hsl(210 22% 91%);
+  --theme-card: hsl(216 18% 24%);
+  --theme-card-foreground: hsl(210 22% 91%);
+  --theme-popover: hsl(216 18% 25%);
+  --theme-popover-foreground: hsl(210 22% 91%);
+  --theme-primary: hsl(212 75% 68%);
+  --theme-primary-foreground: hsl(216 25% 14%);
+  --theme-secondary: hsl(216 15% 30%);
+  --theme-secondary-foreground: hsl(210 22% 91%);
+  --theme-muted: hsl(216 16% 28%);
+  --theme-muted-foreground: hsl(212 12% 70%);
+  --theme-accent: hsl(216 14% 33%);
+  --theme-accent-foreground: hsl(210 22% 94%);
+  --theme-destructive: hsl(0 58% 54%);
+  --theme-destructive-foreground: hsl(0 0% 98%);
+  --theme-border: hsl(215 14% 38%);
+  --theme-input: hsl(215 14% 38%);
+  --theme-ring: hsl(212 75% 68%);
+}
 
 /*
  * Tailwind v4 theme — maps utility classes like bg-background, text-foreground
@@ -6,26 +53,42 @@
  * first-class Tailwind utilities without any extra plugin config.
  */
 @theme {
-  --color-background: hsl(210 33% 96%);
-  --color-foreground: hsl(215 28% 17%);
-  --color-card: hsl(0 0% 100%);
-  --color-card-foreground: hsl(240 10% 3.9%);
-  --color-popover: hsl(0 0% 100%);
-  --color-popover-foreground: hsl(240 10% 3.9%);
-  --color-primary: hsl(217 91% 55%);
-  --color-primary-foreground: hsl(0 0% 98%);
-  --color-secondary: hsl(210 28% 92%);
-  --color-secondary-foreground: hsl(215 28% 17%);
-  --color-muted: hsl(210 28% 92%);
-  --color-muted-foreground: hsl(215 14% 45%);
-  --color-accent: hsl(210 28% 92%);
-  --color-accent-foreground: hsl(215 28% 17%);
-  --color-destructive: hsl(0 84.2% 60.2%);
-  --color-destructive-foreground: hsl(0 0% 98%);
-  --color-border: hsl(214 25% 86%);
-  --color-input: hsl(214 25% 86%);
-  --color-ring: hsl(217 91% 55%);
+  --color-background: var(--theme-background);
+  --color-foreground: var(--theme-foreground);
+  --color-card: var(--theme-card);
+  --color-card-foreground: var(--theme-card-foreground);
+  --color-popover: var(--theme-popover);
+  --color-popover-foreground: var(--theme-popover-foreground);
+  --color-primary: var(--theme-primary);
+  --color-primary-foreground: var(--theme-primary-foreground);
+  --color-secondary: var(--theme-secondary);
+  --color-secondary-foreground: var(--theme-secondary-foreground);
+  --color-muted: var(--theme-muted);
+  --color-muted-foreground: var(--theme-muted-foreground);
+  --color-accent: var(--theme-accent);
+  --color-accent-foreground: var(--theme-accent-foreground);
+  --color-destructive: var(--theme-destructive);
+  --color-destructive-foreground: var(--theme-destructive-foreground);
+  --color-border: var(--theme-border);
+  --color-input: var(--theme-input);
+  --color-ring: var(--theme-ring);
   --radius: 0.5rem;
+}
+
+:root[data-theme="dark"] .app-header {
+  background-color: hsl(214 24% 32%);
+}
+
+:root[data-theme="dark"] .bg-white {
+  background-color: var(--theme-popover);
+}
+
+:root[data-theme="dark"] .text-slate-900 {
+  color: var(--theme-foreground);
+}
+
+:root[data-theme="dark"] .text-slate-500 {
+  color: var(--theme-muted-foreground);
 }
 
 @media (max-width: 767px) {

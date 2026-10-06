@@ -12,6 +12,7 @@ import { PortfolioAllocationDialog } from '@/components/PortfolioAllocationDialo
 import { useActiveInvestments, useArchivedInvestments } from '@/hooks/useInvestments';
 import { useAuth } from '@/contexts/auth-context';
 import type { InvestmentListItem } from '@/types/investment';
+import { ThemeToggle } from '@/components/ThemeToggle';
 
 /**
  * Home page — single page of the app (v2).
@@ -138,7 +139,7 @@ export function HomePage(): React.JSX.Element {
   return (
     <div className="min-h-screen w-full max-w-full overflow-x-clip bg-background">
       {/* ── Header ──────────────────────────────────────────────────────────── */}
-      <header id="top" className="scroll-mt-0 bg-blue-600 text-white shadow-md">
+      <header id="top" className="app-header scroll-mt-0 bg-blue-600 text-white shadow-md">
         <div className="container mx-auto flex min-h-16 flex-col items-stretch gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
           <h1 className="text-lg font-semibold tracking-tight sm:text-2xl">Finance Investment Manager</h1>
           <TickerSearch
@@ -158,6 +159,7 @@ export function HomePage(): React.JSX.Element {
             </nav>
             <div className="flex shrink-0 items-center gap-1 sm:gap-2">
               <PortfolioAllocationDialog investments={investments} />
+              <ThemeToggle onHeader />
               <Button
                 variant="ghost"
                 size="sm"
@@ -342,7 +344,7 @@ function TickerSearch({ investments, onSelect }: TickerSearchProps): React.JSX.E
     <div className="relative w-full sm:w-52 sm:shrink-0 lg:w-64">
       <label htmlFor="ticker-search" className="sr-only">Search tickers</label>
       <div className="relative">
-        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
         <input
           id="ticker-search"
           type="search"
@@ -363,7 +365,7 @@ function TickerSearch({ investments, onSelect }: TickerSearchProps): React.JSX.E
             if (event.key === 'Escape') setIsOpen(false);
             if (event.key === 'Enter' && results[0]) selectInvestment(results[0]);
           }}
-          className="h-10 w-full rounded-md border border-white/40 bg-white pl-9 pr-3 text-sm text-slate-900 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-white/70"
+          className="h-10 w-full rounded-md border border-white/40 bg-background pl-9 pr-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-white/70"
         />
       </div>
       {isOpen && normalizedSearch.length > 0 && (

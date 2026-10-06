@@ -6,6 +6,7 @@ import { RouteGuard } from './components/RouteGuard';
 import { LoginPage } from './pages/LoginPage';
 import { HomePage } from './pages/HomePage';
 import { BillsControlPage } from './pages/BillsControlPage';
+import { ThemeProvider, useTheme } from './contexts/theme-context';
 
 // QueryClient is created outside the component so it isn't re-created on re-renders
 const queryClient = new QueryClient({
@@ -37,18 +38,25 @@ function AppContent(): React.JSX.Element {
   return <HomePage />;
 }
 
+function ThemedToaster(): React.JSX.Element {
+  const { theme } = useTheme();
+  return <Toaster position="bottom-right" richColors closeButton theme={theme} />;
+}
+
 export default function App(): React.JSX.Element {
   return (
-    <QueryClientProvider client={queryClient}>
-      {/* AuthProvider needs queryClient to clear the cache on logout (Req 5.3) */}
-      <AuthProvider queryClient={queryClient}>
-        {/* RouteGuard is inside AuthProvider so it can read auth state (Req 4.1, 4.2) */}
-        <RouteGuard>
-          <AppContent />
-        </RouteGuard>
-        {/* Toaster positioned at bottom-right, auto-dismissed after 4 s */}
-        <Toaster position="bottom-right" richColors closeButton />
-      </AuthProvider>
-    </QueryClientProvider>
+    <ThemeProvider>
+      <QueryClientProvider client={queryClient}>
+        {/* AuthProvider needs queryClient to clear the cache on logout (Req 5.3) */}
+        <AuthProvider queryClient={queryClient}>
+          {/* RouteGuard is inside AuthProvider so it can read auth state (Req 4.1, 4.2) */}
+          <RouteGuard>
+            <AppContent />
+          </RouteGuard>
+          {/* Toaster positioned at bottom-right, auto-dismissed after 4 s */}
+          <ThemedToaster />
+        </AuthProvider>
+      </QueryClientProvider>
+    </ThemeProvider>
   );
 }
