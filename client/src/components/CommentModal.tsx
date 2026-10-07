@@ -176,10 +176,10 @@ function AddCommentForm({ investmentId }: AddCommentFormProps): React.JSX.Elemen
         value={content}
         onChange={(e) => setContent(e.target.value)}
         aria-label="New comment"
-        maxLength={2000}
+        maxLength={10000}
       />
       <div className="flex items-center justify-between">
-        <span className="text-xs text-muted-foreground">HTML and pasted tables supported · {content.length}/2000</span>
+        <span className="text-xs text-muted-foreground">HTML and pasted tables supported · {content.length}/10000</span>
         <Button type="submit" size="sm" disabled={!content.trim() || createComment.isPending}>
           {createComment.isPending ? 'Adding…' : 'Add Comment'}
         </Button>
@@ -248,7 +248,7 @@ function CommentRow({ comment, investmentId }: CommentRowProps): React.JSX.Eleme
             onChange={(e) => setEditContent(e.target.value)}
             aria-label="Edit comment"
             placeholder="HTML formatting supported"
-            maxLength={2000}
+            maxLength={10000}
             autoFocus
           />
           <div className="flex justify-end gap-1">

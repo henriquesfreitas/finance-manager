@@ -16,8 +16,8 @@ describe('validateCreateCommentInput', () => {
     expect(result.success).toBe(true);
   });
 
-  it('accepts comment at exactly 2000 characters', () => {
-    const content = 'x'.repeat(2000);
+  it('accepts comment at exactly 10000 characters', () => {
+    const content = 'x'.repeat(10000);
     const result = validateCreateCommentInput({ content });
     expect(result.success).toBe(true);
   });
@@ -32,13 +32,13 @@ describe('validateCreateCommentInput', () => {
     expect(result.errors['content']?.[0]).toContain('empty');
   });
 
-  it('rejects content exceeding 2000 characters', () => {
-    const content = 'x'.repeat(2001);
+  it('rejects content exceeding 10000 characters', () => {
+    const content = 'x'.repeat(10001);
     const result = validateCreateCommentInput({ content });
     expect(result.success).toBe(false);
     if (result.success) return;
     expect(result.errors['content']).toBeDefined();
-    expect(result.errors['content']?.[0]).toContain('2000');
+    expect(result.errors['content']?.[0]).toContain('10000');
   });
 
   it('rejects missing content field', () => {
@@ -69,8 +69,8 @@ describe('validateUpdateCommentInput', () => {
     expect(result.errors['content']).toBeDefined();
   });
 
-  it('rejects content exceeding 2000 characters', () => {
-    const content = 'y'.repeat(2001);
+  it('rejects content exceeding 10000 characters', () => {
+    const content = 'y'.repeat(10001);
     const result = validateUpdateCommentInput({ content });
     expect(result.success).toBe(false);
   });

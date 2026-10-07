@@ -4,7 +4,7 @@ import type { CreateCommentInput, UpdateCommentInput } from '../types/comment.js
 const contentSchema = z
   .string()
   .min(1, 'comment must not be empty')
-  .max(2000, 'comment must be at most 2000 characters');
+  .max(10000, 'comment must be at most 10000 characters');
 
 /**
  * Zod schema for creating a comment.
