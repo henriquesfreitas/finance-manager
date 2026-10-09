@@ -35,6 +35,24 @@ export function createInvestmentRouter(): Router {
     res.json(quotes);
   });
 
+  router.get('/investments/:id/price-history', async (req: Request, res: Response) => {
+    try {
+      const allowedRanges = ['1D', '5D', '1M', '6M', 'YTD', '1Y', '5Y', 'Max'] as const;
+      const requestedRange = req.query['range'];
+      const range = typeof requestedRange === 'string' && allowedRanges.includes(requestedRange as typeof allowedRanges[number])
+        ? requestedRange as typeof allowedRanges[number]
+        : '1Y';
+      const history = await service.getPriceHistory(req.params['id'] as string, range);
+      res.json(history);
+    } catch (err) {
+      if (err instanceof Error && err.message.includes('not found')) {
+        res.status(404).json({ error: err.message });
+        return;
+      }
+      throw err;
+    }
+  });
+
   // GET /api/investments — list active investments enriched with quotes/currentValue
   router.get('/investments', async (_req: Request, res: Response) => {
     const investments = await service.listActiveInvestments();

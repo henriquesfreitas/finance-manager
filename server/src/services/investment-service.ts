@@ -1,5 +1,6 @@
 import type { PrismaClient } from '@prisma/client';
-import { fetchQuotes } from './yahoo-finance-quote-service.js';
+import { fetchQuotes, resolveYahooSymbol } from './yahoo-finance-quote-service.js';
+import { fetchRawPriceHistory, type PriceHistoryRange } from '../lib/yahoo-finance-wrapper.js';
 import { createWeightedAverageCalculator } from './weighted-average-calculator.js';
 import type {
   CreateInvestmentInput,
@@ -193,6 +194,14 @@ export function createInvestmentService(db: PrismaClient) {
       });
       const quotes = rows.length > 0 ? await fetchQuotes(rows.map((row) => row.ticker)) : new Map();
       return Object.fromEntries(quotes);
+    },
+
+    /** Fetches a year's daily closing prices for a stock investment. */
+    async getPriceHistory(id: string, range: PriceHistoryRange = '1Y') {
+      const investment = await db.investment.findUnique({ where: { id }, select: { ticker: true, type: true } });
+      if (!investment) throw new Error(`Investment with id "${id}" not found`);
+      if (investment.type !== 'STOCK') return [];
+      return fetchRawPriceHistory(resolveYahooSymbol(investment.ticker), range);
     },
 
     /**

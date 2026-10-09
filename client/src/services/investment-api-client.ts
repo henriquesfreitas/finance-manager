@@ -53,6 +53,20 @@ export function fetchActiveInvestmentQuotes(signal?: AbortSignal): Promise<Recor
   return request<Record<string, MarketQuote | null>>('/api/investments/quotes', { signal });
 }
 
+export interface HistoricalPricePoint {
+  date: string;
+  price: number;
+}
+
+export type PriceHistoryRange = '1D' | '5D' | '1M' | '6M' | 'YTD' | '1Y' | '5Y' | 'Max';
+
+export function fetchInvestmentPriceHistory(
+  investmentId: string,
+  range: PriceHistoryRange,
+): Promise<HistoricalPricePoint[]> {
+  return request<HistoricalPricePoint[]>(`/api/investments/${investmentId}/price-history?range=${range}`);
+}
+
 /**
  * Fetches all archived investments with their final computed position.
  * GET /api/investments/archived

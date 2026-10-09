@@ -12,7 +12,7 @@ import { useComments, useCreateComment, useUpdateComment, useDeleteComment, useL
 import { useOrders } from '@/hooks/useOrders';
 import type { OrderListItem } from '@/types/order';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { useUpdateInvestmentRecommendation, useUpdateInvestmentSector } from '@/hooks/useInvestments';
+import { useInvestmentPriceHistory, useUpdateInvestmentRecommendation, useUpdateInvestmentSector } from '@/hooks/useInvestments';
 import { INVESTMENT_SECTORS } from '@/lib/investment-sectors';
 import { getRecommendationColorClass } from '@/lib/recommendation';
 import type { CommentItem } from '@/types/comment';
@@ -400,7 +400,7 @@ export function CommentModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[720px]">
+      <DialogContent className="sm:max-w-[1100px]">
         <DialogHeader className="flex-row items-center justify-between space-y-0 pr-8">
           <DialogTitle>{ticker}</DialogTitle>
           {onOpenOrders && activeInvestments.some((item) => item.id === investmentId) && (
@@ -518,6 +518,7 @@ function TickerInvestmentDetails({
 
   return (
     <div className="grid gap-3 border-t px-3 py-3">
+      {investment.type === 'STOCK' && <PriceHistoryChart investmentId={investmentId} />}
       <dl className="grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-3">
         <DetailField label="Ticker" value={investment.ticker} />
         <DetailField label="Sector" value={sector ?? '—'} />
@@ -548,6 +549,117 @@ function TickerInvestmentDetails({
         />
       </div>
     </div>
+  );
+}
+
+function PriceHistoryChart({ investmentId }: { investmentId: string }): React.JSX.Element {
+  const ranges = ['1D', '5D', '1M', '6M', 'YTD', '1Y', '5Y', 'Max'] as const;
+  const [range, setRange] = useState<(typeof ranges)[number]>('1Y');
+  const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
+  const { data = [], isLoading, isError } = useInvestmentPriceHistory(investmentId, range);
+  const points = data.filter((point) => Number.isFinite(point.price));
+  const width = 760;
+  const height = 230;
+  const plot = { left: 48, right: 748, top: 12, bottom: 196 };
+  const prices = points.map((point) => point.price);
+  const min = Math.min(...prices);
+  const max = Math.max(...prices);
+  const span = max - min || Math.abs(max) * 0.05 || 1;
+  const chartMin = min - span * 0.08;
+  const chartMax = max + span * 0.08;
+  const coordinates = points.map((point, index) => ({
+    x: plot.left + (index / Math.max(points.length - 1, 1)) * (plot.right - plot.left),
+    y: plot.bottom - ((point.price - chartMin) / (chartMax - chartMin)) * (plot.bottom - plot.top),
+  }));
+  const line = coordinates.map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x} ${point.y}`).join(' ');
+  const area = coordinates.length > 0
+    ? `${line} L ${coordinates[coordinates.length - 1]!.x} ${plot.bottom} L ${coordinates[0]!.x} ${plot.bottom} Z`
+    : '';
+  const formatCurrency = (value: number): string => value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  const formatDate = (value: string): string => new Date(value).toLocaleDateString('pt-BR',
+    range === '1D' || range === '5D' ? { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' } : { day: '2-digit', month: 'short', year: 'numeric' });
+  const selectedPoint = selectedIndex === null ? null : points[selectedIndex];
+  const selectedCoordinate = selectedIndex === null ? null : coordinates[selectedIndex];
+  const selectNearestPoint = (clientX: number, bounds: DOMRect): void => {
+    if (points.length === 0 || bounds.width === 0) return;
+    const chartX = ((clientX - bounds.left) / bounds.width) * width;
+    const ratio = Math.min(1, Math.max(0, (chartX - plot.left) / (plot.right - plot.left)));
+    setSelectedIndex(Math.round(ratio * (points.length - 1)));
+  };
+  const yTicks = Array.from({ length: 5 }, (_, index) => chartMin + ((chartMax - chartMin) * index) / 4);
+
+  return (
+    <section className="overflow-hidden rounded-lg bg-[#202228] text-white" aria-label="Price history">
+      <div className="flex overflow-x-auto border-b border-white/10 px-2">
+        {ranges.map((item) => (
+          <button
+            key={item}
+            type="button"
+            onClick={() => { setRange(item); setSelectedIndex(null); }}
+            className={`relative min-w-12 flex-1 px-2 py-3 text-xs font-medium transition-colors hover:text-white ${range === item ? 'text-white' : 'text-slate-400'}`}
+            aria-pressed={range === item}
+          >
+            {item}
+            {range === item && <span className="absolute inset-x-3 bottom-0 h-0.5 rounded-full bg-blue-400" />}
+          </button>
+        ))}
+      </div>
+      {isLoading ? (
+        <p className="py-12 text-center text-sm text-slate-400">Loading price history…</p>
+      ) : isError ? (
+        <p className="py-12 text-center text-sm text-slate-400">Could not load price history.</p>
+      ) : points.length === 0 ? (
+        <p className="py-12 text-center text-sm text-slate-400">No price history available.</p>
+      ) : (
+        <>
+          <svg
+            viewBox={`0 0 ${width} ${height}`}
+            preserveAspectRatio="none"
+            className="h-56 w-full touch-none"
+            role="img"
+            aria-label={`${range} price chart from ${formatDate(points[0]!.date)} to ${formatDate(points[points.length - 1]!.date)}`}
+            onPointerMove={(event) => selectNearestPoint(event.clientX, event.currentTarget.getBoundingClientRect())}
+            onPointerDown={(event) => selectNearestPoint(event.clientX, event.currentTarget.getBoundingClientRect())}
+            onPointerLeave={(event) => { if (event.pointerType !== 'touch') setSelectedIndex(null); }}
+          >
+            <defs>
+              <linearGradient id={`price-area-${investmentId}`} x1="0" x2="0" y1="0" y2="1">
+                <stop offset="0%" stopColor="#78c995" stopOpacity="0.2" />
+                <stop offset="100%" stopColor="#78c995" stopOpacity="0" />
+              </linearGradient>
+            </defs>
+            {yTicks.map((tick, index) => {
+              const y = plot.bottom - (index / 4) * (plot.bottom - plot.top);
+              return (
+                <g key={tick}>
+                  <line x1={plot.left} x2={plot.right} y1={y} y2={y} stroke="white" strokeOpacity="0.1" />
+                  <text x="4" y={y + 4} fill="#a1a1aa" fontSize="12">{tick.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}</text>
+                </g>
+              );
+            })}
+            <path d={area} fill={`url(#price-area-${investmentId})`} />
+            <path d={line} fill="none" stroke="#78c995" strokeWidth="2.5" vectorEffect="non-scaling-stroke" />
+            {selectedCoordinate && selectedPoint && (
+              <g pointerEvents="none">
+                <line x1={selectedCoordinate.x} x2={selectedCoordinate.x} y1={plot.top} y2={plot.bottom} stroke="white" strokeOpacity="0.35" strokeDasharray="3 4" />
+                <circle cx={selectedCoordinate.x} cy={selectedCoordinate.y} r="5" fill="#78c995" stroke="#202228" strokeWidth="2" />
+                <g transform={`translate(${Math.min(width - 172, Math.max(plot.left, selectedCoordinate.x - 86))}, 16)`}>
+                  <rect width="168" height="34" rx="4" fill="#15161a" fillOpacity="0.96" />
+                  <text x="8" y="14" fill="white" fontSize="12" fontWeight="600">{formatCurrency(selectedPoint.price)}</text>
+                  <text x="8" y="28" fill="#a1a1aa" fontSize="10">{formatDate(selectedPoint.date)}</text>
+                </g>
+              </g>
+            )}
+          </svg>
+          {selectedPoint && <p className="sr-only" aria-live="polite">{formatCurrency(selectedPoint.price)} on {formatDate(selectedPoint.date)}</p>}
+          <div className="flex justify-between px-12 pb-2 text-xs text-slate-400">
+            <span>{new Date(points[0]!.date).toLocaleDateString('pt-BR', { month: 'short' })}</span>
+            <span>{new Date(points[Math.floor(points.length / 2)]!.date).toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' })}</span>
+            <span>{new Date(points[points.length - 1]!.date).toLocaleDateString('pt-BR', { month: 'short' })}</span>
+          </div>
+        </>
+      )}
+    </section>
   );
 }
 

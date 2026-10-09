@@ -9,6 +9,8 @@ import {
 import {
   fetchActiveInvestmentRecords,
   fetchActiveInvestmentQuotes,
+  fetchInvestmentPriceHistory,
+  type PriceHistoryRange,
   fetchArchivedInvestments,
   createInvestment,
   archiveInvestment,
@@ -110,6 +112,15 @@ export function useArchivedInvestments(): UseQueryResult<ArchivedInvestmentItem[
   return useQuery({
     queryKey: ARCHIVED_INVESTMENTS_QUERY_KEY,
     queryFn: fetchArchivedInvestments,
+    staleTime: 1000 * 60 * 5,
+  });
+}
+
+export function useInvestmentPriceHistory(investmentId: string, range: PriceHistoryRange, enabled = true) {
+  return useQuery({
+    queryKey: ['investments', investmentId, 'price-history', range],
+    queryFn: () => fetchInvestmentPriceHistory(investmentId, range),
+    enabled: Boolean(investmentId) && enabled,
     staleTime: 1000 * 60 * 5,
   });
 }
