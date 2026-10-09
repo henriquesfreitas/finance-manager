@@ -28,6 +28,7 @@ import type {
 
 const QUOTE_RETRY_WINDOW_MS = 15_000;
 const QUOTE_RETRY_INTERVAL_MS = 1_500;
+const QUOTE_REFRESH_INTERVAL_MS = 1000 * 60 * 5;
 
 /** Cache key for the active investments list. */
 export const ACTIVE_INVESTMENTS_QUERY_KEY = ['investments', 'active'] as const;
@@ -80,7 +81,8 @@ export function useActiveInvestments(): ActiveInvestmentsQueryResult {
       const quotes = query.state.data;
       const allQuotesAvailable = quotes !== undefined
         && stockTickers.every((ticker) => quotes[ticker] != null);
-      return allQuotesAvailable || !retryWindowOpen ? false : QUOTE_RETRY_INTERVAL_MS;
+      if (!allQuotesAvailable && retryWindowOpen) return QUOTE_RETRY_INTERVAL_MS;
+      return QUOTE_REFRESH_INTERVAL_MS;
     },
   });
   const data = investmentsQuery.data?.map((investment) => ({
