@@ -70,15 +70,15 @@ function SectorEditor({ investmentId, currentSector }: SectorEditorProps): React
     <div className="flex items-center gap-2">
       <span className="text-sm text-muted-foreground">Sector:</span>
       <select
-        className="h-8 rounded-md border border-input bg-transparent px-2 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+        className="h-8 rounded-md border border-input bg-background px-2 py-1 text-sm text-foreground shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
         defaultValue={currentSector ?? ''}
         onChange={handleChange}
         disabled={updateSector.isPending}
         aria-label="Investment sector"
       >
-        <option value="">— not set —</option>
+        <option value="" className="bg-background text-foreground">— not set —</option>
         {INVESTMENT_SECTORS.map((s) => (
-          <option key={s} value={s}>
+          <option key={s} value={s} className="bg-background text-foreground">
             {s}
           </option>
         ))}
@@ -121,18 +121,18 @@ function RecommendationEditor({ investmentId, recommendation }: RecommendationEd
       <label htmlFor="ticker-recommendation" className="text-sm text-muted-foreground">Recommendation:</label>
       <select
         id="ticker-recommendation"
-        className={`h-8 rounded-md border border-input bg-transparent px-2 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 ${getRecommendationColorClass(selected ? Number(selected) : null)}`}
+        className={`h-8 rounded-md border border-input bg-background px-2 py-1 text-sm text-foreground shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 ${getRecommendationColorClass(selected ? Number(selected) : null)}`}
         value={selected}
         onChange={handleChange}
         disabled={updateRecommendation.isPending}
         aria-label="Ticker recommendation"
       >
-        <option value="">— not set —</option>
-        <option value="1">1 — Lowest</option>
-        <option value="2">2</option>
-        <option value="3">3</option>
-        <option value="4">4</option>
-        <option value="5">5 — Best</option>
+        <option value="" className="bg-background text-foreground">— not set —</option>
+        <option value="1" className="bg-background text-foreground">1 — Lowest</option>
+        <option value="2" className="bg-background text-foreground">2</option>
+        <option value="3" className="bg-background text-foreground">3</option>
+        <option value="4" className="bg-background text-foreground">4</option>
+        <option value="5" className="bg-background text-foreground">5 — Best</option>
       </select>
     </div>
   );
@@ -171,7 +171,7 @@ function AddCommentForm({ investmentId }: AddCommentFormProps): React.JSX.Elemen
   return (
     <form onSubmit={handleSubmit} className="grid gap-2">
       <textarea
-        className="min-h-[80px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 resize-none"
+        className={`w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 resize-none transition-[height] ${content ? 'h-[160px]' : 'h-[80px]'}`}
         placeholder="Add a comment…"
         value={content}
         onChange={(e) => setContent(e.target.value)}
