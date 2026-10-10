@@ -33,6 +33,7 @@ export async function fetchRawQuote(
     const stats = summary?.defaultKeyStatistics;
     const financial = summary?.financialData;
     const detail = summary?.summaryDetail;
+    const trailingPe = detail?.trailingPE ?? stats?.trailingPE;
     const totalDebt = financial?.totalDebt;
     const totalCash = financial?.totalCash;
     const ebitda = financial?.ebitda;
@@ -44,7 +45,7 @@ export async function fetchRawQuote(
       currentPrice: price,
       dailyChangePercent: change,
       fundamentals: {
-        pl: detail?.trailingPE ?? stats?.trailingPE ?? null,
+        pl: typeof trailingPe === 'number' ? trailingPe : null,
         pvp: stats?.priceToBook ?? null,
         roe: financial?.returnOnEquity ?? null,
         dividendYield: result.trailingAnnualDividendYield ?? null,
