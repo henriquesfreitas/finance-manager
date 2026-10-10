@@ -5,7 +5,17 @@ import path from 'path';
 
 // https://vitejs.dev/config/
 export default defineConfig({
-  plugins: [react(), tailwindcss()],
+  plugins: [
+    react(),
+    tailwindcss(),
+    {
+      name: 'local-favicon',
+      apply: 'serve',
+      transformIndexHtml(html) {
+        return html.replace('/favicon.svg?v=2', '/favicon-local.svg?v=1');
+      },
+    },
+  ],
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),

@@ -16,16 +16,41 @@ const yf = new YahooFinance({ suppressNotices: ['yahooSurvey'] });
 
 export async function fetchRawQuote(
   symbol: string,
-): Promise<Pick<MarketQuote, 'currentPrice' | 'dailyChangePercent'> | null> {
+): Promise<MarketQuote | null> {
   try {
-    const result = await yf.quote(symbol);
+    const [result, summary] = await Promise.all([
+      yf.quote(symbol),
+      yf.quoteSummary(symbol, {
+        modules: ['summaryDetail', 'defaultKeyStatistics', 'financialData'],
+      }).catch(() => null),
+    ]);
 
     const price = result.regularMarketPrice;
     const change = result.regularMarketChangePercent;
 
     if (price == null || change == null) return null;
 
-    return { currentPrice: price, dailyChangePercent: change };
+    const stats = summary?.defaultKeyStatistics;
+    const financial = summary?.financialData;
+    const detail = summary?.summaryDetail;
+    const totalDebt = financial?.totalDebt;
+    const totalCash = financial?.totalCash;
+    const ebitda = financial?.ebitda;
+    const netDebtToEbitda = totalDebt != null && totalCash != null && ebitda != null && ebitda !== 0
+      ? (totalDebt - totalCash) / ebitda
+      : null;
+
+    return {
+      currentPrice: price,
+      dailyChangePercent: change,
+      fundamentals: {
+        pl: detail?.trailingPE ?? stats?.trailingPE ?? null,
+        pvp: stats?.priceToBook ?? null,
+        roe: financial?.returnOnEquity ?? null,
+        dividendYield: result.trailingAnnualDividendYield ?? null,
+        netDebtToEbitda,
+      },
+    };
   } catch {
     // Any network / invalid-ticker error → return null (graceful degradation)
     return null;

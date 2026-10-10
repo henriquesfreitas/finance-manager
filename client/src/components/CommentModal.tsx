@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { Pencil, Trash2, Check, X, ChevronDown, ChevronRight, ListOrdered } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
+import { Pencil, Trash2, Check, X, ChevronDown, ChevronRight, ListOrdered, Info } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   Dialog,
@@ -486,6 +486,7 @@ function TickerInvestmentDetails({
   const dailyVariation = investment.type === 'STOCK' && hasPosition
     ? quote?.dailyChangePercent ?? null
     : null;
+  const fundamentals = investment.type === 'STOCK' ? quote?.fundamentals : undefined;
   const targetSellPrice = investment.targetSellPrice !== null ? Number(investment.targetSellPrice) : null;
   const targetBuyPrice = investment.targetBuyPrice !== null ? Number(investment.targetBuyPrice) : null;
   const targetSellColor = currentPrice !== null && targetSellPrice !== null && currentPrice >= targetSellPrice
@@ -530,6 +531,36 @@ function TickerInvestmentDetails({
           value={investment.type === 'STOCK' && hasPosition ? formatPercent(dailyVariation) : '—'}
           valueClassName={investment.type === 'STOCK' && hasPosition ? profitColorClass(dailyVariation) : 'text-muted-foreground'}
         />
+        {investment.type === 'STOCK' && (
+          <>
+            <DetailField
+              label="P/L"
+              value={formatRatio(fundamentals?.pl)}
+              help="Price-to-earnings (P/E) compares a share's price with its earnings per share. It roughly indicates how much investors pay for each R$1 of annual earnings. There is no universal healthy cutoff: compare companies in the same sector and the company's own history. Negative or near-zero earnings make this ratio misleading."
+            />
+            <DetailField
+              label="P/VP"
+              value={formatRatio(fundamentals?.pvp)}
+              help="Price-to-book (P/B) compares market price per share with book value per share. Below 1x means the share trades below its reported book value, but this can reflect either an opportunity or concerns about the business. It is generally more useful for banks and asset-heavy companies; compare with sector peers."
+            />
+            <DetailField
+              label="ROE"
+              value={formatPercentValue(fundamentals?.roe)}
+              valueClassName={getMetricColorClass('roe', fundamentals?.roe)}
+              help="Return on equity (ROE) is net income divided by shareholders' equity. It measures profit generated for each R$1 of book equity. As a rough rule of thumb, sustained ROE above 15% is often considered strong; compare with similar companies, because leverage and one-off profits can inflate it."
+            />
+            <DetailField
+              label="Dividend Yield"
+              value={formatPercentValue(fundamentals?.dividendYield)}
+            />
+            <DetailField
+              label="Dívida Líquida / EBITDA"
+              value={formatRatio(fundamentals?.netDebtToEbitda)}
+              valueClassName={getMetricColorClass('netDebtToEbitda', fundamentals?.netDebtToEbitda)}
+              help="Net debt-to-EBITDA compares net debt with annual EBITDA. As a rough measure, it estimates how many years of unchanged EBITDA would equal net debt; it does not account for interest, taxes, capital spending, or cash-flow changes. Below 2x is generally considered comfortable; 2x–3.5x calls for attention; above 3.5x signals higher leverage. These are broad reference ranges, and banks and other financial companies are usually not comparable with this metric."
+            />
+          </>
+        )}
         <DetailField label="Target sell" value={targetSellPrice !== null ? formatCurrency(targetSellPrice) : '—'} valueClassName={targetSellColor} />
         <DetailField label="Target buy" value={targetBuyPrice !== null ? formatCurrency(targetBuyPrice) : '—'} valueClassName={targetBuyColor} />
         <DetailField label="Target buy quantity" value={investment.targetBuyQuantity !== null ? formatQuantity(Number(investment.targetBuyQuantity)) : '—'} />
@@ -556,11 +587,21 @@ function PriceHistoryChart({ investmentId }: { investmentId: string }): React.JS
   const ranges = ['1D', '5D', '1M', '6M', 'YTD', '1Y', '5Y', 'Max'] as const;
   const [range, setRange] = useState<(typeof ranges)[number]>('1Y');
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
+  const [width, setWidth] = useState(760);
+  const chartRef = useRef<SVGSVGElement | null>(null);
   const { data = [], isLoading, isError } = useInvestmentPriceHistory(investmentId, range);
+  useEffect(() => {
+    const chart = chartRef.current;
+    if (!chart) return;
+    const observer = new ResizeObserver(([entry]) => {
+      if (entry) setWidth(Math.max(280, Math.round(entry.contentRect.width)));
+    });
+    observer.observe(chart);
+    return () => observer.disconnect();
+  }, []);
   const points = data.filter((point) => Number.isFinite(point.price));
-  const width = 760;
   const height = 230;
-  const plot = { left: 48, right: 748, top: 12, bottom: 196 };
+  const plot = { left: 44, right: width - 12, top: 12, bottom: 196 };
   const prices = points.map((point) => point.price);
   const min = Math.min(...prices);
   const max = Math.max(...prices);
@@ -613,8 +654,8 @@ function PriceHistoryChart({ investmentId }: { investmentId: string }): React.JS
       ) : (
         <>
           <svg
+            ref={chartRef}
             viewBox={`0 0 ${width} ${height}`}
-            preserveAspectRatio="none"
             className="h-56 w-full touch-none"
             role="img"
             aria-label={`${range} price chart from ${formatDate(points[0]!.date)} to ${formatDate(points[points.length - 1]!.date)}`}
@@ -663,11 +704,116 @@ function PriceHistoryChart({ investmentId }: { investmentId: string }): React.JS
   );
 }
 
-function DetailField({ label, value, valueClassName = '' }: { label: string; value: string; valueClassName?: string }): React.JSX.Element {
+function formatRatio(value: number | null | undefined): string {
+  return value == null || !Number.isFinite(value)
+    ? '—'
+    : value.toLocaleString('pt-BR', { maximumFractionDigits: 2 });
+}
+
+function formatPercentValue(value: number | null | undefined): string {
+  return value == null || !Number.isFinite(value)
+    ? '—'
+    : `${(value * 100).toLocaleString('pt-BR', { maximumFractionDigits: 2 })}%`;
+}
+
+type FundamentalMetric = 'pl' | 'pvp' | 'roe' | 'dividendYield' | 'netDebtToEbitda';
+
+function getMetricColorClass(metric: FundamentalMetric, value: number | null | undefined): string {
+  if (value == null || !Number.isFinite(value)) return 'text-muted-foreground';
+
+  // Use the recommendation field's red → orange → yellow → lime → green scale.
+  if (metric === 'pl') {
+    if (value <= 0) return 'text-muted-foreground';
+    if (value <= 10) return 'text-green-600 dark:text-green-400';
+    if (value <= 15) return 'text-lime-600 dark:text-lime-400';
+    if (value <= 25) return 'text-yellow-600 dark:text-yellow-400';
+    if (value <= 35) return 'text-orange-600 dark:text-orange-400';
+    return 'text-red-600 dark:text-red-400';
+  }
+
+  if (metric === 'pvp') {
+    if (value <= 1) return 'text-green-600 dark:text-green-400';
+    if (value <= 2) return 'text-lime-600 dark:text-lime-400';
+    if (value <= 4) return 'text-yellow-600 dark:text-yellow-400';
+    if (value <= 8) return 'text-orange-600 dark:text-orange-400';
+    return 'text-red-600 dark:text-red-400';
+  }
+
+  if (metric === 'roe') {
+    if (value <= 0) return 'text-red-600 dark:text-red-400';
+    if (value < 0.05) return 'text-orange-600 dark:text-orange-400';
+    if (value < 0.1) return 'text-yellow-600 dark:text-yellow-400';
+    if (value < 0.15) return 'text-lime-600 dark:text-lime-400';
+    return 'text-green-600 dark:text-green-400';
+  }
+
+  if (metric === 'netDebtToEbitda') {
+    if (value <= 2) return 'text-green-600 dark:text-green-400';
+    if (value <= 2.5) return 'text-lime-600 dark:text-lime-400';
+    if (value <= 3.5) return 'text-yellow-600 dark:text-yellow-400';
+    if (value <= 4) return 'text-orange-600 dark:text-orange-400';
+    return 'text-red-600 dark:text-red-400';
+  }
+
+  if (value >= 6) return 'text-green-600 dark:text-green-400';
+  if (value >= 4) return 'text-lime-600 dark:text-lime-400';
+  if (value >= 2) return 'text-yellow-600 dark:text-yellow-400';
+  if (value >= 1) return 'text-orange-600 dark:text-orange-400';
+  return 'text-red-600 dark:text-red-400';
+}
+
+function DetailField({
+  label,
+  value,
+  valueClassName = '',
+  help,
+}: {
+  label: string;
+  value: string;
+  valueClassName?: string;
+  help?: string;
+}): React.JSX.Element {
+  const [showHelp, setShowHelp] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
+  const isHelpVisible = showHelp || isHovered;
+
   return (
-    <div className="min-w-0">
-      <dt className="text-xs text-muted-foreground">{label}</dt>
+    <div
+      className="relative min-w-0"
+      onMouseEnter={() => { if (help) setIsHovered(true); }}
+      onMouseLeave={() => setIsHovered(false)}
+    >
+      <dt className="flex items-center gap-1 text-xs text-muted-foreground">
+        {label}
+        {help && (
+          <button
+            type="button"
+            className="inline-flex h-4 w-4 items-center justify-center rounded-full text-muted-foreground/80 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            aria-label={`About ${label}`}
+            aria-expanded={isHelpVisible}
+            onClick={() => setShowHelp((visible) => !visible)}
+          >
+            <Info className="h-3 w-3" />
+          </button>
+        )}
+      </dt>
       <dd className={`mt-0.5 break-words text-sm font-medium ${valueClassName}`}>{value}</dd>
+      {isHelpVisible && help && (
+        <div role="tooltip" className="absolute left-0 top-full z-30 mt-2 w-72 overflow-hidden rounded-xl border border-border/80 bg-popover text-popover-foreground shadow-xl ring-1 ring-black/5 sm:w-80">
+          <div className="flex items-center justify-between border-b bg-muted/50 px-3 py-2">
+            <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Indicator guide</span>
+            <button
+              type="button"
+              className="inline-flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              aria-label={`Close ${label} guide`}
+              onClick={() => { setShowHelp(false); setIsHovered(false); }}
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </div>
+          <p className="px-3 py-3 text-xs font-normal leading-relaxed">{help}</p>
+        </div>
+      )}
     </div>
   );
 }

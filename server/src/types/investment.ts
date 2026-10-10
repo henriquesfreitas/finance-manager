@@ -51,6 +51,13 @@ export interface InvestmentRecord {
 export interface MarketQuote {
   currentPrice: number;
   dailyChangePercent: number;
+  fundamentals?: {
+    pl: number | null;
+    pvp: number | null;
+    roe: number | null;
+    dividendYield: number | null;
+    netDebtToEbitda: number | null;
+  };
 }
 
 /**
