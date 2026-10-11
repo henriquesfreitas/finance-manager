@@ -57,12 +57,12 @@ fi
 # ── psql_query <sql> — runs SQL via stdin to avoid shell quote escaping issues ─
 psql_query() {
   echo "$1" | docker compose -f docker-compose.prod.yml exec -T postgres \
-    psql -U "${POSTGRES_USER}" -d "${POSTGRES_DB}" -t -A
+    psql -v ON_ERROR_STOP=1 -U "${POSTGRES_USER}" -d "${POSTGRES_DB}" -t -A
 }
 
 psql_query_csv() {
   echo "$1" | docker compose -f docker-compose.prod.yml exec -T postgres \
-    psql -U "${POSTGRES_USER}" -d "${POSTGRES_DB}" -t -A -F '|'
+    psql -v ON_ERROR_STOP=1 -U "${POSTGRES_USER}" -d "${POSTGRES_DB}" -t -A -F '|'
 }
 
 # ── send_email <subject> <html_body> ─────────────────────────────────────────
@@ -134,9 +134,9 @@ HTMLEOF
 LATEST_CHANGE=$(psql_query '
   SELECT COALESCE(MAX(latest)::text, '"'"'epoch'"'"')
     || '"'"'|'"'"'
-    || (SELECT md5(COALESCE(string_agg(to_jsonb(b)::text, '"'"''"'"' ORDER BY b.id), '"'"''"'"')) FROM bills)
+    || (SELECT md5(COALESCE(string_agg(to_jsonb(b)::text, '"'"''"'"' ORDER BY b.id), '"'"''"'"')) FROM bills AS b)
     || '"'"'|'"'"'
-    || (SELECT md5(COALESCE(string_agg(to_jsonb(s)::text, '"'"''"'"' ORDER BY s.month), '"'"''"'"')) FROM bill_month_settlements)
+    || (SELECT md5(COALESCE(string_agg(to_jsonb(s)::text, '"'"''"'"' ORDER BY s.month), '"'"''"'"')) FROM bill_month_settlements AS s)
   FROM (
     SELECT MAX("updatedAt") AS latest FROM investments
     UNION ALL
