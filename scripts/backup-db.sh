@@ -129,6 +129,17 @@ HTMLEOF
   send_email "[Finance Manager] Backup FAILED - ${RUN_TIME}" "$html"
 }
 
+# Report unexpected command failures that are not handled explicitly below.
+# Disable the trap while sending the alert so a notification failure cannot recurse.
+handle_unexpected_error() {
+  local exit_code=$?
+  local line_number=$1
+  trap - ERR
+  send_failure_email "Unexpected error at line ${line_number} (exit code ${exit_code}). Check the backup log for details."
+  exit "$exit_code"
+}
+trap 'handle_unexpected_error "$LINENO"' ERR
+
 # ── Check if any user data changed since last backup ─────────────────────────
 # Queries are passed via stdin to avoid bash mangling double-quoted column names.
 LATEST_CHANGE=$(psql_query '
