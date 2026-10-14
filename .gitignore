@@ -6,6 +6,11 @@ node_modules/
 .env.local
 .env.*.local
 
+# Private keys and provider credentials
+*.key
+*.pub
+oracle[Cc]loud.txt
+
 # Build outputs
 dist/
 build/
