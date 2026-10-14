@@ -27,9 +27,10 @@ WORKDIR /app
 # Security: run as non-root
 RUN addgroup -S appgroup && adduser -S appuser -G appgroup
 
-# Install production dependencies + tsx (needed for prisma seed)
+# Install only the locked production dependency tree. Prisma CLI and tsx are
+# production dependencies because deploy.sh uses them for migrations and seeding.
 COPY package.json package-lock.json ./
-RUN npm install --omit=dev && npm install tsx
+RUN npm ci --omit=dev
 
 # Keep this after dependency installation so Prisma changes don't reinstall packages.
 COPY prisma ./prisma/
