@@ -50,9 +50,11 @@ cp .env.example server/.env
 
 ### 3. Start PostgreSQL
 
+This Compose file is for local development. On the VPS, use `docker-compose.prod.yml` explicitly.
+
 ```bash
 # From the project root
-docker compose up -d
+docker compose -f docker-compose.dev.yml up -d
 ```
 
 ### 4. Run database migrations
@@ -135,7 +137,8 @@ finance-manager/
 │   └── prisma/
 │       ├── schema.prisma      # Data model
 │       └── migrations/        # Applied DB migrations
-├── docker-compose.yml         # PostgreSQL service
+├── docker-compose.dev.yml     # PostgreSQL service for local development
+├── docker-compose.prod.yml    # Full-stack production services
 └── .env.example               # Environment variable template
 ```
 
@@ -291,7 +294,7 @@ The `RESEND_API_KEY` is send-only scoped — it cannot read email or access your
 
 ## Troubleshooting
 
-**"Can't reach database server"** — Make sure Docker is running and `docker compose up -d` was executed from the project root.
+**"Can't reach database server"** — Make sure Docker is running and `docker compose -f docker-compose.dev.yml up -d` was executed from the project root.
 
 **Yahoo Finance shows N/A** — The yahoo-finance2 package is unofficial and may be rate-limited or blocked. The app degrades gracefully: stored fields still display, calculated fields show N/A.
 

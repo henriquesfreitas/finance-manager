@@ -46,7 +46,7 @@ finance-manager/
 │       ├── types/           # Server-side TypeScript interfaces
 │       ├── validators/      # Zod schemas + parse helpers
 │       └── __tests__/       # Vitest unit tests
-├── docker-compose.yml       # Postgres only (dev); extend for full-stack CI
+├── docker-compose.dev.yml   # Postgres only for local development
 ├── package.json             # Root convenience scripts (dev, test, db:*)
 └── PROJECT_RULES.md         # This file
 ```
@@ -475,7 +475,7 @@ All unexpected errors: caught by the global Express error handler, logged as JSO
 ### Integration tests — server (`server/src/__tests__/auth-integration.test.ts`)
 
 - Framework: Vitest + Supertest + real PrismaClient.
-- **Requires a running PostgreSQL instance** (`docker compose up -d`). If the DB is unavailable, `beforeAll` fails — that is the expected signal, not a test bug.
+- **Requires a running PostgreSQL instance** (`docker compose -f docker-compose.dev.yml up -d`). If the DB is unavailable, `beforeAll` fails — that is the expected signal, not a test bug.
 - `beforeAll` upserts a dedicated test admin user with a low bcrypt cost (4) for speed.
 - `afterAll` deletes the test user and all its sessions, then disconnects Prisma.
 - `afterEach` deletes all sessions for the test admin AND **resets the module-level rate-limiter** by making a successful login. This is necessary because the rate-limiter singleton in `auth-service.ts` is shared across the entire process — without a reset, rate-limit tests that exhaust the counter block subsequent tests on the same loopback IP. A successful login internally calls `rateLimiter.reset(ip)`, clearing the lockout.
@@ -689,7 +689,7 @@ Comment (comments)
 
 ## Infrastructure
 
-- **Postgres** always runs in Docker: `docker compose up -d`.
+- **Postgres** always runs in Docker during development: `docker compose -f docker-compose.dev.yml up -d`.
 - **Server and client run locally** during development for hot reload.
 - Default ports: client `5173`, server `3000`, Postgres `5432`.
 - The Vite dev server proxies `/api` → `localhost:3000` so the client never needs CORS config locally.
@@ -781,6 +781,7 @@ Internet → nginx (SSL termination, rate limiting, static assets)
 
 | File | Purpose |
 |------|---------|
+| `docker-compose.dev.yml` | PostgreSQL for local development |
 | `docker-compose.prod.yml` | Full-stack production Docker Compose |
 | `server/Dockerfile` | Multi-stage Node 22 build for Express API |
 | `client/Dockerfile` | Multi-stage build → nginx for SPA serving |

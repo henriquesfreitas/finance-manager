@@ -84,7 +84,7 @@ Single table `investments` (mapped via `@@map`):
 
 ```bash
 # Start DB
-docker compose up -d
+docker compose -f docker-compose.dev.yml up -d
 
 # Server (localhost:3000)
 cd server && npm run dev

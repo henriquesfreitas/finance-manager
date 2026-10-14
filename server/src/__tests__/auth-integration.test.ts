@@ -2,7 +2,7 @@
  * Integration tests for the admin authentication flow.
  *
  * These tests exercise the full stack against a real PostgreSQL database.
- * The database must be running (e.g., via `docker compose up -d`) before
+ * The database must be running (e.g., via `docker compose -f docker-compose.dev.yml up -d`) before
  * running this suite. If the DB is unavailable, beforeAll will fail — that
  * is expected behaviour and does not indicate a bug in the tests.
  *
