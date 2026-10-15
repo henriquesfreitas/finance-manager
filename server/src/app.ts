@@ -19,6 +19,7 @@ import { prisma } from './lib/prisma-client.js';
  */
 export function createApp(): Application {
   const app = express();
+  app.disable('x-powered-by');
 
   // ── Middleware ──────────────────────────────────────────────────────────────
   app.use(cors({
@@ -76,7 +77,7 @@ export function createApp(): Application {
   app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
     const message = err instanceof Error ? err.message : 'Internal server error';
     console.error(JSON.stringify({ level: 'error', message, err }));
-    res.status(500).json({ error: message });
+    res.status(500).json({ error: 'Internal server error' });
   });
 
   return app;
