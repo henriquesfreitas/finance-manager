@@ -67,17 +67,13 @@ npx prisma generate          # generate Prisma client
 
 ### 5. Start development servers
 
-Open two terminals:
+From the project root, start the API and client together in one terminal:
 
-```bash
-# Terminal 1 — API server (http://localhost:3000)
-cd server
-npm run dev
-
-# Terminal 2 — Vite dev server (http://localhost:5173)
-cd client
+```cmd
 npm run dev
 ```
+
+The API runs at http://localhost:3000 and the Vite dev server at http://localhost:5173. Press Ctrl+C to stop both.
 
 Open [http://localhost:5173](http://localhost:5173) in your browser.
 
