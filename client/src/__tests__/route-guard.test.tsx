@@ -80,7 +80,7 @@ function authState(overrides: { isLoading?: boolean; isAuthenticated?: boolean }
   return {
     isLoading: false,
     isAuthenticated: false,
-    admin: null,
+    admin: { id: 'admin-1', username: 'admin', permissions: ['INVESTMENTS'] },
     login: vi.fn(),
     logout: vi.fn(),
     ...overrides,

@@ -79,6 +79,8 @@ Open [http://localhost:5173](http://localhost:5173) in your browser.
 
 ## Available Scripts
 
+From the project root, `npm test` runs the client and server unit test suites. The server authentication integration test uses PostgreSQL and is kept separate; start the development database with `docker compose -f docker-compose.dev.yml up -d`, then run `npm run test:integration` when you want to include it.
+
 ### Server (`server/`)
 
 | Command | Description |
@@ -87,6 +89,7 @@ Open [http://localhost:5173](http://localhost:5173) in your browser.
 | `npm run build` | Compile TypeScript to `dist/` |
 | `npm start` | Run compiled server |
 | `npm test` | Run unit tests (Vitest) |
+| `npm run test:integration` | Run PostgreSQL-backed authentication integration tests (requires the development database) |
 | `npm run test:coverage` | Run tests with coverage report |
 | `npm run lint` | Run ESLint |
 | `npm run db:migrate` | Create and apply a new migration |

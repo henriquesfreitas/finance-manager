@@ -23,6 +23,7 @@ vi.mock('@/hooks/useOrders', () => ({
 }));
 
 vi.mock('@/hooks/useInvestments', () => ({
+  useInvestmentPriceHistory: () => ({ data: [], isLoading: false, isError: false }),
   useUpdateInvestmentSector: () => ({ mutate: vi.fn(), isPending: false }),
   useUpdateInvestmentRecommendation: () => ({ mutate: mocks.recommendationMutate, isPending: false }),
 }));

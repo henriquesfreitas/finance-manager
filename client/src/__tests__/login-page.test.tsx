@@ -24,6 +24,7 @@ import { render, screen, waitFor, cleanup } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { LoginPage } from '../pages/LoginPage';
 import type { LocationService } from '../components/RouteGuard';
+import { ThemeProvider } from '../contexts/theme-context';
 
 // ─── Mock auth context ────────────────────────────────────────────────────────
 
@@ -58,7 +59,11 @@ function makeLocationService(
 function setup(search = '') {
   const user = userEvent.setup();
   const loc = makeLocationService(search);
-  render(<LoginPage locationService={loc} />);
+  render(
+    <ThemeProvider>
+      <LoginPage locationService={loc} />
+    </ThemeProvider>,
+  );
   return { user, loc };
 }
 
