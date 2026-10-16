@@ -38,7 +38,7 @@ This document records product behavior and domain invariants. For AI contributio
 ## Bills Control
 
 - Bill types are `INTERNET`, `CLEANING`, `CONDOMINIO`, `ENERGY`, `CARD`, and `OTHER`. Only `OTHER` stores optional detail, with a maximum length of 500 characters.
-- Bills are allocated to a selected `YYYY-MM` month. The stored date is the last calendar day of that month. The form defaults to the previous month through the 10th day of a month, then to the current month.
+- Bills are allocated to a selected `YYYY-MM` month. By default, the stored date is the last calendar day of that month; users may enable a specific date when adding or editing a bill. The form defaults to the previous month through the 10th day of a month, then to the current month.
 - New bills default to paid in the form. The monthly total includes paid and unpaid bills.
 - `paidBy` identifies who paid; it can be unset. `responsibleBy` assigns the entire bill to one person. If responsibility is assigned, a payer is required and must be the other person. With no responsible person, the bill is split equally.
 - Settlement includes only paid bills with a payer. Equal-split bills are balanced between Henrique and Amanda. A bill assigned to one person is reimbursed in full by that person to the other payer. Paid bills without a payer are excluded from settlement. The displayed settlement rounds to the nearest cent.

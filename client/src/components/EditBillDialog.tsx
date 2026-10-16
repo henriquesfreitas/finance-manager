@@ -21,6 +21,8 @@ export function EditBillDialog({ bill, open, language, onOpenChange }: EditBillD
   const [type, setType] = useState<BillType>('OTHER');
   const [detail, setDetail] = useState('');
   const [billMonth, setBillMonth] = useState('');
+  const [useFullBillDate, setUseFullBillDate] = useState(false);
+  const [billDate, setBillDate] = useState('');
   const [paidBy, setPaidBy] = useState<BillPayer | ''>('');
   const [responsibleBy, setResponsibleBy] = useState<BillPayer | ''>('');
   const [isPaid, setIsPaid] = useState(false);
@@ -33,6 +35,10 @@ export function EditBillDialog({ bill, open, language, onOpenChange }: EditBillD
     setType(bill.type);
     setDetail(bill.detail ?? '');
     setBillMonth(bill.billDate.slice(0, 7));
+    const billDateParts = bill.billDate.slice(0, 10).split('-');
+    const billDateLastDay = new Date(Number(billDateParts[0]), Number(billDateParts[1]), 0).getDate();
+    setUseFullBillDate(Number(billDateParts[2]) !== billDateLastDay);
+    setBillDate(bill.billDate.slice(0, 10));
     setPaidBy(bill.paidBy ?? '');
     setResponsibleBy(bill.responsibleBy ?? '');
     setIsPaid(bill.isPaid);
@@ -55,7 +61,7 @@ export function EditBillDialog({ bill, open, language, onOpenChange }: EditBillD
     try {
       await editBill.mutateAsync({
         id: bill.id,
-        data: { amount: parsedAmount, type, detail: type === 'OTHER' ? detail.trim() || null : null, billMonth, paidBy: paidBy || null, responsibleBy: responsibleBy || null, isPaid },
+        data: { amount: parsedAmount, type, detail: type === 'OTHER' ? detail.trim() || null : null, billMonth: useFullBillDate ? billDate.slice(0, 7) : billMonth, ...(useFullBillDate ? { billDate } : {}), paidBy: paidBy || null, responsibleBy: responsibleBy || null, isPaid },
       });
       onOpenChange(false);
     } catch {
@@ -90,7 +96,15 @@ export function EditBillDialog({ bill, open, language, onOpenChange }: EditBillD
             </label>
           )}
           <label className="grid gap-1.5 text-sm font-medium">{copy.month}
-            <Input type="month" value={billMonth} onChange={(event) => setBillMonth(event.target.value)} required />
+            {useFullBillDate ? (
+              <Input type="date" value={billDate} onChange={(event) => setBillDate(event.target.value)} required />
+            ) : (
+              <Input type="month" value={billMonth} onChange={(event) => { setBillMonth(event.target.value); setBillDate(`${event.target.value}-01`); }} required />
+            )}
+          </label>
+          <label className="flex cursor-pointer items-center gap-2 text-sm font-medium">
+            <input type="checkbox" checked={useFullBillDate} onChange={(event) => setUseFullBillDate(event.target.checked)} className="h-4 w-4 accent-primary" />
+            {copy.useFullDate}
           </label>
           <label className="grid gap-1.5 text-sm font-medium">{copy.whoPaid} <span className="font-normal text-muted-foreground">{copy.optional}</span>
             <select value={paidBy} onChange={(event) => setPaidBy(event.target.value as BillPayer | '')} className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm shadow-sm outline-none focus-visible:ring-1 focus-visible:ring-ring">

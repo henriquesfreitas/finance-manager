@@ -43,6 +43,13 @@ function formatBillDate(value: string, language: BillsLanguage): string {
     .format(new Date(year, month - 1, 1, 12));
 }
 
+function formatFullBillDate(value: string, language: BillsLanguage): string {
+  const [yearPart, monthPart, dayPart] = value.slice(0, 10).split('-');
+  return new Intl.DateTimeFormat(language === 'pt' ? 'pt-BR' : 'en-US', {
+    day: 'numeric', month: 'long', year: 'numeric',
+  }).format(new Date(Number(yearPart), Number(monthPart) - 1, Number(dayPart), 12));
+}
+
 function formatAmount(value: string, language: BillsLanguage): string {
   return new Intl.NumberFormat(language === 'pt' ? 'pt-BR' : 'en-US', { style: 'currency', currency: 'BRL' }).format(Number(value));
 }
@@ -134,6 +141,8 @@ export function BillsControlPage(): React.JSX.Element {
   const [type, setType] = useState<BillType | ''>('');
   const [detail, setDetail] = useState('');
   const [billMonth, setBillMonth] = useState(defaultBillMonth);
+  const [useFullBillDate, setUseFullBillDate] = useState(false);
+  const [billDate, setBillDate] = useState(() => `${defaultBillMonth()}-01`);
   const [paidBy, setPaidBy] = useState<BillPayer | ''>('');
   const [responsibleBy, setResponsibleBy] = useState<BillPayer | ''>('');
   const [isPaid, setIsPaid] = useState(true);
@@ -158,6 +167,8 @@ export function BillsControlPage(): React.JSX.Element {
     setType(bill.type);
     setDetail(bill.detail ?? '');
     setBillMonth(defaultBillMonth());
+    setUseFullBillDate(false);
+    setBillDate(`${defaultBillMonth()}-01`);
     setPaidBy(bill.paidBy ?? '');
     setResponsibleBy(bill.responsibleBy ?? '');
     setIsPaid(bill.isPaid);
@@ -185,6 +196,8 @@ export function BillsControlPage(): React.JSX.Element {
       setType('');
       setDetail('');
       setBillMonth(defaultBillMonth());
+      setUseFullBillDate(false);
+      setBillDate(`${defaultBillMonth()}-01`);
       setPaidBy('');
       setResponsibleBy('');
       setIsPaid(true);
@@ -210,8 +223,9 @@ export function BillsControlPage(): React.JSX.Element {
       setFormError(language === 'pt' ? 'Selecione o tipo da conta.' : 'Select a bill type.');
       return;
     }
-    const data: CreateBillData = { amount: parsedAmount, type, detail: type === 'OTHER' ? detail.trim() || null : null, billMonth, paidBy: paidBy || null, responsibleBy: responsibleBy || null, isPaid };
-    const isDuplicate = bills.some((bill) => bill.type === type && bill.billDate.slice(0, 7) === billMonth);
+    const selectedMonth = useFullBillDate ? billDate.slice(0, 7) : billMonth;
+    const data: CreateBillData = { amount: parsedAmount, type, detail: type === 'OTHER' ? detail.trim() || null : null, billMonth: selectedMonth, ...(useFullBillDate ? { billDate } : {}), paidBy: paidBy || null, responsibleBy: responsibleBy || null, isPaid };
+    const isDuplicate = bills.some((bill) => bill.type === type && bill.billDate.slice(0, 7) === selectedMonth);
     if (duplicatePromptTypes.has(type) && isDuplicate) {
       setDuplicateBillConfirmation(data);
       return;
@@ -309,7 +323,15 @@ export function BillsControlPage(): React.JSX.Element {
             )}
             <label className="grid gap-1.5 text-sm font-medium">
               {copy.month}
-              <Input type="month" value={billMonth} onChange={(event) => setBillMonth(event.target.value)} required />
+              {useFullBillDate ? (
+                <Input type="date" value={billDate} onChange={(event) => setBillDate(event.target.value)} required />
+              ) : (
+                <Input type="month" value={billMonth} onChange={(event) => { setBillMonth(event.target.value); setBillDate(`${event.target.value}-01`); }} required />
+              )}
+            </label>
+            <label className="flex min-h-9 cursor-pointer items-center gap-2 text-sm font-medium">
+              <input type="checkbox" checked={useFullBillDate} onChange={(event) => setUseFullBillDate(event.target.checked)} className="h-4 w-4 accent-primary" />
+              {copy.useFullDate}
             </label>
             <label className="grid gap-1.5 text-sm font-medium">
               {copy.whoPaid} <span className="font-normal text-muted-foreground">{copy.optional}</span>
@@ -416,7 +438,7 @@ export function BillsControlPage(): React.JSX.Element {
                       {group.bills.map((bill) => (
                         <article key={bill.id} className="min-w-0 rounded-lg border p-4">
                           <div className="flex min-w-0 items-start justify-between gap-3">
-                            <div className="min-w-0"><p className="text-lg font-semibold">{formatAmount(bill.amount, language)}</p><p className="mt-1 text-sm text-muted-foreground">{formatBillDate(bill.billDate, language)}</p></div>
+                            <div className="min-w-0"><p className="text-lg font-semibold">{formatAmount(bill.amount, language)}</p><p className="mt-1 text-sm text-muted-foreground">{formatFullBillDate(bill.billDate, language)}</p></div>
                             <PaidToggle billId={bill.id} isPaid={bill.isPaid} pending={updatePaid.isPending} onChange={(next) => updatePaid.mutate({ id: bill.id, isPaid: next })} copy={copy} />
                           </div>
                           <div className="mt-3 flex flex-wrap items-baseline gap-x-4 gap-y-1 text-sm">
@@ -438,7 +460,7 @@ export function BillsControlPage(): React.JSX.Element {
                         <thead><tr className="border-b text-muted-foreground"><th className="px-3 py-3 font-medium">{copy.monthColumn}</th><th className="px-3 py-3 font-medium">{copy.amountColumn}</th><th className="px-3 py-3 font-medium">{copy.typeColumn}</th><th className="px-3 py-3 font-medium">{copy.paidByColumn}</th><th className="px-3 py-3 font-medium">{copy.responsibilityColumn}</th><th className="px-3 py-3 font-medium">{copy.statusColumn}</th><th className="px-3 py-3 font-medium">{copy.actionsColumn}</th></tr></thead>
                         <tbody>{group.bills.map((bill) => (
                           <tr key={bill.id} className="border-b last:border-0">
-                            <td className="px-3 py-3">{formatBillDate(bill.billDate, language)}</td>
+                            <td className="px-3 py-3">{formatFullBillDate(bill.billDate, language)}</td>
                             <td className="px-3 py-3 font-semibold">{formatAmount(bill.amount, language)}</td>
                             <td className="px-3 py-3">{billTypeName(bill.type, language)}{bill.detail && <span className="block text-xs text-muted-foreground">{bill.detail}</span>}</td>
                             <td className="px-3 py-3">{payerName(bill.paidBy)}</td>

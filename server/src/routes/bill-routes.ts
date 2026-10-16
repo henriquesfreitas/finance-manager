@@ -7,12 +7,19 @@ const createBillSchema = z.object({
   type: z.enum(['INTERNET', 'CLEANING', 'CONDOMINIO', 'ENERGY', 'CARD', 'OTHER']),
   detail: z.string().trim().max(500).nullable().optional(),
   billMonth: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/),
+  billDate: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/).refine((value) => {
+    const date = new Date(`${value}T00:00:00.000Z`);
+    return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value;
+  }).optional(),
   paidBy: z.enum(['HENRIQUE', 'AMANDA']).nullable().optional(),
   responsibleBy: z.enum(['HENRIQUE', 'AMANDA']).nullable().optional(),
   isPaid: z.boolean(),
 }).refine((data) => !data.responsibleBy || (Boolean(data.paidBy) && data.paidBy !== data.responsibleBy), {
   path: ['responsibleBy'],
   message: 'For a full responsibility bill, select a payer and choose a different responsible person.',
+}).refine((data) => !data.billDate || data.billDate.slice(0, 7) === data.billMonth, {
+  path: ['billDate'],
+  message: 'The specific date must belong to the selected month.',
 });
 
 const updatePaidSchema = z.object({ isPaid: z.boolean() });
@@ -78,13 +85,13 @@ export function createBillRouter(): Router {
       return;
     }
 
-    const { amount, type, detail, billMonth, paidBy, responsibleBy, isPaid } = result.data;
+    const { amount, type, detail, billMonth, billDate, paidBy, responsibleBy, isPaid } = result.data;
     const bill = await prisma.bill.create({
       data: {
         amount,
         type,
         detail: type === 'OTHER' ? detail || null : null,
-        billDate: lastDayOfBillMonth(billMonth),
+        billDate: billDate ? new Date(`${billDate}T00:00:00.000Z`) : lastDayOfBillMonth(billMonth),
         paidBy: paidBy ?? null,
         responsibleBy: responsibleBy ?? null,
         isPaid,
@@ -106,14 +113,14 @@ export function createBillRouter(): Router {
       res.status(404).json({ error: 'Bill not found' });
       return;
     }
-    const { amount, type, detail, billMonth, paidBy, responsibleBy, isPaid } = result.data;
+    const { amount, type, detail, billMonth, billDate, paidBy, responsibleBy, isPaid } = result.data;
     const bill = await prisma.bill.update({
       where: { id },
       data: {
         amount,
         type,
         detail: type === 'OTHER' ? detail || null : null,
-        billDate: lastDayOfBillMonth(billMonth),
+        billDate: billDate ? new Date(`${billDate}T00:00:00.000Z`) : lastDayOfBillMonth(billMonth),
         paidBy: paidBy ?? null,
         responsibleBy: responsibleBy ?? null,
         isPaid,

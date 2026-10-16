@@ -18,6 +18,7 @@ export interface CreateBillData {
   type: BillType;
   detail: string | null;
   billMonth: string;
+  billDate?: string;
   paidBy: BillPayer | null;
   responsibleBy: BillPayer | null;
   isPaid: boolean;
