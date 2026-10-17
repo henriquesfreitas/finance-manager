@@ -42,6 +42,7 @@ End by asking the user to approve or revise the plan. Do not edit files or begin
 - Follow the approved scope. If discovery during implementation requires a material change to scope or behavior, stop and present a revised plan for approval.
 - Add or update focused tests for changed behavior where appropriate. Run the checks the user requested or approved in the plan.
 - Do not add unrelated refactors or speculative improvements.
+- Add tests if some business logic was added/changed
 
 ## 5. Report completion
 

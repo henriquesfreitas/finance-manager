@@ -1,5 +1,5 @@
 export type BillPayer = 'HENRIQUE' | 'AMANDA';
-export type BillType = 'INTERNET' | 'CLEANING' | 'CONDOMINIO' | 'ENERGY' | 'CARD' | 'OTHER';
+export type BillType = 'INTERNET' | 'CLEANING' | 'CONDOMINIO' | 'ENERGY' | 'CARD' | 'OTHER' | 'RECEIVED';
 
 export interface Bill {
   id: string;

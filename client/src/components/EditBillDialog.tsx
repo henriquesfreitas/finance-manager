@@ -27,7 +27,7 @@ export function EditBillDialog({ bill, open, language, onOpenChange }: EditBillD
   const [responsibleBy, setResponsibleBy] = useState<BillPayer | ''>('');
   const [isPaid, setIsPaid] = useState(false);
   const [error, setError] = useState('');
-  const hasFullBillResponsibilityMismatch = responsibleBy !== '' && (!paidBy || paidBy === responsibleBy);
+  const hasFullBillResponsibilityMismatch = type !== 'RECEIVED' && responsibleBy !== '' && (!paidBy || paidBy === responsibleBy);
 
   useEffect(() => {
     if (!open || !bill) return;
@@ -61,7 +61,7 @@ export function EditBillDialog({ bill, open, language, onOpenChange }: EditBillD
     try {
       await editBill.mutateAsync({
         id: bill.id,
-        data: { amount: parsedAmount, type, detail: type === 'OTHER' ? detail.trim() || null : null, billMonth: useFullBillDate ? billDate.slice(0, 7) : billMonth, ...(useFullBillDate ? { billDate } : {}), paidBy: paidBy || null, responsibleBy: responsibleBy || null, isPaid },
+        data: { amount: parsedAmount, type, detail: type === 'OTHER' || type === 'RECEIVED' ? detail.trim() || null : null, billMonth: useFullBillDate ? billDate.slice(0, 7) : billMonth, ...(useFullBillDate ? { billDate } : {}), paidBy: paidBy || null, responsibleBy: type === 'RECEIVED' ? null : responsibleBy || null, isPaid },
       });
       onOpenChange(false);
     } catch {
@@ -88,11 +88,12 @@ export function EditBillDialog({ bill, open, language, onOpenChange }: EditBillD
               <option value="ENERGY">{copy.energy}</option>
               <option value="CARD">{copy.card}</option>
               <option value="OTHER">{copy.other}</option>
+              <option value="RECEIVED">{copy.received}</option>
             </select>
           </label>
-          {type === 'OTHER' && (
+          {(type === 'OTHER' || type === 'RECEIVED') && (
             <label className="grid gap-1.5 text-sm font-medium">{copy.details} <span className="font-normal text-muted-foreground">{copy.optional}</span>
-              <Input type="text" maxLength={500} value={detail} onChange={(event) => setDetail(event.target.value)} placeholder={copy.whatFor} />
+              <Input type="text" maxLength={500} value={detail} onChange={(event) => setDetail(event.target.value)} placeholder={type === 'RECEIVED' ? copy.receivedDetail : copy.whatFor} />
             </label>
           )}
           <label className="grid gap-1.5 text-sm font-medium">{copy.month}
@@ -106,19 +107,23 @@ export function EditBillDialog({ bill, open, language, onOpenChange }: EditBillD
             <input type="checkbox" checked={useFullBillDate} onChange={(event) => setUseFullBillDate(event.target.checked)} className="h-4 w-4 accent-primary" />
             {copy.useFullDate}
           </label>
-          <label className="grid gap-1.5 text-sm font-medium">{copy.whoPaid} <span className="font-normal text-muted-foreground">{copy.optional}</span>
+          <label className="grid gap-1.5 text-sm font-medium">{type === 'RECEIVED' ? copy.whoReceived : copy.whoPaid} <span className="font-normal text-muted-foreground">{copy.optional}</span>
             <select value={paidBy} onChange={(event) => setPaidBy(event.target.value as BillPayer | '')} className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm shadow-sm outline-none focus-visible:ring-1 focus-visible:ring-ring">
               <option value="">{copy.notSpecified}</option>
               <option value="HENRIQUE">Henrique</option>
               <option value="AMANDA">Amanda</option>
             </select>
           </label>
-          <label className="grid gap-1.5 text-sm font-medium">{copy.responsibility}
-            <select value={responsibleBy} onChange={(event) => setResponsibleBy(event.target.value as BillPayer | '')} className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm shadow-sm outline-none focus-visible:ring-1 focus-visible:ring-ring">
-              <option value="">{copy.splitEqually}</option>
-              <option value="HENRIQUE">{copy.henriqueFull}</option>
-              <option value="AMANDA">{copy.amandaFull}</option>
-            </select>
+          <label className="grid gap-1.5 text-sm font-medium">{type === 'RECEIVED' ? copy.receivedResponsibility : copy.responsibility}
+            {type === 'RECEIVED' ? (
+              <span className="flex h-9 items-center rounded-md border border-input bg-muted px-3 text-sm">{copy.splitEqually}</span>
+            ) : (
+              <select value={responsibleBy} onChange={(event) => setResponsibleBy(event.target.value as BillPayer | '')} className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm shadow-sm outline-none focus-visible:ring-1 focus-visible:ring-ring">
+                <option value="">{copy.splitEqually}</option>
+                <option value="HENRIQUE">{copy.henriqueFull}</option>
+                <option value="AMANDA">{copy.amandaFull}</option>
+              </select>
+            )}
           </label>
           {hasFullBillResponsibilityMismatch && (
             <p role="alert" className="text-sm text-amber-700">
@@ -127,7 +132,7 @@ export function EditBillDialog({ bill, open, language, onOpenChange }: EditBillD
           )}
           <label className="flex cursor-pointer items-center gap-2 text-sm font-medium">
             <input type="checkbox" checked={isPaid} onChange={(event) => setIsPaid(event.target.checked)} className="h-4 w-4 accent-primary" />
-            {copy.billIsPaid}
+            {type === 'RECEIVED' ? copy.amountReceived : copy.billIsPaid}
           </label>
           {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
           <DialogFooter>

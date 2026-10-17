@@ -4,7 +4,7 @@ import { prisma } from '../lib/prisma-client.js';
 
 const createBillSchema = z.object({
   amount: z.number().finite().positive(),
-  type: z.enum(['INTERNET', 'CLEANING', 'CONDOMINIO', 'ENERGY', 'CARD', 'OTHER']),
+  type: z.enum(['INTERNET', 'CLEANING', 'CONDOMINIO', 'ENERGY', 'CARD', 'OTHER', 'RECEIVED']),
   detail: z.string().trim().max(500).nullable().optional(),
   billMonth: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/),
   billDate: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/).refine((value) => {
@@ -14,7 +14,7 @@ const createBillSchema = z.object({
   paidBy: z.enum(['HENRIQUE', 'AMANDA']).nullable().optional(),
   responsibleBy: z.enum(['HENRIQUE', 'AMANDA']).nullable().optional(),
   isPaid: z.boolean(),
-}).refine((data) => !data.responsibleBy || (Boolean(data.paidBy) && data.paidBy !== data.responsibleBy), {
+}).refine((data) => data.type === 'RECEIVED' || !data.responsibleBy || (Boolean(data.paidBy) && data.paidBy !== data.responsibleBy), {
   path: ['responsibleBy'],
   message: 'For a full responsibility bill, select a payer and choose a different responsible person.',
 }).refine((data) => !data.billDate || data.billDate.slice(0, 7) === data.billMonth, {
@@ -90,10 +90,10 @@ export function createBillRouter(): Router {
       data: {
         amount,
         type,
-        detail: type === 'OTHER' ? detail || null : null,
+        detail: type === 'OTHER' || type === 'RECEIVED' ? detail || null : null,
         billDate: billDate ? new Date(`${billDate}T00:00:00.000Z`) : lastDayOfBillMonth(billMonth),
         paidBy: paidBy ?? null,
-        responsibleBy: responsibleBy ?? null,
+        responsibleBy: type === 'RECEIVED' ? null : responsibleBy ?? null,
         isPaid,
       },
     });
@@ -119,10 +119,10 @@ export function createBillRouter(): Router {
       data: {
         amount,
         type,
-        detail: type === 'OTHER' ? detail || null : null,
+        detail: type === 'OTHER' || type === 'RECEIVED' ? detail || null : null,
         billDate: billDate ? new Date(`${billDate}T00:00:00.000Z`) : lastDayOfBillMonth(billMonth),
         paidBy: paidBy ?? null,
-        responsibleBy: responsibleBy ?? null,
+        responsibleBy: type === 'RECEIVED' ? null : responsibleBy ?? null,
         isPaid,
       },
     });

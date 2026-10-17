@@ -37,11 +37,11 @@ This document records product behavior and domain invariants. For AI contributio
 
 ## Bills Control
 
-- Bill types are `INTERNET`, `CLEANING`, `CONDOMINIO`, `ENERGY`, `CARD`, and `OTHER`. Only `OTHER` stores optional detail, with a maximum length of 500 characters.
+- Bill types are `INTERNET`, `CLEANING`, `CONDOMINIO`, `ENERGY`, `CARD`, `OTHER`, and `RECEIVED`. `OTHER` and `RECEIVED` can store optional detail, with a maximum length of 500 characters. `RECEIVED` records an amount received for equal sharing; its receiver is stored in `paidBy`, responsibility is always split equally, and its amount is excluded from the monthly bill expense total.
 - Bills are allocated to a selected `YYYY-MM` month. By default, the stored date is the last calendar day of that month; users may enable a specific date when adding or editing a bill. The form defaults to the previous month through the 10th day of a month, then to the current month.
-- New bills default to paid in the form. The monthly total includes paid and unpaid bills.
-- `paidBy` identifies who paid; it can be unset. `responsibleBy` assigns the entire bill to one person. If responsibility is assigned, a payer is required and must be the other person. With no responsible person, the bill is split equally.
-- Settlement includes only paid bills with a payer. Equal-split bills are balanced between Henrique and Amanda. A bill assigned to one person is reimbursed in full by that person to the other payer. Paid bills without a payer are excluded from settlement. The displayed settlement rounds to the nearest cent.
+- New bills default to paid in the form. The monthly bill total includes paid and unpaid expenses, but excludes `RECEIVED` amounts.
+- `paidBy` identifies who paid an expense or received a `RECEIVED` amount; it can be unset. `responsibleBy` assigns the entire expense to one person. If responsibility is assigned, a payer is required and must be the other person. With no responsible person, the expense is split equally.
+- Settlement includes only paid bills with a payer or receiver. Equal-split expenses are balanced between Henrique and Amanda. A `RECEIVED` amount is balanced in the opposite direction: its receiver owes the other person half. A bill assigned to one person is reimbursed in full by that person to the other payer. Paid bills without a payer or receiver are excluded from settlement. The displayed settlement rounds to the nearest cent.
 - Changing, deleting, or changing the paid status of a bill resets that month's recorded settlement-paid status. Moving a bill between months resets both the old and new month's settlement status.
 - The UI asks for confirmation before adding a second or later `INTERNET`, `CONDOMINIO`, or `ENERGY` bill in the same month. This is a warning and may be confirmed; it does not prohibit duplicates.
 

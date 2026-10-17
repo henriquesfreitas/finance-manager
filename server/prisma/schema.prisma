@@ -132,6 +132,7 @@ enum BillType {
   ENERGY
   CARD
   OTHER
+  RECEIVED
 }
 
 model AdminUser {

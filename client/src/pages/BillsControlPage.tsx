@@ -109,8 +109,14 @@ function groupBillsByMonth(bills: Bill[], language: BillsLanguage): BillMonthGro
     }
     const amountCents = Math.round(Number(bill.amount) * 100);
     group.bills.push(bill);
-    group.totalCents += amountCents;
-    if (bill.isPaid && bill.paidBy === 'HENRIQUE') {
+    if (bill.type !== 'RECEIVED') group.totalCents += amountCents;
+    if (bill.isPaid && bill.type === 'RECEIVED' && bill.paidBy === 'HENRIQUE') {
+      group.equalSplitPaidByHenriqueCents -= amountCents;
+    } else if (bill.isPaid && bill.type === 'RECEIVED' && bill.paidBy === 'AMANDA') {
+      group.equalSplitPaidByAmandaCents -= amountCents;
+    } else if (bill.isPaid && bill.type === 'RECEIVED') {
+      group.paidUnassignedCents += amountCents;
+    } else if (bill.isPaid && bill.paidBy === 'HENRIQUE') {
       group.paidByHenriqueCents += amountCents;
       if (bill.responsibleBy === null) group.equalSplitPaidByHenriqueCents += amountCents;
       else if (bill.responsibleBy === 'AMANDA') group.fullReimbursementBalanceCents += amountCents;
@@ -152,7 +158,7 @@ export function BillsControlPage(): React.JSX.Element {
   const [billToDelete, setBillToDelete] = useState<Bill | null>(null);
   const [duplicateBillConfirmation, setDuplicateBillConfirmation] = useState<CreateBillData | null>(null);
   const [replicatingBillId, setReplicatingBillId] = useState<string | null>(null);
-  const hasFullBillResponsibilityMismatch = responsibleBy !== '' && (!paidBy || paidBy === responsibleBy);
+  const hasFullBillResponsibilityMismatch = type !== 'RECEIVED' && responsibleBy !== '' && (!paidBy || paidBy === responsibleBy);
   const addBillFormRef = useRef<HTMLElement | null>(null);
   const monthGroups = groupBillsByMonth(bills, language);
   const settlementPaidByMonth = new Map(settlements.map((settlement) => [settlement.month, settlement.settlementPaid]));
@@ -224,7 +230,7 @@ export function BillsControlPage(): React.JSX.Element {
       return;
     }
     const selectedMonth = useFullBillDate ? billDate.slice(0, 7) : billMonth;
-    const data: CreateBillData = { amount: parsedAmount, type, detail: type === 'OTHER' ? detail.trim() || null : null, billMonth: selectedMonth, ...(useFullBillDate ? { billDate } : {}), paidBy: paidBy || null, responsibleBy: responsibleBy || null, isPaid };
+    const data: CreateBillData = { amount: parsedAmount, type, detail: type === 'OTHER' || type === 'RECEIVED' ? detail.trim() || null : null, billMonth: selectedMonth, ...(useFullBillDate ? { billDate } : {}), paidBy: paidBy || null, responsibleBy: type === 'RECEIVED' ? null : responsibleBy || null, isPaid };
     const isDuplicate = bills.some((bill) => bill.type === type && bill.billDate.slice(0, 7) === selectedMonth);
     if (duplicatePromptTypes.has(type) && isDuplicate) {
       setDuplicateBillConfirmation(data);
@@ -315,7 +321,7 @@ export function BillsControlPage(): React.JSX.Element {
             </label>
             <label className="grid gap-1.5 text-sm font-medium">
               {copy.type}
-              <select value={type} onChange={(event) => setType(event.target.value as BillType | '')} required className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm shadow-sm outline-none focus-visible:ring-1 focus-visible:ring-ring">
+              <select value={type} onChange={(event) => { const nextType = event.target.value as BillType | ''; setType(nextType); if (nextType === 'RECEIVED') setResponsibleBy(''); }} required className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm shadow-sm outline-none focus-visible:ring-1 focus-visible:ring-ring">
                 <option value="" disabled>{copy.selectType}</option>
                 <option value="INTERNET">{copy.internet}</option>
                 <option value="CLEANING">{copy.cleaning}</option>
@@ -323,12 +329,13 @@ export function BillsControlPage(): React.JSX.Element {
                 <option value="ENERGY">{copy.energy}</option>
                 <option value="CARD">{copy.card}</option>
                 <option value="OTHER">{copy.other}</option>
+                <option value="RECEIVED">{copy.received}</option>
               </select>
             </label>
-            {type === 'OTHER' && (
+            {(type === 'OTHER' || type === 'RECEIVED') && (
               <label className="grid gap-1.5 text-sm font-medium">
                 {copy.details} <span className="font-normal text-muted-foreground">{copy.optional}</span>
-                <Input type="text" maxLength={500} value={detail} onChange={(event) => setDetail(event.target.value)} placeholder={copy.whatFor} />
+                <Input type="text" maxLength={500} value={detail} onChange={(event) => setDetail(event.target.value)} placeholder={type === 'RECEIVED' ? copy.receivedDetail : copy.whatFor} />
               </label>
             )}
             <label className="grid gap-1.5 text-sm font-medium">
@@ -344,7 +351,7 @@ export function BillsControlPage(): React.JSX.Element {
               {copy.useFullDate}
             </label>
             <label className="grid gap-1.5 text-sm font-medium">
-              {copy.whoPaid} <span className="font-normal text-muted-foreground">{copy.optional}</span>
+              {type === 'RECEIVED' ? copy.whoReceived : copy.whoPaid} <span className="font-normal text-muted-foreground">{copy.optional}</span>
               <select value={paidBy} onChange={(event) => setPaidBy(event.target.value as BillPayer | '')} className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm shadow-sm outline-none focus-visible:ring-1 focus-visible:ring-ring">
                 <option value="">{copy.notSpecified}</option>
                 <option value="HENRIQUE">Henrique</option>
@@ -352,12 +359,16 @@ export function BillsControlPage(): React.JSX.Element {
               </select>
             </label>
             <label className="grid gap-1.5 text-sm font-medium">
-              {copy.responsibility}
-              <select value={responsibleBy} onChange={(event) => setResponsibleBy(event.target.value as BillPayer | '')} className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm shadow-sm outline-none focus-visible:ring-1 focus-visible:ring-ring">
-                <option value="">{copy.splitEqually}</option>
-                <option value="HENRIQUE">{copy.henriqueFull}</option>
-                <option value="AMANDA">{copy.amandaFull}</option>
-              </select>
+              {type === 'RECEIVED' ? copy.receivedResponsibility : copy.responsibility}
+              {type === 'RECEIVED' ? (
+                <span className="flex h-9 items-center rounded-md border border-input bg-muted px-3 text-sm">{copy.splitEqually}</span>
+              ) : (
+                <select value={responsibleBy} onChange={(event) => setResponsibleBy(event.target.value as BillPayer | '')} className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm shadow-sm outline-none focus-visible:ring-1 focus-visible:ring-ring">
+                  <option value="">{copy.splitEqually}</option>
+                  <option value="HENRIQUE">{copy.henriqueFull}</option>
+                  <option value="AMANDA">{copy.amandaFull}</option>
+                </select>
+              )}
             </label>
             {hasFullBillResponsibilityMismatch && (
               <p role="alert" className="text-sm text-amber-700 sm:col-span-2 lg:col-span-6">
@@ -366,11 +377,11 @@ export function BillsControlPage(): React.JSX.Element {
             )}
             <label className="flex min-h-9 cursor-pointer items-center gap-2 text-sm font-medium">
               <input type="checkbox" checked={isPaid} onChange={(event) => setIsPaid(event.target.checked)} className="h-4 w-4 accent-primary" />
-              {copy.billIsPaid}
+              {type === 'RECEIVED' ? copy.amountReceived : copy.billIsPaid}
             </label>
             <Button type="submit" disabled={createBill.isPending || isLoading || hasFullBillResponsibilityMismatch} className="w-full">
               {createBill.isPending ? <Loader2 className="animate-spin" /> : <Check />}
-              {copy.addBillButton}
+              {type === 'RECEIVED' ? copy.addReceivedButton : copy.addBillButton}
             </Button>
           </form>
           {formError && <p role="alert" className="mt-3 flex items-center gap-2 text-sm text-destructive"><CircleAlert className="h-4 w-4" />{formError}</p>}
@@ -449,11 +460,11 @@ export function BillsControlPage(): React.JSX.Element {
                         <article key={bill.id} className="min-w-0 rounded-lg border p-4">
                           <div className="flex min-w-0 items-start justify-between gap-3">
                             <div className="min-w-0"><p className="text-lg font-semibold">{formatAmount(bill.amount, language)}</p><p className="mt-1 text-sm text-muted-foreground">{formatFullBillDate(bill.billDate, language)}</p></div>
-                            <PaidToggle billId={bill.id} isPaid={bill.isPaid} pending={updatePaid.isPending} onChange={(next) => updatePaid.mutate({ id: bill.id, isPaid: next })} copy={copy} />
+                            <PaidToggle billId={bill.id} isPaid={bill.isPaid} pending={updatePaid.isPending} onChange={(next) => updatePaid.mutate({ id: bill.id, isPaid: next })} copy={copy} type={bill.type} />
                           </div>
                           <div className="mt-3 flex flex-wrap items-baseline gap-x-4 gap-y-1 text-sm">
                             <p><span className="text-muted-foreground">{copy.typeLabel}</span> {billTypeName(bill.type, language)}</p>
-                            <p><span className="text-muted-foreground">{copy.paidByLabel}</span> {payerName(bill.paidBy)}</p>
+                            <p><span className="text-muted-foreground">{bill.type === 'RECEIVED' ? copy.whoReceivedLabel : copy.paidByLabel}</span> {payerName(bill.paidBy)}</p>
                             <p><span className="text-muted-foreground">{copy.responsibilityLabel}</span> {billResponsibilityName(bill.responsibleBy, language)}</p>
                           </div>
                           {bill.detail && <p className="mt-1 break-words text-sm"><span className="text-muted-foreground">{copy.detailsLabel}</span> {bill.detail}</p>}
@@ -473,9 +484,9 @@ export function BillsControlPage(): React.JSX.Element {
                             <td className="px-3 py-3">{formatFullBillDate(bill.billDate, language)}</td>
                             <td className="px-3 py-3 font-semibold">{formatAmount(bill.amount, language)}</td>
                             <td className="px-3 py-3">{billTypeName(bill.type, language)}{bill.detail && <span className="block text-xs text-muted-foreground">{bill.detail}</span>}</td>
-                            <td className="px-3 py-3">{payerName(bill.paidBy)}</td>
+                            <td className="px-3 py-3"><span className="sr-only">{bill.type === 'RECEIVED' ? copy.whoReceivedLabel : copy.paidByLabel}</span>{payerName(bill.paidBy)}</td>
                             <td className="px-3 py-3">{billResponsibilityName(bill.responsibleBy, language)}</td>
-                            <td className="px-3 py-3"><PaidToggle billId={bill.id} isPaid={bill.isPaid} pending={updatePaid.isPending} onChange={(next) => updatePaid.mutate({ id: bill.id, isPaid: next })} copy={copy} /></td>
+                            <td className="px-3 py-3"><PaidToggle billId={bill.id} isPaid={bill.isPaid} pending={updatePaid.isPending} onChange={(next) => updatePaid.mutate({ id: bill.id, isPaid: next })} copy={copy} type={bill.type} /></td>
                             <td className="px-3 py-3"><div className="flex gap-2">
                               <Button type="button" size="sm" variant="outline" onClick={() => replicateBill(bill)} aria-label={`${copy.replicate} ${formatAmount(bill.amount, language)}`}><Copy /></Button>
                               <Button type="button" size="sm" variant="outline" onClick={() => setBillToEdit(bill)} aria-label={`${copy.edit} ${formatAmount(bill.amount, language)}`}><Pencil /></Button>
@@ -535,13 +546,16 @@ interface PaidToggleProps {
   pending: boolean;
   onChange: (isPaid: boolean) => void;
   copy: (typeof billsCopy)[BillsLanguage];
+  type: BillType;
 }
 
-function PaidToggle({ billId, isPaid, pending, onChange, copy }: PaidToggleProps): React.JSX.Element {
+function PaidToggle({ billId, isPaid, pending, onChange, copy, type }: PaidToggleProps): React.JSX.Element {
+  const paidLabel = type === 'RECEIVED' ? copy.receivedStatus : copy.paid;
+  const unpaidLabel = type === 'RECEIVED' ? copy.notReceivedStatus : copy.unpaid;
   return (
     <label className="inline-flex cursor-pointer items-center gap-2 whitespace-nowrap">
-      <input aria-label={`${copy.billsControl} ${billId} ${copy.paid.toLowerCase()}`} type="checkbox" checked={isPaid} disabled={pending} onChange={(event) => onChange(event.target.checked)} className="h-4 w-4 accent-primary" />
-      <span className={isPaid ? 'font-medium text-emerald-700' : 'text-muted-foreground'}>{isPaid ? copy.paid : copy.unpaid}</span>
+      <input aria-label={`${copy.billsControl} ${billId} ${(isPaid ? paidLabel : unpaidLabel).toLowerCase()}`} type="checkbox" checked={isPaid} disabled={pending} onChange={(event) => onChange(event.target.checked)} className="h-4 w-4 accent-primary" />
+      <span className={isPaid ? 'font-medium text-emerald-700' : 'text-muted-foreground'}>{isPaid ? paidLabel : unpaidLabel}</span>
     </label>
   );
 }
