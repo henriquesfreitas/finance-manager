@@ -254,8 +254,8 @@ export function BillsControlPage(): React.JSX.Element {
       <header className="app-header bg-blue-600 text-white shadow-md">
         <div className="container mx-auto flex min-h-16 flex-col items-stretch gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
           <h1 className="text-lg font-semibold tracking-tight sm:text-2xl">Finance Investment Manager</h1>
-          <div className="flex w-full items-center justify-between gap-2 sm:w-auto sm:justify-end sm:gap-5">
-            <nav aria-label={language === 'pt' ? 'Menu principal' : 'Main menu'} className="flex min-w-0 flex-1 items-center gap-3 overflow-x-auto py-1 text-sm sm:flex-none sm:gap-4 sm:overflow-visible sm:py-0 sm:text-base lg:text-lg">
+          <div className="flex w-full items-center justify-end gap-2 sm:w-auto sm:gap-5">
+            <nav aria-label={language === 'pt' ? 'Menu principal' : 'Main menu'} className="flex shrink-0 items-center gap-3 py-1 text-sm sm:gap-4 sm:py-0 sm:text-base lg:text-lg">
               {admin?.permissions.includes('INVESTMENTS') && <a href="/" className="shrink-0 text-white/90 hover:text-white hover:underline">{copy.investments}</a>}
             </nav>
             <div className="flex shrink-0 items-center gap-1 sm:gap-2">
