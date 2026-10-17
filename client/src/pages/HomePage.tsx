@@ -152,13 +152,13 @@ export function HomePage(): React.JSX.Element {
             )}
           />
           <div className="flex w-full items-center justify-between gap-2 sm:w-auto sm:justify-end sm:gap-5">
-            <nav aria-label="Page menu" className="flex min-w-0 flex-1 gap-3 overflow-x-auto py-1 text-sm sm:flex-none sm:gap-4 sm:overflow-visible sm:py-0 sm:text-base lg:text-lg">
-              {admin?.permissions.includes('BILLS_CONTROL') && <a href="/bills-control" className="shrink-0 text-white/90 hover:text-white hover:underline">Bills Control</a>}
+            <nav aria-label="Page menu" className="flex min-w-0 flex-1 items-center gap-3 overflow-x-auto py-1 text-sm sm:flex-none sm:gap-4 sm:overflow-visible sm:py-0 sm:text-base lg:text-lg">
+              <PortfolioAllocationDialog investments={investments} />
               {hasPlannedBuys && <a href="#planned-buys" className="shrink-0 text-white/90 hover:text-white hover:underline">Planned Buys</a>}
               {hasWatchlist && <a href="#watchlist" onClick={() => setWatchlistOpen(true)} className="shrink-0 text-white/90 hover:text-white hover:underline">Watchlist</a>}
             </nav>
             <div className="flex shrink-0 items-center gap-1 sm:gap-2">
-              <PortfolioAllocationDialog investments={investments} />
+              {admin?.permissions.includes('BILLS_CONTROL') && <a href="/bills-control" className="shrink-0 text-sm text-white/90 hover:text-white hover:underline sm:text-base lg:text-lg">Bills Control</a>}
               <ThemeToggle onHeader />
               <Button
                 variant="ghost"

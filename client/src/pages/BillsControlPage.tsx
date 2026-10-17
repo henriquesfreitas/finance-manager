@@ -252,32 +252,42 @@ export function BillsControlPage(): React.JSX.Element {
   return (
     <div lang={language === 'pt' ? 'pt-BR' : 'en'} className="min-h-screen w-full max-w-full overflow-x-clip bg-background">
       <header className="app-header bg-blue-600 text-white shadow-md">
-        <div className="container mx-auto flex min-h-16 flex-wrap items-center justify-between gap-3 px-4 py-3">
-          <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">{copy.billsControl}</h1>
-          <nav aria-label={language === 'pt' ? 'Menu principal' : 'Main menu'} className="flex flex-wrap items-center justify-end gap-3 text-sm sm:gap-5 sm:text-base">
-            {admin?.permissions.includes('INVESTMENTS') && <a href="/" className="text-white/90 hover:text-white hover:underline">{copy.investments}</a>}
-            <span aria-current="page" className="font-semibold underline underline-offset-4">{copy.billsControl}</span>
-            {admin?.username && <span className="hidden sm:inline">{admin.username}</span>}
-            <ThemeToggle onHeader />
-            <label title={`${copy.language}: ${language === 'pt' ? copy.portuguese : copy.english}`} className="relative inline-flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-md border border-white/30 text-white hover:bg-blue-700 focus-within:ring-2 focus-within:ring-white">
-              <Languages aria-hidden="true" className="h-4 w-4" />
-              <select aria-label={copy.language} value={language} onChange={(event) => changeLanguage(event.target.value as BillsLanguage)} className="absolute inset-0 h-full w-full cursor-pointer opacity-0 focus-visible:outline-none">
-                <option value="en" className="text-foreground">{copy.english}</option>
-                <option value="pt" className="text-foreground">{copy.portuguese}</option>
-              </select>
-            </label>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="px-2 text-white hover:bg-white/15 hover:text-white sm:px-3"
-              onClick={() => void handleLogout()}
-              disabled={isLoggingOut}
-              aria-label={copy.signOut}
-            >
-              {isLoggingOut ? <Loader2 className="h-4 w-4 animate-spin" /> : <LogOut className="h-4 w-4" />}
-              <span className="hidden sm:inline">{isLoggingOut ? copy.signingOut : copy.signOut}</span>
-            </Button>
-          </nav>
+        <div className="container mx-auto flex min-h-16 flex-col items-stretch gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+          <h1 className="text-lg font-semibold tracking-tight sm:text-2xl">Finance Investment Manager</h1>
+          <div className="flex w-full items-center justify-between gap-2 sm:w-auto sm:justify-end sm:gap-5">
+            <nav aria-label={language === 'pt' ? 'Menu principal' : 'Main menu'} className="flex min-w-0 flex-1 items-center gap-3 overflow-x-auto py-1 text-sm sm:flex-none sm:gap-4 sm:overflow-visible sm:py-0 sm:text-base lg:text-lg">
+              {admin?.permissions.includes('INVESTMENTS') && <a href="/" className="shrink-0 text-white/90 hover:text-white hover:underline">{copy.investments}</a>}
+            </nav>
+            <div className="flex shrink-0 items-center gap-1 sm:gap-2">
+              <span aria-current="page" className="shrink-0 text-sm underline underline-offset-4 text-white/90 sm:text-base lg:text-lg">{copy.billsControl}</span>
+              <ThemeToggle onHeader />
+              <label title={`${copy.language}: ${language === 'pt' ? copy.portuguese : copy.english}`} className="relative inline-flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-md border border-white/30 text-white hover:bg-blue-700 focus-within:ring-2 focus-within:ring-white">
+                <Languages aria-hidden="true" className="h-4 w-4" />
+                <select aria-label={copy.language} value={language} onChange={(event) => changeLanguage(event.target.value as BillsLanguage)} className="absolute inset-0 h-full w-full cursor-pointer opacity-0 focus-visible:outline-none">
+                  <option value="en" className="text-foreground">{copy.english}</option>
+                  <option value="pt" className="text-foreground">{copy.portuguese}</option>
+                </select>
+              </label>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="shrink-0 px-2 text-white hover:bg-white/15 hover:text-white sm:px-3"
+                onClick={() => void handleLogout()}
+                disabled={isLoggingOut}
+                aria-label={copy.signOut}
+              >
+                {isLoggingOut ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <>
+                    <LogOut className="h-4 w-4 sm:mr-2" />
+                    {admin?.username && <span className="hidden sm:inline">{admin.username}</span>}
+                    <span className="sr-only sm:not-sr-only sm:ml-1">{copy.signOut}</span>
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
         </div>
       </header>
 
