@@ -8,7 +8,8 @@ COPY server/prisma ./server/prisma
 RUN npm ci --prefix server
 
 COPY client/package.json client/package-lock.json ./client/
-RUN npm ci --prefix client
+# The tests use Vitest, not ESLint; eslint-plugin-react has not declared ESLint 10 support.
+RUN npm ci --prefix client --legacy-peer-deps
 
 COPY . .
 RUN npm run db:generate --prefix server
