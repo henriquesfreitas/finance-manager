@@ -292,6 +292,18 @@ The selected environment file must contain the existing `BACKUP_NOTIFY_EMAIL`, `
 
 The `RESEND_API_KEY` is send-only scoped — it cannot read email or access your Google account. Safe to store in `.env`.
 
+### Production test runs
+
+`scripts/deploy.sh` installs an idempotent daily schedule for 03:00 America/Sao_Paulo. It runs the client and server unit test suites in an isolated Docker container; the production database is not connected. Test failures include the last output from the run in Telegram, whether the run was scheduled or started manually. Set both `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID` in the production `.env`.
+
+To run the same tests manually on the VPS, use:
+
+```bash
+/bin/bash scripts/test-prod.sh
+```
+
+To inspect the schedule and its log, use `crontab -l` and `tail -n 100 prod-tests.log` from the project directory.
+
 ---
 
 ## Troubleshooting

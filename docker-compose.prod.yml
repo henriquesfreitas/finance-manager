@@ -44,6 +44,14 @@ services:
     networks:
       - internal
 
+  test-runner:
+    profiles: ["test"]
+    build:
+      context: .
+      dockerfile: Dockerfile.test
+    environment:
+      NODE_ENV: test
+
   client:
     build:
       context: ./client
