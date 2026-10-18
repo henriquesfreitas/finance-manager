@@ -205,15 +205,15 @@ Base URL: `http://localhost:3000`
 
 ## Automated Backup (Production)
 
-The script `scripts/backup-db.sh` runs a PostgreSQL dump, uploads it to Cloudflare R2, and sends an HTML email report via Resend — but only when data has actually changed since the last run.
+The script `scripts/backup-db.sh` runs a PostgreSQL dump, uploads it to Cloudflare R2, and sends an HTML email report via Resend plus an optional Telegram notification — but only when data has actually changed since the last run.
 
 ### How it works
 
 - Queries the latest change across `investments`, `orders`, `comments`, `treasury_products`, `bills`, and `bill_month_settlements`
 - Compares timestamps and fingerprints of both bills tables against the last successful backup marker
 - If nothing changed, exits silently — no dump, no email
-- On change: runs `pg_dump | gzip`, uploads via `rclone`, sends success email with a summary of the last 7 days of activity
-- On any failure (DB down, rclone error, etc): sends a failure alert email instead
+- On change: runs `pg_dump | gzip`, uploads via `rclone`, and sends success notifications with a summary of the backup
+- On any failure (DB down, rclone error, etc): sends failure alert notifications instead
 
 ### Dependencies on the server
 
@@ -247,6 +247,8 @@ Add these to the production `.env` (see `.env.production.example`):
 BACKUP_NOTIFY_EMAIL=you@gmail.com
 BACKUP_FROM_EMAIL=backup@yourdomain.com   # verified sender in Resend
 RESEND_API_KEY=re_xxxxxxxxxxxxxxxxxxxx    # send-only key from resend.com
+TELEGRAM_BOT_TOKEN=                       # optional; create with @BotFather
+TELEGRAM_CHAT_ID=                         # optional; both Telegram values are required together
 ```
 
 ### Cron job
@@ -259,7 +261,7 @@ crontab -e
 
 ### Price Target Email Alerts (Production)
 
-The script `scripts/check-price-targets.sh` checks active investments using Yahoo Finance quotes for stocks and the saved current value for Treasury products. It emails `BACKUP_NOTIFY_EMAIL` through the existing Resend settings whenever a sell target is met (`price now >= sell target`) or a buy target is met (`price now <= buy target`). A digest is sent only when at least one target is reached; it repeats on each scheduled run while a target remains reached.
+The script `scripts/check-price-targets.sh` checks active investments using Yahoo Finance quotes for stocks and the saved current value for Treasury products. It emails `BACKUP_NOTIFY_EMAIL` through Resend and sends an optional Telegram message whenever a sell target is met (`price now >= sell target`) or a buy target is met (`price now <= buy target`). A digest is sent only when at least one target is reached; it repeats on each scheduled run while a target remains reached.
 
 Ubuntu's standard cron uses the VPS's system timezone to schedule jobs; setting `TZ` in a user's crontab does not change when the job runs ([Ubuntu crontab manual](https://manpages.ubuntu.com/manpages/jammy/man5/crontab.5.html)). Check the VPS timezone with `timedatectl`. On the common UTC-configured VPS, Brasília is currently UTC-3, so add this entry for 11:00 Brasília time. Replace the project path as needed:
 
@@ -280,12 +282,13 @@ sudo journalctl -u cron --since today
 
 Run `test -w /home/ubuntu/finance-target-alerts.log` as the crontab owner to confirm the log is writable. A manual run can send an alert if a target is currently reached.
 
-The selected environment file must contain the existing `BACKUP_NOTIFY_EMAIL`, `BACKUP_FROM_EMAIL`, and `RESEND_API_KEY` settings. To run a manual check, use `ENV_FILE=.env /bin/bash scripts/check-price-targets.sh` from the project root. The server image must be rebuilt and deployed so it includes `dist/jobs/target-price-alerts.js`.
+The selected environment file must contain the existing `BACKUP_NOTIFY_EMAIL`, `BACKUP_FROM_EMAIL`, and `RESEND_API_KEY` settings. For Telegram delivery, also set both `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID`. To run a manual check, use `ENV_FILE=.env /bin/bash scripts/check-price-targets.sh` from the project root. The server image must be rebuilt and deployed so it includes `dist/jobs/target-price-alerts.js`.
 
-### Email notifications
+### Email and Telegram notifications
 
-- **Success**: subject `✅ Backup YYYYMMDD_HHMMSS — <size>` with investments and orders tables from the last 7 days
-- **Failure**: subject `⚠ Backup FAILED` with the error reason and a pointer to the log file
+- **Success email**: subject `✅ Backup YYYYMMDD_HHMMSS — <size>` with investments and orders tables from the last 7 days
+- **Success Telegram message**: run time, backup file, size, and R2 destination
+- **Failure email and Telegram message**: the error reason and a pointer to the server log
 
 The `RESEND_API_KEY` is send-only scoped — it cannot read email or access your Google account. Safe to store in `.env`.
 

@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import { PrismaClient } from '@prisma/client';
 import { resolve } from 'node:path';
 import { fetchQuotes } from '../services/yahoo-finance-quote-service.js';
@@ -86,6 +87,53 @@ async function sendTargetAlertEmail(alerts: ReturnType<typeof findReachedTargetA
   console.log(`[target-alerts] Resend accepted the email (HTTP ${response.status}${result.id ? `, id ${result.id}` : ''}).`);
 }
 
+async function sendTargetAlertTelegram(alerts: ReturnType<typeof findReachedTargetAlerts>): Promise<void> {
+  const botToken = process.env['TELEGRAM_BOT_TOKEN'];
+  const chatId = process.env['TELEGRAM_CHAT_ID'];
+  if (!botToken && !chatId) {
+    console.log('[target-alerts] Telegram is not configured; skipping Telegram notification.');
+    return;
+  }
+  if (!botToken || !chatId) {
+    throw new Error('TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID must both be configured');
+  }
+
+  const checkedAt = new Date().toLocaleString('pt-BR', {
+    timeZone: 'America/Sao_Paulo',
+    dateStyle: 'short',
+    timeStyle: 'short',
+  });
+  const lines = [
+    `Finance Manager — price target alert (${checkedAt} Brasília time)`,
+    ...alerts.flatMap((alert) => [
+      '',
+      `${alert.ticker}: price now ${formatCurrency(alert.currentPrice)}`,
+      ...alert.reached.map((action) => {
+        const target = action === 'SELL' ? alert.sellTarget : alert.buyTarget;
+        const label = action === 'SELL' ? 'Sell target reached' : 'Buy target reached';
+        return `${label}: ${formatCurrency(target!)}`;
+      }),
+    ]),
+  ];
+
+  let response: Response;
+  try {
+    response = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: chatId, text: lines.join('\n') }),
+    });
+  } catch {
+    // Never include fetch errors here: they can contain the token-bearing request URL.
+    throw new Error('Telegram request failed before receiving a response');
+  }
+
+  if (!response.ok) {
+    throw new Error(`Telegram message failed (HTTP ${response.status})`);
+  }
+  console.log(`[target-alerts] Telegram accepted the message for ${alerts.length} investment(s).`);
+}
+
 async function run(): Promise<void> {
   const startedAt = new Date();
   console.log(`[target-alerts] Started at ${startedAt.toISOString()}`);
@@ -135,8 +183,16 @@ async function run(): Promise<void> {
       console.log(`[target-alerts] ${alert.ticker}: price ${formatCurrency(alert.currentPrice)}; reached ${alert.reached.map((action) => `${action} ${formatCurrency(action === 'SELL' ? alert.sellTarget! : alert.buyTarget!)}`).join(', ')}.`);
     }
 
-    await sendTargetAlertEmail(alerts);
-    console.log(`[target-alerts] Email accepted by Resend for ${alerts.length} investment(s).`);
+    const deliveries = await Promise.allSettled([
+      sendTargetAlertEmail(alerts),
+      sendTargetAlertTelegram(alerts),
+    ]);
+    const failures = deliveries.flatMap((delivery) =>
+      delivery.status === 'rejected' ? [delivery.reason] : [],
+    );
+    if (failures.length > 0) {
+      throw new AggregateError(failures, 'One or more target alert notifications failed');
+    }
   } catch (error: unknown) {
     const message = error instanceof Error ? error.stack ?? error.message : String(error);
     console.error(`[target-alerts] Failed at ${new Date().toISOString()}: ${message}`);

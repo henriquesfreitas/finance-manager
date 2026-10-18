@@ -20,6 +20,7 @@ set -uo pipefail
 #   BACKUP_NOTIFY_EMAIL   — recipient address (your inbox)
 #   BACKUP_FROM_EMAIL     — verified sender in Resend (e.g. backup@yourdomain.com)
 #   RESEND_API_KEY        — API key from resend.com (send-only scope)
+#   TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID — optional backup alerts via Telegram
 # ══════════════════════════════════════════════════════════════════════════════
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -97,10 +98,44 @@ send_email() {
   rm -f /tmp/resend_response.json
 }
 
+# ── send_telegram <message> ─────────────────────────────────────────────────
+send_telegram() {
+  local message="$1"
+
+  if [[ -z "${TELEGRAM_BOT_TOKEN:-}" && -z "${TELEGRAM_CHAT_ID:-}" ]]; then
+    echo "→ Telegram is not configured; skipping Telegram notification."
+    return 0
+  fi
+  if [[ -z "${TELEGRAM_BOT_TOKEN:-}" || -z "${TELEGRAM_CHAT_ID:-}" ]]; then
+    echo "⚠ Telegram notification failed: TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID must both be configured." >&2
+    return 1
+  fi
+
+  local payload response_file http_status
+  payload=$(python3 -c 'import json, sys; print(json.dumps({"chat_id": sys.argv[1], "text": sys.argv[2]}))' \
+    "$TELEGRAM_CHAT_ID" "$message")
+  response_file=$(mktemp)
+  http_status=$(curl -s -o "$response_file" -w "%{http_code}" \
+    -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+    -H "Content-Type: application/json" \
+    -d "$payload")
+
+  if [[ "$http_status" == "200" ]]; then
+    echo "✓ Telegram message sent."
+  else
+    echo "⚠ Telegram notification failed (HTTP ${http_status:-unknown})." >&2
+  fi
+  rm -f "$response_file"
+}
+
 # ── send_failure_email <reason> ───────────────────────────────────────────────
 send_failure_email() {
   local reason="$1"
   echo "→ Sending failure alert to ${BACKUP_NOTIFY_EMAIL}..."
+  send_telegram "⚠ Finance Manager backup FAILED
+Run time: ${RUN_TIME}
+Error: ${reason}
+Check the backup log on the server for details." || true
 
   local html
   html=$(cat <<HTMLEOF
@@ -327,6 +362,11 @@ HTMLEOF
 )
 
 send_email "[Finance Manager] Backup ${TIMESTAMP} - ${BACKUP_SIZE}" "$SUCCESS_HTML"
+send_telegram "✓ Finance Manager backup completed
+Run time: ${RUN_TIME}
+Backup file: $(basename "$BACKUP_FILE")
+Size: ${BACKUP_SIZE}
+Stored in: ${R2_REMOTE}" || true
 
 # ── Clean up local backups older than retention window ───────────────────────
 echo "→ Cleaning local backups older than ${RETENTION_DAYS} days..."

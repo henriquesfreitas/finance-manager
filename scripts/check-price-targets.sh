@@ -22,6 +22,8 @@ if docker compose --env-file "$ENV_FILE" -f docker-compose.prod.yml exec -T \
   -e BACKUP_NOTIFY_EMAIL \
   -e BACKUP_FROM_EMAIL \
   -e RESEND_API_KEY \
+  -e TELEGRAM_BOT_TOKEN \
+  -e TELEGRAM_CHAT_ID \
   server node dist/jobs/target-price-alerts.js; then
   echo "[target-alerts] Launcher finished successfully at $(date --iso-8601=seconds)"
 else
