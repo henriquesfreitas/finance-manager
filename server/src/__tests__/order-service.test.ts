@@ -368,9 +368,19 @@ describe('listAllOrders', () => {
     expect(result).toHaveLength(1);
     expect(result[0]?.ticker).toBe('PETR4');
     expect(result[0]?.sector).toBe('Petróleo e Gás');
-    expect(db.order.findMany).toHaveBeenCalledWith(expect.objectContaining({
-      include: { investment: { select: { ticker: true, sector: true, treasuryProduct: { select: { name: true } } } },
-    }));
+    expect(db.order.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        include: {
+          investment: {
+            select: {
+              ticker: true,
+              sector: true,
+              treasuryProduct: { select: { name: true } },
+            },
+          },
+        },
+      }),
+    );
   });
 });
 
