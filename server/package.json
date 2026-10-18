@@ -21,6 +21,7 @@
     "db:generate": "prisma generate",
     "db:seed-amanda": "tsx prisma/seed-amanda.ts",
     "db:reset": "tsx src/scripts/reset-db.ts",
+    "orders:import-2025": "tsx src/scripts/import-2025-orders.ts",
     "db:seed": "tsx prisma/seed.ts"
   },
   "prisma": {

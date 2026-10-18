@@ -12,6 +12,7 @@ import type { OrderWithTicker } from '@/types/order';
 import { calculateSellTotalInvested, calculateSellProfit } from '@/lib/investment-calculator';
 import { formatQuantity } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import { getInitialBillsLanguage } from '@/i18n/bills';
 
 /** Returns Tailwind text-color class based on order type. */
 function orderTypeColorClass(type: string): string {
@@ -35,11 +36,32 @@ function formatOrderDate(dateStr: string): string {
 export function AllOrdersSection(): React.JSX.Element {
   const { data: orders, isLoading, isError } = useAllOrders();
   const [showAllOrders, setShowAllOrders] = React.useState(false);
-  const visibleOrders = showAllOrders ? orders : orders?.slice(0, 15);
+  const [showOnlySales, setShowOnlySales] = React.useState(false);
+  const language = getInitialBillsLanguage();
+  const filteredOrders = showOnlySales ? orders?.filter((order) => order.type === 'SELL') : orders;
+  const visibleOrders = showAllOrders ? filteredOrders : filteredOrders?.slice(0, 15);
+  const copy = language === 'pt'
+    ? { showSales: 'Mostrar apenas vendas', showAllTypes: 'Mostrar todos os tipos', noSales: 'Nenhuma venda registrada ainda.' }
+    : { showSales: 'Show only sold orders', showAllTypes: 'Show all order types', noSales: 'No sold orders recorded yet.' };
 
   return (
     <div className="grid gap-3">
-      <h2 className="text-lg font-semibold tracking-tight">Order History</h2>
+      <div className="flex items-center justify-between gap-2">
+        <h2 className="text-lg font-semibold tracking-tight">Order History</h2>
+        <Button
+          type="button"
+          variant="link"
+          size="sm"
+          className="h-auto px-0 text-right"
+          aria-pressed={showOnlySales}
+          onClick={() => {
+            setShowOnlySales((current) => !current);
+            setShowAllOrders(false);
+          }}
+        >
+          {showOnlySales ? copy.showAllTypes : copy.showSales}
+        </Button>
+      </div>
 
       {isLoading && (
         <div className="rounded-md border">
@@ -74,7 +96,13 @@ export function AllOrdersSection(): React.JSX.Element {
         </p>
       )}
 
-      {!isLoading && !isError && orders && orders.length > 0 && (
+      {!isLoading && !isError && orders && orders.length > 0 && filteredOrders?.length === 0 && (
+        <p className="py-4 text-center text-sm text-muted-foreground">
+          {copy.noSales}
+        </p>
+      )}
+
+      {!isLoading && !isError && orders && filteredOrders && filteredOrders.length > 0 && (
         <div className="rounded-md border">
           <Table className="min-w-[480px]">
             <TableHeader>
@@ -163,7 +191,7 @@ export function AllOrdersSection(): React.JSX.Element {
               })}
             </TableBody>
           </Table>
-          {orders.length > 15 && (
+          {filteredOrders.length > 15 && (
             <div className="flex justify-center border-t p-2">
               <Button
                 type="button"
@@ -171,7 +199,7 @@ export function AllOrdersSection(): React.JSX.Element {
                 size="sm"
                 onClick={() => setShowAllOrders((current) => !current)}
               >
-                {showAllOrders ? 'Show latest 15 orders' : `Show all ${orders.length} orders`}
+                {showAllOrders ? 'Show latest 15 orders' : `Show all ${filteredOrders.length} orders`}
               </Button>
             </div>
           )}
