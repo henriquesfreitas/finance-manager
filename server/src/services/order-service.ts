@@ -175,6 +175,7 @@ export function createOrderService(db: PrismaClient) {
           investment: {
             select: {
               ticker: true,
+              sector: true,
               treasuryProduct: { select: { name: true } },
             },
           },
@@ -186,6 +187,7 @@ export function createOrderService(db: PrismaClient) {
         ...toOrderRecord(o),
         // Treasury investments show the product short name; stocks show the ticker
         ticker: o.investment.treasuryProduct?.name ?? o.investment.ticker,
+        sector: o.investment.sector,
       }));
     },
 

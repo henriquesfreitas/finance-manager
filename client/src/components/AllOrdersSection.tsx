@@ -36,31 +36,79 @@ function formatOrderDate(dateStr: string): string {
 export function AllOrdersSection(): React.JSX.Element {
   const { data: orders, isLoading, isError } = useAllOrders();
   const [showAllOrders, setShowAllOrders] = React.useState(false);
-  const [showOnlySales, setShowOnlySales] = React.useState(false);
+  const [orderFilter, setOrderFilter] = React.useState('all');
   const language = getInitialBillsLanguage();
-  const filteredOrders = showOnlySales ? orders?.filter((order) => order.type === 'SELL') : orders;
+  const salesYears = [...new Set(
+    (orders ?? [])
+      .filter((order) => order.type === 'SELL')
+      .map((order) => order.orderDate.slice(0, 4)),
+  )].sort((a, b) => b.localeCompare(a));
+  const filteredOrders = orders?.filter((order) => {
+    if (orderFilter === 'all') return true;
+    if (order.type !== 'SELL') return false;
+    if (orderFilter === 'sales') return true;
+    return order.orderDate.slice(0, 4) === orderFilter.slice('year:'.length);
+  });
+  const fiiSales = orders?.filter((order) => order.type === 'SELL' && order.sector === 'FIIs') ?? [];
+  const fiiSalesWithAveragePrice = fiiSales.filter((order) => order.averagePriceAtSell !== null);
+  const fiiSalesMissingAveragePrice = fiiSales.length - fiiSalesWithAveragePrice.length;
+  const fiiTotalSold = fiiSales.reduce(
+    (total, order) => total + parseFloat(order.quantity) * parseFloat(order.price),
+    0,
+  );
+  const fiiTotalInvested = fiiSalesWithAveragePrice.reduce(
+    (total, order) => total + parseFloat(order.quantity) * parseFloat(order.averagePriceAtSell!),
+    0,
+  );
+  const fiiProfit = fiiSalesMissingAveragePrice === 0 ? fiiTotalSold - fiiTotalInvested : null;
   const visibleOrders = showAllOrders ? filteredOrders : filteredOrders?.slice(0, 15);
   const copy = language === 'pt'
-    ? { showSales: 'Mostrar apenas vendas', showAllTypes: 'Mostrar todos os tipos', noSales: 'Nenhuma venda registrada ainda.' }
-    : { showSales: 'Show only sold orders', showAllTypes: 'Show all order types', noSales: 'No sold orders recorded yet.' };
+    ? {
+        filterLabel: 'Filtrar histórico de ordens',
+        allOrders: 'Todas as ordens',
+        allSales: 'Todas as vendas',
+        salesIn: (year: string) => `Vendas de ${year}`,
+        noSales: 'Nenhuma venda registrada neste filtro.',
+        fiiSummary: 'Resumo das vendas de FIIs',
+        fiiSalesCount: 'Vendas de FIIs',
+        fiiTotalSold: 'Total vendido',
+        fiiTotalInvested: 'Valor investido',
+        fiiProfit: 'Lucro realizado',
+        fiiProfitUnavailable: (count: number) => `Lucro indisponível: ${count} venda(s) sem preço médio registrado.`,
+      }
+    : {
+        filterLabel: 'Filter order history',
+        allOrders: 'All orders',
+        allSales: 'All sales',
+        salesIn: (year: string) => `Sales in ${year}`,
+        noSales: 'No sales recorded for this filter.',
+        fiiSummary: 'FII sales summary',
+        fiiSalesCount: 'FII sell orders',
+        fiiTotalSold: 'Total sold',
+        fiiTotalInvested: 'Amount invested',
+        fiiProfit: 'Realized profit',
+        fiiProfitUnavailable: (count: number) => `Profit unavailable: ${count} sale(s) have no recorded average price.`,
+      };
 
   return (
     <div className="grid gap-3">
       <div className="flex items-center justify-between gap-2">
         <h2 className="text-lg font-semibold tracking-tight">Order History</h2>
-        <Button
-          type="button"
-          variant="link"
-          size="sm"
-          className="h-auto px-0 text-right"
-          aria-pressed={showOnlySales}
-          onClick={() => {
-            setShowOnlySales((current) => !current);
+        <select
+          aria-label={copy.filterLabel}
+          value={orderFilter}
+          onChange={(event) => {
+            setOrderFilter(event.target.value);
             setShowAllOrders(false);
           }}
+          className="h-9 max-w-[14rem] rounded-md border border-input bg-background px-3 text-sm shadow-sm outline-none focus-visible:ring-1 focus-visible:ring-ring"
         >
-          {showOnlySales ? copy.showAllTypes : copy.showSales}
-        </Button>
+          <option value="all">{copy.allOrders}</option>
+          <option value="sales">{copy.allSales}</option>
+          {salesYears.map((year) => (
+            <option key={year} value={`year:${year}`}>{copy.salesIn(year)}</option>
+          ))}
+        </select>
       </div>
 
       {isLoading && (
@@ -204,6 +252,39 @@ export function AllOrdersSection(): React.JSX.Element {
             </div>
           )}
         </div>
+      )}
+
+      {!isLoading && !isError && orderFilter === 'sales' && fiiSales.length > 0 && (
+        <section className="rounded-md border p-4" aria-label={copy.fiiSummary}>
+          <h3 className="text-sm font-semibold">{copy.fiiSummary}</h3>
+          <dl className="mt-3 grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
+            <div>
+              <dt className="text-muted-foreground">{copy.fiiSalesCount}</dt>
+              <dd className="font-medium">{fiiSales.length}</dd>
+            </div>
+            <div>
+              <dt className="text-muted-foreground">{copy.fiiTotalSold}</dt>
+              <dd className="font-medium">R$ {fiiTotalSold.toFixed(2)}</dd>
+            </div>
+            <div>
+              <dt className="text-muted-foreground">{copy.fiiTotalInvested}</dt>
+              <dd className="font-medium">
+                {fiiProfit === null ? '—' : `R$ ${fiiTotalInvested.toFixed(2)}`}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-muted-foreground">{copy.fiiProfit}</dt>
+              <dd className={`font-semibold ${fiiProfit === null ? 'text-muted-foreground' : fiiProfit >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                {fiiProfit === null ? '—' : `${fiiProfit >= 0 ? '+' : ''}R$ ${fiiProfit.toFixed(2)}`}
+              </dd>
+            </div>
+          </dl>
+          {fiiProfit === null && (
+            <p className="mt-3 text-xs text-muted-foreground">
+              {copy.fiiProfitUnavailable(fiiSalesMissingAveragePrice)}
+            </p>
+          )}
+        </section>
       )}
     </div>
   );

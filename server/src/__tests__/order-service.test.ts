@@ -356,7 +356,7 @@ describe('listAllOrders', () => {
   it('returns orders enriched with ticker from investment', async () => {
     const orderWithInvestment = {
       ...makeOrderRow(),
-      investment: { ticker: 'PETR4' },
+      investment: { ticker: 'PETR4', sector: 'Petróleo e Gás', treasuryProduct: null },
     };
     const db = makeFakePrisma({
       orderFindMany: vi.fn().mockResolvedValue([orderWithInvestment]),
@@ -367,6 +367,10 @@ describe('listAllOrders', () => {
 
     expect(result).toHaveLength(1);
     expect(result[0]?.ticker).toBe('PETR4');
+    expect(result[0]?.sector).toBe('Petróleo e Gás');
+    expect(db.order.findMany).toHaveBeenCalledWith(expect.objectContaining({
+      include: { investment: { select: { ticker: true, sector: true, treasuryProduct: { select: { name: true } } } },
+    }));
   });
 });
 

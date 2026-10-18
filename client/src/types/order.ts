@@ -29,6 +29,7 @@ export interface OrderListItem {
 export interface OrderWithTicker extends OrderListItem {
   investmentId: string;
   ticker: string;
+  sector: string | null;
 }
 
 /**

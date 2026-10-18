@@ -80,6 +80,7 @@ export interface OrderRecord {
  */
 export interface OrderWithTicker extends OrderRecord {
   ticker: string;
+  sector: string | null;
 }
 
 /**
