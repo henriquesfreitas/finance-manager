@@ -187,21 +187,7 @@ Base URL: `http://localhost:3000`
 
 ## Data Model
 
-### Stored in PostgreSQL
-- `ticker` — uppercased stock symbol (e.g. `ITUB3`, `VALE3`)
-- `quantity` — number of units owned (decimal)
-- `averagePrice` — average purchase price (decimal)
-
-### Fetched from Yahoo Finance (not stored)
-- `currentPrice` — live market price
-- `dailyChangePercent` — daily % change
-- Brazilian B3 tickers are queried with `.SA` suffix (e.g. `ITUB3.SA`)
-
-### Calculated on frontend (not stored)
-- `totalInvested = quantity × averagePrice`
-- `currentTotal = quantity × currentPrice`
-- `profit = currentTotal − totalInvested`
-- `totalVariation = (profit / totalInvested) × 100`
+See [`DATABASE_SCHEMA.md`](DATABASE_SCHEMA.md) for the PostgreSQL tables, columns, relationships, indexes, and enums. It is maintained alongside Prisma schema and migration changes.
 
 ## Automated Backup (Production)
 

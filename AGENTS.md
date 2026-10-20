@@ -14,6 +14,7 @@
 - Validate untrusted input at the server boundary. Keep business rules enforced on the server even when the client also validates for usability.
 - Use `unknown` and narrow values instead of `any`. Add explicit types at public boundaries when they improve clarity; avoid annotations that only restate obvious inference.
 - Keep non-obvious business decisions and invariants documented in `PROJECT_RULES.md`. Add code comments when they explain why a choice exists, not merely what the next line does.
+- When a database schema or migration changes tables, columns, relationships, indexes, or enums, update [`DATABASE_SCHEMA.md`](DATABASE_SCHEMA.md) in the same change.
 - Preserve the existing English and Portuguese UI support when changing user-facing copy.
 - Do not hand-edit generated shadcn primitives under `client/src/components/ui/`; update them through the project's shadcn tooling when needed.
 - Preserve security boundaries: do not expose secrets, password hashes, or session tokens in client responses or logs. When changing routes, preserve authentication and permission checks.

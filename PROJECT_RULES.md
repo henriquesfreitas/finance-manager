@@ -2,6 +2,8 @@
 
 This document records product behavior and domain invariants. For AI contribution guidance, see [`AGENTS.md`](AGENTS.md). Confirm details in the implementation before changing them; update this document when a business rule changes.
 
+For the database tables, columns, relationships, indexes, and enums, see [`DATABASE_SCHEMA.md`](DATABASE_SCHEMA.md). Update that reference alongside database schema or migration changes.
+
 ## Investments
 
 - An investment is either a `STOCK` or `TREASURY` asset. Stock tickers are stored uppercase and unique. A treasury investment refers to a catalog product; its slug is used as its unique ticker and its sector is `Renda Fixa`.
