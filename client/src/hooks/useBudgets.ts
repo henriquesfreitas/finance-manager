@@ -4,6 +4,7 @@ import {
   createBudgetItem,
   deleteBudgetItem,
   fetchBudget,
+  fetchBudgetUsers,
   fetchBudgets,
   updateBudgetItem,
 } from '../services/budget-api-client';
@@ -13,6 +14,10 @@ export const BUDGETS_QUERY_KEY = ['budgets'] as const;
 
 export function useBudgets() {
   return useQuery({ queryKey: BUDGETS_QUERY_KEY, queryFn: fetchBudgets });
+}
+
+export function useBudgetUsers(enabled: boolean) {
+  return useQuery({ queryKey: [...BUDGETS_QUERY_KEY, 'users'], queryFn: fetchBudgetUsers, enabled });
 }
 
 export function useBudget(id: string | null) {

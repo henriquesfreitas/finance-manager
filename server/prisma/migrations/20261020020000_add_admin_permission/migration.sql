@@ -1,0 +1,1 @@
+ALTER TYPE "AppPermission" ADD VALUE 'ADMIN';

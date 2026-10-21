@@ -6,6 +6,7 @@ import { ThemeToggle } from '@/components/ThemeToggle';
 import { useAuth } from '@/contexts/auth-context';
 import {
   useBudget,
+  useBudgetUsers,
   useBudgets,
   useCreateBudget,
   useCreateBudgetItem,
@@ -21,7 +22,7 @@ const copy = {
   en: {
     budgets: 'Budgets', investments: 'Investments', bills: 'Bills Control', signOut: 'Sign out', language: 'Language',
     newBudget: 'New budget', budgetName: 'Budget name', createBudget: 'Create budget', creating: 'Creating...',
-    yourBudgets: 'Your budgets', noBudgets: 'No budgets yet. Create one to get started.', open: 'Open',
+    yourBudgets: 'Your budgets', noBudgets: 'No budgets yet. Create one to get started.', open: 'Open', usersWithBudgets: 'Users with budgets', noUsersWithBudgets: 'No users have budgets yet.',
     addItem: 'Add an item', editItem: 'Edit item', value: 'Value (R$)', date: 'Date', description: 'Description (optional)',
     additionalInfo: 'Additional information (optional)', paid: 'Paid', unpaid: 'Unpaid', saveItem: 'Save item', addItemButton: 'Add item', saving: 'Saving...',
     cancel: 'Cancel', total: 'Total', unpaidTotal: 'Total unpaid', paidTotal: 'Total paid', items: 'Items', noItems: 'No items in this budget yet.', edit: 'Edit', delete: 'Remove',
@@ -32,7 +33,7 @@ const copy = {
   pt: {
     budgets: 'Orçamentos', investments: 'Investimentos', bills: 'Controle de contas', signOut: 'Sair', language: 'Idioma',
     newBudget: 'Novo orçamento', budgetName: 'Nome do orçamento', createBudget: 'Criar orçamento', creating: 'Criando...',
-    yourBudgets: 'Seus orçamentos', noBudgets: 'Nenhum orçamento ainda. Crie um para começar.', open: 'Abrir',
+    yourBudgets: 'Seus orçamentos', noBudgets: 'Nenhum orçamento ainda. Crie um para começar.', open: 'Abrir', usersWithBudgets: 'Usuários com orçamentos', noUsersWithBudgets: 'Nenhum usuário tem orçamentos ainda.',
     addItem: 'Adicionar item', editItem: 'Editar item', value: 'Valor (R$)', date: 'Data', description: 'Descrição (opcional)',
     additionalInfo: 'Informações adicionais (opcional)', paid: 'Pago', unpaid: 'Pendente', saveItem: 'Salvar item', addItemButton: 'Adicionar item', saving: 'Salvando...',
     cancel: 'Cancelar', total: 'Total', unpaidTotal: 'Total não pago', paidTotal: 'Total pago', items: 'Itens', noItems: 'Este orçamento ainda não tem itens.', edit: 'Editar', delete: 'Remover',
@@ -137,13 +138,18 @@ function ItemForm({
 export function BudgetsPage(): React.JSX.Element {
   const { admin, logout } = useAuth();
   const { data: budgets = [], isLoading, isError, refetch } = useBudgets();
+  const isBudgetAdmin = admin?.permissions.includes('ADMIN') ?? false;
+  const { data: budgetUsers = [], isLoading: usersLoading, isError: usersError, refetch: refetchUsers } = useBudgetUsers(isBudgetAdmin);
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [selectedBudgetId, setSelectedBudgetId] = useState<string | null>(null);
   const [budgetName, setBudgetName] = useState('');
   const [editingItem, setEditingItem] = useState<BudgetItem | null>(null);
   const [language, setLanguage] = useState<BudgetLanguage>(initialLanguage);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const strings = copy[language];
-  const selectedBudget = budgets.find((budget) => budget.id === selectedBudgetId) ?? null;
+  const selectedUser = budgetUsers.find((user) => user.id === selectedUserId) ?? null;
+  const visibleBudgets = isBudgetAdmin ? selectedUser?.budgets ?? [] : budgets;
+  const selectedBudget = visibleBudgets.find((budget) => budget.id === selectedBudgetId) ?? null;
   const { data: budgetDetails, isLoading: itemsLoading, isError: itemsError } = useBudget(selectedBudgetId);
   const createBudgetMutation = useCreateBudget();
   const createItemMutation = useCreateBudgetItem(selectedBudgetId ?? '');
@@ -152,15 +158,26 @@ export function BudgetsPage(): React.JSX.Element {
   const itemPending = createItemMutation.isPending || updateItemMutation.isPending;
 
   useEffect(() => {
+    if (isBudgetAdmin) {
+      if (selectedUserId === null && budgetUsers.length > 0) {
+        setSelectedUserId(budgetUsers[0]!.id);
+        setSelectedBudgetId(budgetUsers[0]!.budgets[0]?.id ?? null);
+      } else if (selectedUserId && !budgetUsers.some((user) => user.id === selectedUserId)) {
+        setSelectedUserId(null);
+        setSelectedBudgetId(null);
+      }
+      return;
+    }
     if (selectedBudgetId === null && budgets.length > 0) setSelectedBudgetId(budgets[0]!.id);
     if (selectedBudgetId && !budgets.some((budget) => budget.id === selectedBudgetId)) setSelectedBudgetId(null);
-  }, [budgets, selectedBudgetId]);
+  }, [isBudgetAdmin, budgetUsers, selectedUserId, budgets, selectedBudgetId]);
 
   async function handleCreateBudget(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
     try {
       const budget = await createBudgetMutation.mutateAsync(budgetName.trim());
       setBudgetName('');
+      if (isBudgetAdmin && admin) setSelectedUserId(admin.id);
       setSelectedBudgetId(budget.id);
       toast.success(strings.budgetCreated);
     } catch {
@@ -259,12 +276,24 @@ export function BudgetsPage(): React.JSX.Element {
           </form>
         </section>
 
+        {isBudgetAdmin && <section className="rounded-xl border bg-card p-4 shadow-sm sm:p-6">
+          <h2 className="mb-4 text-lg font-semibold">{strings.usersWithBudgets}</h2>
+          {usersLoading && <p role="status" className="text-sm text-muted-foreground">{strings.loading}</p>}
+          {usersError && <div className="flex flex-wrap items-center gap-3 text-sm text-destructive"><span>{strings.loadError}</span><Button variant="outline" size="sm" onClick={() => void refetchUsers()}>{strings.retry}</Button></div>}
+          {!usersLoading && !usersError && budgetUsers.length === 0 && <p className="text-sm text-muted-foreground">{strings.noUsersWithBudgets}</p>}
+          {budgetUsers.length > 0 && <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">{budgetUsers.map((user) => (
+            <li key={user.id}><button type="button" aria-pressed={selectedUserId === user.id} onClick={() => { setSelectedUserId(user.id); setSelectedBudgetId(user.budgets[0]?.id ?? null); setEditingItem(null); }} className={`flex w-full items-center justify-between gap-3 rounded-lg border p-3 text-left transition-colors hover:bg-accent ${selectedUserId === user.id ? 'border-primary bg-accent' : ''}`}>
+              <span className="font-medium">{user.username}</span><span className="text-sm text-muted-foreground">{user.budgets.length}</span>
+            </button></li>
+          ))}</ul>}
+        </section>}
+
         <section className="rounded-xl border bg-card p-4 shadow-sm sm:p-6">
-          <h2 className="mb-4 text-lg font-semibold">{strings.yourBudgets}</h2>
-          {isLoading && <p role="status" className="text-sm text-muted-foreground">{strings.loading}</p>}
-          {isError && <div className="flex flex-wrap items-center gap-3 text-sm text-destructive"><span>{strings.loadError}</span><Button variant="outline" size="sm" onClick={() => void refetch()}>{strings.retry}</Button></div>}
-          {!isLoading && !isError && budgets.length === 0 && <p className="text-sm text-muted-foreground">{strings.noBudgets}</p>}
-          {budgets.length > 0 && <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">{budgets.map((budget) => (
+          <h2 className="mb-4 text-lg font-semibold">{isBudgetAdmin ? `${selectedUser?.username ?? ''} — ${strings.budgets}` : strings.yourBudgets}</h2>
+          {(isBudgetAdmin ? usersLoading : isLoading) && <p role="status" className="text-sm text-muted-foreground">{strings.loading}</p>}
+          {(isBudgetAdmin ? usersError : isError) && <div className="flex flex-wrap items-center gap-3 text-sm text-destructive"><span>{strings.loadError}</span><Button variant="outline" size="sm" onClick={() => void (isBudgetAdmin ? refetchUsers() : refetch())}>{strings.retry}</Button></div>}
+          {!(isBudgetAdmin ? usersLoading : isLoading) && !(isBudgetAdmin ? usersError : isError) && visibleBudgets.length === 0 && <p className="text-sm text-muted-foreground">{strings.noBudgets}</p>}
+          {visibleBudgets.length > 0 && <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">{visibleBudgets.map((budget) => (
             <li key={budget.id}>
               <button type="button" aria-pressed={selectedBudgetId === budget.id} onClick={() => { setSelectedBudgetId(budget.id); setEditingItem(null); }} className={`flex w-full items-center justify-between gap-3 rounded-lg border p-3 text-left transition-colors hover:bg-accent ${selectedBudgetId === budget.id ? 'border-primary bg-accent' : ''}`}>
                 <span><span className="block font-medium">{budget.name}</span><span className="mt-1 block text-xs text-muted-foreground">{strings.dateLabel(budget.createdAt.slice(0, 10))}</span></span>

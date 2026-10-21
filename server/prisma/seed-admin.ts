@@ -37,7 +37,7 @@ export async function seedAdmin(prisma: PrismaClient): Promise<void> {
 
   const passwordHash = await bcrypt.hash(password, BCRYPT_COST_FACTOR);
   const permissions = username === 'admin_finance'
-    ? ['INVESTMENTS', 'BILLS_CONTROL', 'BUDGET'] as const
+    ? ['INVESTMENTS', 'BILLS_CONTROL', 'BUDGET', 'ADMIN'] as const
     : ['INVESTMENTS', 'BILLS_CONTROL'] as const;
 
   await prisma.adminUser.upsert({

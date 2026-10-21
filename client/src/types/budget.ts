@@ -20,6 +20,12 @@ export interface BudgetWithItems extends Budget {
   items: BudgetItem[];
 }
 
+export interface BudgetUser {
+  id: string;
+  username: string;
+  budgets: Budget[];
+}
+
 export interface CreateBudgetItemData {
   value: number;
   itemDate: string;

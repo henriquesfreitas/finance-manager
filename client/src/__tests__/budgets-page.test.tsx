@@ -11,15 +11,18 @@ const mocks = vi.hoisted(() => ({
   updateItem: vi.fn(),
   deleteItem: vi.fn(),
   logout: vi.fn(),
+  admin: { id: 'admin-1', username: 'admin_finance', permissions: ['BUDGET'] as string[] },
+  budgetUsers: [] as { id: string; username: string; budgets: { id: string; name: string; createdAt: string }[] }[],
   toastSuccess: vi.fn(),
   toastError: vi.fn(),
 }));
 
 vi.mock('../contexts/auth-context', () => ({
-  useAuth: () => ({ admin: { id: 'admin-1', username: 'admin_finance', permissions: ['BUDGET'] }, logout: mocks.logout }),
+  useAuth: () => ({ admin: mocks.admin, logout: mocks.logout }),
 }));
 
 vi.mock('../hooks/useBudgets', () => ({
+  useBudgetUsers: () => ({ data: mocks.budgetUsers, isLoading: false, isError: false, refetch: vi.fn() }),
   useBudgets: () => ({ data: [{ id: 'budget-1', name: 'Monthly', createdAt: '2026-10-01T00:00:00.000Z' }], isLoading: false, isError: false, refetch: vi.fn() }),
   useBudget: (id: string | null) => ({
     data: id ? {
@@ -53,6 +56,8 @@ function renderPage(): void {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  mocks.admin = { id: 'admin-1', username: 'admin_finance', permissions: ['BUDGET'] };
+  mocks.budgetUsers = [];
   mocks.createBudget.mockResolvedValue({ id: 'budget-2', name: 'Trip' });
   mocks.createItem.mockResolvedValue({ id: 'item-new' });
   mocks.updateItem.mockResolvedValue({ id: 'item-1' });
@@ -62,6 +67,21 @@ beforeEach(() => {
 afterEach(() => cleanup());
 
 describe('BudgetsPage', () => {
+  it('lets ADMIN select another user and manage that user’s budget items', async () => {
+    mocks.admin = { id: 'admin-1', username: 'admin_finance', permissions: ['BUDGET', 'ADMIN'] };
+    mocks.budgetUsers = [{
+      id: 'owner-2', username: 'pedro', budgets: [{ id: 'budget-2', name: 'Home', createdAt: '2026-10-01T00:00:00.000Z' }],
+    }];
+    renderPage();
+
+    expect(await screen.findByRole('button', { name: /pedro/ })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Home' })).toBeInTheDocument();
+    expect(screen.getByText('Groceries')).toBeInTheDocument();
+    expect(screen.getByLabelText('Budget name')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Edit: Groceries' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Remove: Groceries' })).toBeInTheDocument();
+  });
+
   it('shows private budgets, signed total, and defaults item dates to the local current date', async () => {
     renderPage();
 

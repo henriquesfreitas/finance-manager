@@ -1,5 +1,9 @@
 import { request } from './api-client';
-import type { Budget, BudgetItem, BudgetWithItems, CreateBudgetItemData } from '../types/budget';
+import type { Budget, BudgetItem, BudgetUser, BudgetWithItems, CreateBudgetItemData } from '../types/budget';
+
+export function fetchBudgetUsers(): Promise<BudgetUser[]> {
+  return request<BudgetUser[]>('/api/budgets/users');
+}
 
 export function fetchBudgets(): Promise<Budget[]> {
   return request<Budget[]>('/api/budgets');

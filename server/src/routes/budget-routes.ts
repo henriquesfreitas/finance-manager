@@ -31,8 +31,32 @@ function validationError(res: Response, error: z.ZodError): void {
   res.status(400).json({ error: 'Validation failed', details: error.issues });
 }
 
+function hasAdminPermission(req: Request): boolean {
+  return req.permissions?.includes('ADMIN') ?? false;
+}
+
 export function createBudgetRouter(): Router {
   const router = Router();
+
+  router.get('/budgets/users', async (req: Request, res: Response) => {
+    if (!hasAdminPermission(req)) {
+      res.status(403).json({ error: 'Permission denied' });
+      return;
+    }
+    const users = await prisma.adminUser.findMany({
+      where: { budgets: { some: {} } },
+      select: {
+        id: true,
+        username: true,
+        budgets: {
+          orderBy: [{ createdAt: 'desc' }, { id: 'asc' }],
+          select: { id: true, name: true, createdAt: true },
+        },
+      },
+      orderBy: { username: 'asc' },
+    });
+    res.json(users);
+  });
 
   router.get('/budgets', async (req: Request, res: Response) => {
     const ownerId = adminIdFromRequest(req, res);
@@ -60,7 +84,7 @@ export function createBudgetRouter(): Router {
     const ownerId = adminIdFromRequest(req, res);
     if (!ownerId) return;
     const budget = await prisma.budget.findFirst({
-      where: { id: req.params['budgetId'] as string, ownerId },
+      where: { id: req.params['budgetId'] as string, ...(hasAdminPermission(req) ? {} : { ownerId }) },
       include: { items: { orderBy: [{ itemDate: 'desc' }, { createdAt: 'desc' }] } },
     });
     if (!budget) {
@@ -79,7 +103,7 @@ export function createBudgetRouter(): Router {
       return;
     }
     const budgetId = req.params['budgetId'] as string;
-    const budget = await prisma.budget.findFirst({ where: { id: budgetId, ownerId }, select: { id: true } });
+    const budget = await prisma.budget.findFirst({ where: { id: budgetId, ...(hasAdminPermission(req) ? {} : { ownerId }) }, select: { id: true } });
     if (!budget) {
       res.status(404).json({ error: 'Budget not found' });
       return;
@@ -108,7 +132,7 @@ export function createBudgetRouter(): Router {
     const budgetId = req.params['budgetId'] as string;
     const itemId = req.params['itemId'] as string;
     const existing = await prisma.budgetItem.findFirst({
-      where: { id: itemId, budgetId, budget: { ownerId } },
+      where: { id: itemId, budgetId, ...(hasAdminPermission(req) ? {} : { budget: { ownerId } }) },
       select: { id: true },
     });
     if (!existing) {
@@ -134,7 +158,7 @@ export function createBudgetRouter(): Router {
     const budgetId = req.params['budgetId'] as string;
     const itemId = req.params['itemId'] as string;
     const existing = await prisma.budgetItem.findFirst({
-      where: { id: itemId, budgetId, budget: { ownerId } },
+      where: { id: itemId, budgetId, ...(hasAdminPermission(req) ? {} : { budget: { ownerId } }) },
       select: { id: true },
     });
     if (!existing) {

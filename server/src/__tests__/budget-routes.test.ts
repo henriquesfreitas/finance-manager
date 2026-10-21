@@ -4,6 +4,7 @@ import request from 'supertest';
 import type { AppPermission } from '@prisma/client';
 
 const fakePrisma = {
+  adminUser: { findMany: vi.fn() },
   budget: {
     findMany: vi.fn(),
     findFirst: vi.fn(),
@@ -60,6 +61,20 @@ describe('budget routes', () => {
     expect(fakePrisma.budget.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: { ownerId: 'owner-2' } }));
   });
 
+  it('lists only users that have budgets for ADMIN users', async () => {
+    fakePrisma.adminUser.findMany.mockResolvedValueOnce([{ id: 'owner-2', username: 'pedro', budgets: [{ id: 'budget-1' }] }]);
+    const response = await request(buildApp()).get('/api/budgets/users').set('x-permissions', 'BUDGET,ADMIN');
+    expect(response.status).toBe(200);
+    expect(fakePrisma.adminUser.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: { budgets: { some: {} } } }));
+    expect(response.body).toEqual([{ id: 'owner-2', username: 'pedro', budgets: [{ id: 'budget-1' }] }]);
+  });
+
+  it('denies the user list to users without ADMIN permission', async () => {
+    const response = await request(buildApp()).get('/api/budgets/users');
+    expect(response.status).toBe(403);
+    expect(fakePrisma.adminUser.findMany).not.toHaveBeenCalled();
+  });
+
   it('creates a budget using the session owner and a trimmed name', async () => {
     fakePrisma.budget.create.mockResolvedValueOnce({ id: 'budget-1', name: 'Travel', ownerId: 'owner-2' });
     const response = await request(buildApp()).post('/api/budgets').set('x-admin-id', 'owner-2').send({ name: ' Travel ' });
@@ -74,6 +89,13 @@ describe('budget routes', () => {
     expect(fakePrisma.budget.findFirst).toHaveBeenCalledWith(expect.objectContaining({ where: { id: 'private-budget', ownerId: 'owner-2' } }));
   });
 
+  it('allows ADMIN to view another owner budget', async () => {
+    fakePrisma.budget.findFirst.mockResolvedValueOnce({ id: 'shared-budget', ownerId: 'owner-2', items: [] });
+    const response = await request(buildApp()).get('/api/budgets/shared-budget').set('x-permissions', 'BUDGET,ADMIN');
+    expect(response.status).toBe(200);
+    expect(fakePrisma.budget.findFirst).toHaveBeenCalledWith(expect.objectContaining({ where: { id: 'shared-budget' } }));
+  });
+
   it('creates signed item values under a budget owned by the session user', async () => {
     fakePrisma.budget.findFirst.mockResolvedValueOnce({ id: 'budget-1' });
     fakePrisma.budgetItem.create.mockResolvedValueOnce({ id: 'item-1', budgetId: 'budget-1', ...itemPayload });
@@ -81,6 +103,24 @@ describe('budget routes', () => {
     expect(response.status).toBe(201);
     expect(fakePrisma.budget.findFirst).toHaveBeenCalledWith({ where: { id: 'budget-1', ownerId: 'owner-2' }, select: { id: true } });
     expect(fakePrisma.budgetItem.create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ budgetId: 'budget-1', value: -12.5 }) }));
+  });
+
+  it('allows ADMIN to add, edit, and remove items in another user budget', async () => {
+    fakePrisma.budget.findFirst.mockResolvedValueOnce({ id: 'shared-budget' });
+    fakePrisma.budgetItem.create.mockResolvedValueOnce({ id: 'new-item' });
+    fakePrisma.budgetItem.findFirst.mockResolvedValue({ id: 'existing-item' });
+    fakePrisma.budgetItem.update.mockResolvedValueOnce({ id: 'existing-item' });
+
+    const app = buildApp();
+    const create = await request(app).post('/api/budgets/shared-budget/items').set('x-permissions', 'BUDGET,ADMIN').send(itemPayload);
+    const update = await request(app).put('/api/budgets/shared-budget/items/existing-item').set('x-permissions', 'BUDGET,ADMIN').send(itemPayload);
+    const remove = await request(app).delete('/api/budgets/shared-budget/items/existing-item').set('x-permissions', 'BUDGET,ADMIN');
+
+    expect(create.status).toBe(201);
+    expect(update.status).toBe(200);
+    expect(remove.status).toBe(204);
+    expect(fakePrisma.budget.findFirst).toHaveBeenCalledWith(expect.objectContaining({ where: { id: 'shared-budget' } }));
+    expect(fakePrisma.budgetItem.findFirst).toHaveBeenCalledWith(expect.objectContaining({ where: { id: 'existing-item', budgetId: 'shared-budget' } }));
   });
 
   it('defaults a new item to unpaid and rejects invalid precision and dates', async () => {

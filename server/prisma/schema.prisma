@@ -152,6 +152,7 @@ enum AppPermission {
   INVESTMENTS
   BILLS_CONTROL
   BUDGET
+  ADMIN
 }
 
 model Budget {

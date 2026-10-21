@@ -241,7 +241,7 @@ The table has an index on (`budgetId`, `itemDate`, `createdAt`) for listing a bu
 | `OrderType` | `BUY`, `SELL`, `BONUS`, `SPLIT` |
 | `BillPayer` | `HENRIQUE`, `AMANDA` |
 | `BillType` | `INTERNET`, `CLEANING`, `CONDOMINIO`, `ENERGY`, `CARD`, `OTHER`, `RECEIVED` |
-| `AppPermission` | `INVESTMENTS`, `BILLS_CONTROL`, `BUDGET` |
+| `AppPermission` | `INVESTMENTS`, `BILLS_CONTROL`, `BUDGET`, `ADMIN` |
 
 ## Updating this reference
 
