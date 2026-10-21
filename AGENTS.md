@@ -15,6 +15,7 @@
 - Use `unknown` and narrow values instead of `any`. Add explicit types at public boundaries when they improve clarity; avoid annotations that only restate obvious inference.
 - Keep non-obvious business decisions and invariants documented in `PROJECT_RULES.md`. Add code comments when they explain why a choice exists, not merely what the next line does.
 - When a database schema or migration changes tables, columns, relationships, indexes, or enums, update [`DATABASE_SCHEMA.md`](DATABASE_SCHEMA.md) in the same change.
+- When adding or changing a persistent data module, make sure `scripts/backup-db.sh` detects changes to its tables, including updates and deletions, and update the backup inventory in `README.md`. The backup dump covers the full database; the change detector must also cover the module so its data triggers a backup.
 - Preserve the existing English and Portuguese UI support when changing user-facing copy.
 - Do not hand-edit generated shadcn primitives under `client/src/components/ui/`; update them through the project's shadcn tooling when needed.
 - Preserve security boundaries: do not expose secrets, password hashes, or session tokens in client responses or logs. When changing routes, preserve authentication and permission checks.

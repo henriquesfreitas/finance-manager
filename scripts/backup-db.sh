@@ -183,6 +183,12 @@ LATEST_CHANGE=$(psql_query '
     || (SELECT md5(COALESCE(string_agg(to_jsonb(b)::text, '"'"''"'"' ORDER BY b.id), '"'"''"'"')) FROM bills AS b)
     || '"'"'|'"'"'
     || (SELECT md5(COALESCE(string_agg(to_jsonb(s)::text, '"'"''"'"' ORDER BY s.month), '"'"''"'"')) FROM bill_month_settlements AS s)
+    || '"'"'|'"'"'
+    || (SELECT md5(COALESCE(string_agg(to_jsonb(u)::text, '"'"''"'"' ORDER BY u.id), '"'"''"'"')) FROM admin_users AS u)
+    || '"'"'|'"'"'
+    || (SELECT md5(COALESCE(string_agg(to_jsonb(b)::text, '"'"''"'"' ORDER BY b.id), '"'"''"'"')) FROM budgets AS b)
+    || '"'"'|'"'"'
+    || (SELECT md5(COALESCE(string_agg(to_jsonb(i)::text, '"'"''"'"' ORDER BY i.id), '"'"''"'"')) FROM budget_items AS i)
   FROM (
     SELECT MAX("updatedAt") AS latest FROM investments
     UNION ALL
@@ -191,6 +197,12 @@ LATEST_CHANGE=$(psql_query '
     SELECT MAX("updatedAt") AS latest FROM comments
     UNION ALL
     SELECT MAX("createdAt") AS latest FROM treasury_products
+    UNION ALL
+    SELECT MAX("updatedAt") AS latest FROM admin_users
+    UNION ALL
+    SELECT MAX("createdAt") AS latest FROM budgets
+    UNION ALL
+    SELECT MAX("updatedAt") AS latest FROM budget_items
     UNION ALL
     SELECT MAX("updatedAt") AS latest FROM bill_month_settlements
   ) sub;
