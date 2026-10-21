@@ -199,6 +199,7 @@ export function HomePage(): React.JSX.Element {
                 )}
               </div>
               {admin?.permissions.includes('BILLS_CONTROL') && <a href="/bills-control" className="shrink-0 text-sm text-white/90 hover:text-white hover:underline sm:text-base lg:text-lg">Bills Control</a>}
+              {admin?.permissions.includes('BUDGET') && <a href="/budgets" className="shrink-0 text-sm text-white/90 hover:text-white hover:underline sm:text-base lg:text-lg">Budgets</a>}
               <ThemeToggle onHeader />
               <Button
                 variant="ghost"

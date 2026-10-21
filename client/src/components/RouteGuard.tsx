@@ -96,6 +96,8 @@ export function RouteGuard({
   const isOnLoginPage = currentPath === LOGIN_PATH;
   const canAccessInvestments = admin?.permissions.includes('INVESTMENTS') ?? false;
   const canAccessBills = admin?.permissions.includes('BILLS_CONTROL') ?? false;
+  const canAccessBudgets = admin?.permissions.includes('BUDGET') ?? false;
+  const defaultPath = canAccessInvestments ? '/' : canAccessBills ? '/bills-control' : canAccessBudgets ? '/budgets' : '/login';
 
   // Not authenticated and not already on login → redirect preserving path
   // so it can be restored after login (Req 4.1).
@@ -115,22 +117,25 @@ export function RouteGuard({
     const safeReturnTo = returnTo?.startsWith('/') && !returnTo.startsWith('//') ? returnTo : null;
     const returnPath = safeReturnTo?.split(/[?#]/, 1)[0];
     const target = safeReturnTo && returnPath !== LOGIN_PATH
-      && (returnPath === '/bills-control' ? canAccessBills : canAccessInvestments)
+      && (returnPath === '/bills-control' ? canAccessBills : returnPath === '/budgets' ? canAccessBudgets : canAccessInvestments)
       ? safeReturnTo
-      : canAccessInvestments
-        ? '/'
-        : '/bills-control';
+      : defaultPath;
     locationService.replace(target);
     return <FullPageSpinner />;
   }
 
   if (isAuthenticated && currentPath === '/bills-control' && !canAccessBills) {
-    locationService.replace(canAccessInvestments ? '/' : '/login');
+    locationService.replace(defaultPath);
     return <FullPageSpinner />;
   }
 
-  if (isAuthenticated && currentPath !== '/bills-control' && !isOnLoginPage && !canAccessInvestments) {
-    locationService.replace(canAccessBills ? '/bills-control' : '/login');
+  if (isAuthenticated && currentPath === '/budgets' && !canAccessBudgets) {
+    locationService.replace(defaultPath);
+    return <FullPageSpinner />;
+  }
+
+  if (isAuthenticated && currentPath !== '/bills-control' && currentPath !== '/budgets' && !isOnLoginPage && !canAccessInvestments) {
+    locationService.replace(defaultPath);
     return <FullPageSpinner />;
   }
 

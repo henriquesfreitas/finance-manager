@@ -122,6 +122,19 @@ describe('seedAdmin — successful seeding', () => {
     expect(call.create.username).toBe('admin');
     expect(call.update).toHaveProperty('passwordHash');
     expect(call.create).toHaveProperty('passwordHash');
+    expect(call.create.permissions).not.toContain('BUDGET');
+  });
+
+  it('grants BUDGET only when the seeded username is admin_finance', async () => {
+    process.env['ADMIN_USERNAME'] = 'admin_finance';
+    const upsert = vi.fn().mockResolvedValue({ id: 'admin-1', username: 'admin_finance' });
+    const seedAdmin = await importSeedAdmin();
+
+    await seedAdmin(makeFakePrisma(upsert));
+
+    const call = upsert.mock.calls[0]?.[0];
+    expect(call.create.permissions).toContain('BUDGET');
+    expect(call.update.permissions).toContain('BUDGET');
   });
 
   it('stores a bcrypt hash, not the plaintext password', async () => {

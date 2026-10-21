@@ -263,6 +263,7 @@ export function BillsControlPage(): React.JSX.Element {
           <div className="flex w-full items-center justify-end gap-2 sm:w-auto sm:gap-5">
             <nav aria-label={language === 'pt' ? 'Menu principal' : 'Main menu'} className="flex shrink-0 items-center gap-3 py-1 text-sm sm:gap-4 sm:py-0 sm:text-base lg:text-lg">
               {admin?.permissions.includes('INVESTMENTS') && <a href="/" className="shrink-0 text-white/90 hover:text-white hover:underline">{copy.investments}</a>}
+              {admin?.permissions.includes('BUDGET') && <a href="/budgets" className="shrink-0 text-white/90 hover:text-white hover:underline">{copy.budgets}</a>}
             </nav>
             <div className="flex shrink-0 items-center gap-1 sm:gap-2">
               <span aria-current="page" className="shrink-0 text-sm underline underline-offset-4 text-white/90 sm:text-base lg:text-lg">{copy.billsControl}</span>

@@ -26,7 +26,7 @@ export function saveBillsLanguage(language: BillsLanguage): void {
 
 export const billsCopy = {
   en: {
-    billsControl: 'Bills Control', investments: 'Investments', backToInvestments: 'Back to Investments',
+    billsControl: 'Bills Control', investments: 'Investments', budgets: 'Budgets', backToInvestments: 'Back to Investments',
     language: 'Language', english: 'English', portuguese: 'Portugu\u00eas (Brasil)', signOut: 'Sign out', signingOut: 'Signing out...',
     addBill: 'Add a bill', editBill: 'Edit bill', saveChanges: 'Save changes', cancel: 'Cancel',
     editDescription: 'Update the amount, allocation month, payer, bill responsibility, or payment status.', copiedValues: 'Bill values copied below. Review and edit them before adding.',
@@ -51,7 +51,7 @@ export const billsCopy = {
     payerNames: { HENRIQUE: 'Henrique', AMANDA: 'Amanda' }, typeNames: { INTERNET: 'Internet', CLEANING: 'Cleaning', CONDOMINIO: 'Condominium', ENERGY: 'Energy', CARD: 'Card', OTHER: 'Other', RECEIVED: 'Shared amount received' },
   },
   pt: {
-    billsControl: 'Controle de contas', investments: 'Investimentos', backToInvestments: 'Voltar para investimentos',
+    billsControl: 'Controle de contas', investments: 'Investimentos', budgets: 'Orçamentos', backToInvestments: 'Voltar para investimentos',
     language: 'Idioma', english: 'English', portuguese: 'Portugu\u00eas (Brasil)', signOut: 'Sair', signingOut: 'Saindo...',
     addBill: 'Adicionar conta', editBill: 'Editar conta', saveChanges: 'Salvar altera\u00e7\u00f5es', cancel: 'Cancelar',
     editDescription: 'Atualize o valor, o m\u00eas de refer\u00eancia, o pagador, a responsabilidade ou o status do pagamento.', copiedValues: 'Os dados da conta foram copiados abaixo. Revise e edite antes de adicionar.',

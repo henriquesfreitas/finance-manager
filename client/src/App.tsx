@@ -6,6 +6,7 @@ import { RouteGuard } from './components/RouteGuard';
 import { LoginPage } from './pages/LoginPage';
 import { HomePage } from './pages/HomePage';
 import { BillsControlPage } from './pages/BillsControlPage';
+import { BudgetsPage } from './pages/BudgetsPage';
 import { ThemeProvider, useTheme } from './contexts/theme-context';
 
 // QueryClient is created outside the component so it isn't re-created on re-renders
@@ -26,6 +27,7 @@ const queryClient = new QueryClient({
 function AppContent(): React.JSX.Element {
   const isLoginPage = window.location.pathname === '/login';
   const isBillsControlPage = window.location.pathname === '/bills-control';
+  const isBudgetsPage = window.location.pathname === '/budgets';
 
   if (isLoginPage) {
     return <LoginPage />;
@@ -33,6 +35,10 @@ function AppContent(): React.JSX.Element {
 
   if (isBillsControlPage) {
     return <BillsControlPage />;
+  }
+
+  if (isBudgetsPage) {
+    return <BudgetsPage />;
   }
 
   return <HomePage />;

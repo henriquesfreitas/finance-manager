@@ -143,6 +143,7 @@ model AdminUser {
   createdAt    DateTime       @default(now())
   updatedAt    DateTime       @updatedAt
   sessions     AdminSession[]
+  budgets      Budget[]
 
   @@map("admin_users")
 }
@@ -150,6 +151,35 @@ model AdminUser {
 enum AppPermission {
   INVESTMENTS
   BILLS_CONTROL
+  BUDGET
+}
+
+model Budget {
+  id        String       @id @default(uuid())
+  name      String       @db.VarChar(200)
+  ownerId   String
+  owner     AdminUser    @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  createdAt DateTime     @default(now())
+  items     BudgetItem[]
+
+  @@index([ownerId, createdAt])
+  @@map("budgets")
+}
+
+model BudgetItem {
+  id               String   @id @default(uuid())
+  budgetId         String
+  budget           Budget   @relation(fields: [budgetId], references: [id], onDelete: Cascade)
+  value            Decimal  @db.Decimal(18, 2)
+  itemDate         DateTime @db.Date
+  description      String?  @db.VarChar(500)
+  additionalInfo   String?  @db.VarChar(2000)
+  isPaid           Boolean  @default(false)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([budgetId, itemDate, createdAt])
+  @@map("budget_items")
 }
 
 model AdminSession {

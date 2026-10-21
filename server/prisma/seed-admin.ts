@@ -36,11 +36,14 @@ export async function seedAdmin(prisma: PrismaClient): Promise<void> {
   }
 
   const passwordHash = await bcrypt.hash(password, BCRYPT_COST_FACTOR);
+  const permissions = username === 'admin_finance'
+    ? ['INVESTMENTS', 'BILLS_CONTROL', 'BUDGET'] as const
+    : ['INVESTMENTS', 'BILLS_CONTROL'] as const;
 
   await prisma.adminUser.upsert({
     where: { username },
-    update: { passwordHash, permissions: ['INVESTMENTS', 'BILLS_CONTROL'] },
-    create: { username, passwordHash, permissions: ['INVESTMENTS', 'BILLS_CONTROL'] },
+    update: { passwordHash, permissions: [...permissions] },
+    create: { username, passwordHash, permissions: [...permissions] },
   });
 
   console.log(`Admin user "${username}" seeded successfully.`);

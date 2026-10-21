@@ -179,6 +179,27 @@ describe('RouteGuard — authenticated user', () => {
     expect(loc.replace).toHaveBeenCalledWith('/');
     expect(screen.queryByText('Login form')).not.toBeInTheDocument();
   });
+
+  it('sends a user with only BUDGET access to budgets after login', () => {
+    mockUseAuth.mockImplementation(() => ({
+      ...authState({ isAuthenticated: true }),
+      admin: { id: 'admin-1', username: 'admin_finance', permissions: ['BUDGET'] },
+    }));
+    const loc = makeLocationService('/login');
+
+    render(React.createElement(RouteGuard, { locationService: loc }, React.createElement('div', null, 'Login form')));
+
+    expect(loc.replace).toHaveBeenCalledWith('/budgets');
+  });
+
+  it('redirects users without BUDGET permission away from budgets', () => {
+    mockUseAuth.mockImplementation(() => authState({ isAuthenticated: true }));
+    const loc = makeLocationService('/budgets');
+
+    render(React.createElement(RouteGuard, { locationService: loc }, React.createElement('div', null, 'Protected content')));
+
+    expect(loc.replace).toHaveBeenCalledWith('/');
+  });
 });
 
 describe('RouteGuard — spinner accessibility', () => {

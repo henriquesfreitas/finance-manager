@@ -10,6 +10,8 @@ erDiagram
     INVESTMENTS ||--o{ ORDERS : has
     INVESTMENTS ||--o{ COMMENTS : has
     ADMIN_USERS ||--o{ ADMIN_SESSIONS : has
+    ADMIN_USERS ||--o{ BUDGETS : owns
+    BUDGETS ||--o{ BUDGET_ITEMS : contains
 
     TREASURY_PRODUCTS {
         uuid id PK
@@ -81,6 +83,23 @@ erDiagram
         uuid adminId FK
         datetime expiresAt
         datetime createdAt
+    }
+    BUDGETS {
+        uuid id PK
+        string name
+        uuid ownerId FK
+        datetime createdAt
+    }
+    BUDGET_ITEMS {
+        uuid id PK
+        uuid budgetId FK
+        decimal value
+        date itemDate
+        varchar description "nullable"
+        varchar additionalInfo "nullable"
+        boolean isPaid
+        datetime createdAt
+        datetime updatedAt
     }
 ```
 
@@ -187,6 +206,33 @@ erDiagram
 
 `admin_sessions.token` also has an explicit index in addition to its unique constraint. `bills` has a composite index on (`billDate`, `createdAt`).
 
+### `budgets` (`Budget`)
+
+| Column | PostgreSQL type | Constraints and behavior |
+|---|---|---|
+| `id` | UUID | Primary key; generated UUID |
+| `name` | VARCHAR(200) | Required |
+| `ownerId` | UUID | Required foreign key to `admin_users.id`; cascades on owner deletion |
+| `createdAt` | TIMESTAMP | Required; defaults to current time |
+
+The table has an index on (`ownerId`, `createdAt`) for owner-scoped budget listing.
+
+### `budget_items` (`BudgetItem`)
+
+| Column | PostgreSQL type | Constraints and behavior |
+|---|---|---|
+| `id` | UUID | Primary key; generated UUID |
+| `budgetId` | UUID | Required foreign key to `budgets.id`; cascades on budget deletion |
+| `value` | NUMERIC(18, 2) | Required; signed amount |
+| `itemDate` | DATE | Required |
+| `description` | VARCHAR(500) | Nullable |
+| `additionalInfo` | VARCHAR(2000) | Nullable |
+| `isPaid` | BOOLEAN | Required; defaults to `false` |
+| `createdAt` | TIMESTAMP | Required; defaults to current time |
+| `updatedAt` | TIMESTAMP | Required; maintained by Prisma on update |
+
+The table has an index on (`budgetId`, `itemDate`, `createdAt`) for listing a budget's items.
+
 ## Enums
 
 | Enum | Values |
@@ -195,7 +241,7 @@ erDiagram
 | `OrderType` | `BUY`, `SELL`, `BONUS`, `SPLIT` |
 | `BillPayer` | `HENRIQUE`, `AMANDA` |
 | `BillType` | `INTERNET`, `CLEANING`, `CONDOMINIO`, `ENERGY`, `CARD`, `OTHER`, `RECEIVED` |
-| `AppPermission` | `INVESTMENTS`, `BILLS_CONTROL` |
+| `AppPermission` | `INVESTMENTS`, `BILLS_CONTROL`, `BUDGET` |
 
 ## Updating this reference
 
