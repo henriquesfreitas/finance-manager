@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { AlertCircle, RefreshCw, LogOut, Loader2, Menu, X, Search } from 'lucide-react';
+import { AlertCircle, RefreshCw, LogOut, Loader2, ChevronDown, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { AddInvestmentForm } from '@/components/AddInvestmentForm';
 import { InvestmentTable } from '@/components/InvestmentTable';
@@ -31,7 +31,7 @@ export function HomePage(): React.JSX.Element {
   const { logout, admin } = useAuth();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [watchlistOpen, setWatchlistOpen] = useState(false);
-  const [floatingMenuOpen, setFloatingMenuOpen] = useState(false);
+  const [investmentMenuOpen, setInvestmentMenuOpen] = useState(false);
   const hasPlannedBuys = investments.some((investment) => investment.targetBuyQuantity !== null
     && Number.isFinite(Number(investment.targetBuyQuantity))
     && Number(investment.targetBuyQuantity) > 0);
@@ -130,7 +130,7 @@ export function HomePage(): React.JSX.Element {
 
   function navigateToSection(sectionId: string): void {
     if (sectionId === 'watchlist') setWatchlistOpen(true);
-    setFloatingMenuOpen(false);
+    setInvestmentMenuOpen(false);
     requestAnimationFrame(() => {
       document.getElementById(sectionId)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     });
@@ -152,12 +152,52 @@ export function HomePage(): React.JSX.Element {
             )}
           />
           <div className="flex w-full items-center justify-between gap-2 sm:w-auto sm:justify-end sm:gap-5">
-            <nav aria-label="Page menu" className="flex min-w-0 flex-1 items-center gap-3 overflow-x-auto py-1 text-sm sm:flex-none sm:gap-4 sm:overflow-visible sm:py-0 sm:text-base lg:text-lg">
-              <PortfolioAllocationDialog investments={investments} />
-              {hasPlannedBuys && <a href="#planned-buys" className="shrink-0 text-white/90 hover:text-white hover:underline">Planned Buys</a>}
-              {hasWatchlist && <a href="#watchlist" onClick={() => setWatchlistOpen(true)} className="shrink-0 text-white/90 hover:text-white hover:underline">Watchlist</a>}
-            </nav>
-            <div className="flex shrink-0 items-center gap-1 sm:gap-2">
+            <div className="flex w-full shrink-0 items-center justify-between gap-1 sm:w-auto sm:justify-end sm:gap-2">
+              <div className="relative">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="shrink-0 gap-1 text-sm text-white/90 hover:bg-white/15 hover:text-white sm:text-base lg:text-lg"
+                  aria-haspopup="true"
+                  aria-expanded={investmentMenuOpen}
+                  aria-controls="investment-menu"
+                  onClick={() => setInvestmentMenuOpen((open) => !open)}
+                >
+                  Investment
+                  <ChevronDown className={`h-4 w-4 transition-transform ${investmentMenuOpen ? 'rotate-180' : ''}`} />
+                </Button>
+                {investmentMenuOpen && (
+                  <nav
+                    id="investment-menu"
+                    aria-label="Investment"
+                    className="absolute right-0 top-full z-50 mt-2 grid min-w-44 gap-1 rounded-lg border bg-popover p-2 text-popover-foreground shadow-xl"
+                  >
+                    <PortfolioAllocationDialog
+                      investments={investments}
+                      inMenu
+                    />
+                    {hasPlannedBuys && (
+                      <button
+                        type="button"
+                        className="rounded-md px-3 py-2 text-left text-sm hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        onClick={() => navigateToSection('planned-buys')}
+                      >
+                        Planned Buys
+                      </button>
+                    )}
+                    {hasWatchlist && (
+                      <button
+                        type="button"
+                        className="rounded-md px-3 py-2 text-left text-sm hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        onClick={() => navigateToSection('watchlist')}
+                      >
+                        Watchlist
+                      </button>
+                    )}
+                  </nav>
+                )}
+              </div>
               {admin?.permissions.includes('BILLS_CONTROL') && <a href="/bills-control" className="shrink-0 text-sm text-white/90 hover:text-white hover:underline sm:text-base lg:text-lg">Bills Control</a>}
               <ThemeToggle onHeader />
               <Button
@@ -232,59 +272,6 @@ export function HomePage(): React.JSX.Element {
       </section>
 
       {/* ── Comment modal ─────────────────────────────────────────────────────── */}
-      <div
-        className="fixed bottom-4 right-4 z-50 flex flex-col items-end sm:bottom-6 sm:right-6"
-        onKeyDown={(event) => {
-          if (event.key === 'Escape') setFloatingMenuOpen(false);
-        }}
-      >
-        {floatingMenuOpen && (
-          <nav
-            id="floating-page-navigation"
-            aria-label="Page navigation menu"
-            className="mb-3 grid min-w-44 gap-1 rounded-lg border bg-popover p-2 text-popover-foreground shadow-xl"
-          >
-            <button
-              type="button"
-              className="rounded-md px-3 py-2 text-left text-sm hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              onClick={() => navigateToSection('top')}
-            >
-              Go to top
-            </button>
-            {hasPlannedBuys && (
-              <button
-                type="button"
-                className="rounded-md px-3 py-2 text-left text-sm hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                onClick={() => navigateToSection('planned-buys')}
-              >
-                Planned Buys
-              </button>
-            )}
-            {hasWatchlist && (
-              <button
-                type="button"
-                className="rounded-md px-3 py-2 text-left text-sm hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                onClick={() => navigateToSection('watchlist')}
-              >
-                Watchlist
-              </button>
-            )}
-          </nav>
-        )}
-        <Button
-          type="button"
-          size="icon"
-          aria-label={floatingMenuOpen ? 'Close page navigation' : 'Open page navigation'}
-          aria-haspopup="true"
-          aria-expanded={floatingMenuOpen}
-          aria-controls="floating-page-navigation"
-          className="h-14 w-14 rounded-full shadow-lg"
-          onClick={() => setFloatingMenuOpen((open) => !open)}
-        >
-          {floatingMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-        </Button>
-      </div>
-
       <CommentModal
         open={commentModalOpen}
         onOpenChange={handleCommentModalOpenChange}

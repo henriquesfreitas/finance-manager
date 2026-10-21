@@ -36,7 +36,12 @@ function formatCurrency(value: number): string {
   return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 }
 
-export function PortfolioAllocationDialog({ investments }: { investments: InvestmentListItem[] }): React.JSX.Element {
+interface PortfolioAllocationDialogProps {
+  investments: InvestmentListItem[];
+  inMenu?: boolean;
+}
+
+export function PortfolioAllocationDialog({ investments, inMenu = false }: PortfolioAllocationDialogProps): React.JSX.Element {
   const [open, setOpen] = useState(false);
   const allocation = useMemo(() => {
     const totals = new Map<string, number>(GROUPS.map(({ name }) => [name, 0]));
@@ -59,13 +64,15 @@ export function PortfolioAllocationDialog({ investments }: { investments: Invest
     <>
       <Button
         type="button"
-        variant="outline"
+        variant={inMenu ? 'ghost' : 'outline'}
         size="sm"
-        className="border-white/40 bg-white/10 px-2 text-white hover:bg-white/20 hover:text-white sm:px-3"
+        className={inMenu
+          ? 'w-full justify-start rounded-md px-3 py-2 text-left text-sm font-normal text-popover-foreground hover:bg-accent hover:text-accent-foreground'
+          : 'border-white/40 bg-white/10 px-2 text-white hover:bg-white/20 hover:text-white sm:px-3'}
         onClick={() => setOpen(true)}
       >
-        <PieChart className="h-4 w-4 sm:mr-2" />
-        <span className="sr-only sm:not-sr-only">Portfolio Allocation</span>
+        <PieChart className={`h-4 w-4 ${inMenu ? 'mr-2' : 'sm:mr-2'}`} />
+        <span className={inMenu ? '' : 'sr-only sm:not-sr-only'}>Portfolio Allocation</span>
       </Button>
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="sm:max-w-[760px]">
