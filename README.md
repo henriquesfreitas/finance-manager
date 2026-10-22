@@ -282,6 +282,19 @@ The `RESEND_API_KEY` is send-only scoped — it cannot read email or access your
 
 `scripts/deploy.sh` installs an idempotent daily schedule for 03:00 America/Sao_Paulo. It runs the client and server unit test suites in an isolated Docker container; the production database is not connected. Test failures include the last output from the run in Telegram, whether the run was scheduled or started manually. Set both `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID` in the production `.env`.
 
+### Routine production updates
+
+For routine updates on the VPS, run `bash scripts/update-prod.sh` with one of these modes. Every mode requires a clean checkout on `master` and pulls `origin/master` with fast-forward only before changing containers:
+
+```bash
+bash scripts/update-prod.sh frontend      # rebuild and start the client
+bash scripts/update-prod.sh backend       # rebuild and start the server
+bash scripts/update-prod.sh both          # rebuild and start server and client
+bash scripts/update-prod.sh both-migrate  # build both, migrate the database, then start both
+```
+
+The migration mode applies Prisma migrations after building the new images and before replacing the running server and client. Use it when deploying database schema changes. `scripts/deploy.sh` remains the full deployment setup script.
+
 To run the same tests manually on the VPS, use:
 
 ```bash
