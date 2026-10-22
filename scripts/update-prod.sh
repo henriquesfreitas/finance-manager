@@ -39,11 +39,6 @@ if [[ "$CURRENT_BRANCH" != "master" ]]; then
   exit 1
 fi
 
-if [[ -n "$(git status --porcelain)" ]]; then
-  echo "ERROR: Working tree is not clean. Commit or stash local changes before updating production." >&2
-  exit 1
-fi
-
 COMPOSE=(docker compose --env-file .env -f docker-compose.prod.yml)
 
 echo "→ Pulling latest changes from origin/master..."

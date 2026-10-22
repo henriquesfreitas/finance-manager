@@ -284,7 +284,7 @@ The `RESEND_API_KEY` is send-only scoped — it cannot read email or access your
 
 ### Routine production updates
 
-For routine updates on the VPS, run `bash scripts/update-prod.sh` with one of these modes. Every mode requires a clean checkout on `master` and pulls `origin/master` with fast-forward only before changing containers:
+For routine updates on the VPS, run `bash scripts/update-prod.sh` with one of these modes. Every mode requires the `master` branch and pulls `origin/master` with fast-forward only before changing containers. Local uncommitted changes are allowed; the script continues only if the pull succeeds. Docker builds use the resulting working tree, including any remaining local changes:
 
 ```bash
 bash scripts/update-prod.sh frontend      # rebuild and start the client
