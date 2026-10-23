@@ -24,7 +24,7 @@ import sys
 import time
 
 failure, mode = sys.argv[1], sys.argv[2]
-steps = ["pull", "build"] + (["migrate"] if mode == "both-migrate" else []) + ["start"]
+steps = ["pull"] if mode == "pull" else ["pull", "build"] + (["migrate"] if mode == "both-migrate" else []) + ["start"]
 for step in steps:
     print(f"BOT_STEP:{step}", flush=True)
     if step == "pull":
@@ -134,7 +134,24 @@ class TelegramUpdateBotTests(unittest.TestCase):
         self.bot.handle_message(self.message("/update arbitrary-shell-text"))
         messages = self.message_snapshot()
         self.assertEqual(len(messages), 3)
-        self.assertTrue(all("/update frontend" in message for message in messages))
+        self.assertTrue(all("/update pull" in message for message in messages))
+
+    def test_pull_mode_reports_pull_only_and_success(self) -> None:
+        self.bot.handle_message(self.message("/update pull"))
+        self.wait_for_idle()
+        messages = self.message_snapshot()
+        self.assertTrue(any("Git pull accepted" in message for message in messages))
+        self.assertTrue(any("Git pull: Pulling latest code" in message for message in messages))
+        self.assertTrue(any("Git pull finished successfully" in message for message in messages))
+        self.assertFalse(any("Building" in message or "Starting" in message for message in messages))
+
+    def test_pull_mode_failure_reports_pull_step(self) -> None:
+        self.bot = self.make_bot(failure="pull")
+        self.bot.handle_message(self.message("/update pull"))
+        self.wait_for_idle()
+        failure = next(message for message in self.message_snapshot() if "failed during" in message)
+        self.assertIn("Git pull failed during Pulling latest code", failure)
+        self.assertIn("synthetic failure during pull", failure)
 
     def test_commands_for_another_bot_are_ignored(self) -> None:
         self.bot.bot_username = "finance_manager_bot"

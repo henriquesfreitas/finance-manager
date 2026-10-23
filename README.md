@@ -285,9 +285,11 @@ The `RESEND_API_KEY` is send-only scoped — it cannot read email or access your
 
 ### Routine production updates
 
-For routine updates on the VPS, run `bash scripts/update-prod.sh` with one of these modes. Every mode requires the `master` branch and pulls `origin/master` with fast-forward only before changing containers. Local uncommitted changes are allowed; the script continues only if the pull succeeds. Docker builds use the resulting working tree, including any remaining local changes:
+For routine updates on the VPS, run `bash scripts/update-prod.sh` with one of these modes. Pull and deployment modes require the `master` branch and pull `origin/master` with fast-forward only. Local uncommitted changes are allowed; the script continues only if the pull succeeds. Docker builds use the resulting working tree, including any remaining local changes. Restart mode skips Git and restarts all production Compose services, including Postgres:
 
 ```bash
+bash scripts/update-prod.sh pull          # pull master only; do not change containers
+bash scripts/update-prod.sh restart      # restart all production Compose services
 bash scripts/update-prod.sh frontend      # rebuild and start the client
 bash scripts/update-prod.sh backend       # rebuild and start the server
 bash scripts/update-prod.sh both          # rebuild and start server and client
@@ -320,13 +322,15 @@ Send one of these commands in the private chat:
 
 ```text
 /help
+/update pull
+/update restart
 /update frontend
 /update backend
 /update both
 /update both-migrate
 ```
 
-The bot reports the pull, build, migration (when selected), and service start steps, then sends a final success or failure message. A failure includes the failed step and a short output tail; complete command output remains in the systemd journal. Only one update can run at a time. If another is active, the bot replies that it is busy.
+`/update pull` only pulls `origin/master` with fast-forward-only behavior; it does not build or restart containers. `/update restart` restarts all production Compose services, including Postgres, without pulling or building. The other commands run the selected deployment mode. The bot reports each step and sends a final success or failure message. A failure includes the failed step and a short output tail; complete command output remains in the systemd journal. Only one operation can run at a time. If another is active, the bot replies that it is busy.
 
 To run the same tests manually on the VPS, use:
 

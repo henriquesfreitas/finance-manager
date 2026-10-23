@@ -36,6 +36,8 @@ STEP_LABELS = {
 }
 HELP_TEXT = (
     "Available commands:\n"
+    "/update pull\n"
+    "/update restart\n"
     "/update frontend\n"
     "/update backend\n"
     "/update both\n"
@@ -224,12 +226,16 @@ class TelegramUpdateBot:
         if command != "/update":
             self.notify(HELP_TEXT)
             return
-        if len(parts) != 2 or parts[1] not in MODES:
-            self.notify(f"Usage: /update <frontend|backend|both|both-migrate>\n\n{HELP_TEXT}")
+        if len(parts) != 2 or (parts[1] not in MODES and parts[1] not in {"pull", "restart"}):
+            self.notify(f"Usage: /update <pull|restart|frontend|backend|both|both-migrate>\n\n{HELP_TEXT}")
             return
         self.start_update(parts[1])
 
     def _step_label(self, mode: str, step: str) -> str:
+        if mode == "pull":
+            return "Pulling latest code from origin/master"
+        if mode == "restart":
+            return "Restarting all production Compose services"
         if step == "build":
             return f"Building {MODE_SERVICES[mode]} image(s)"
         return STEP_LABELS.get(step, "Checking deployment prerequisites")
@@ -240,10 +246,15 @@ class TelegramUpdateBot:
             if not already_running:
                 self._busy = True
         if already_running:
-            self.notify("An update is already running. Please wait for it to finish.")
+            self.notify("A production update is already running. Please wait for it to finish.")
             return
 
-        self.notify(f"⏳ Update {mode} accepted. Starting deployment checks.")
+        if mode == "pull":
+            self.notify("⏳ Git pull accepted. Checking the master branch and pulling origin/master.")
+        elif mode == "restart":
+            self.notify("⏳ Restart accepted. Restarting production Compose services without pulling or building.")
+        else:
+            self.notify(f"⏳ Update {mode} accepted. Starting deployment checks.")
         worker = threading.Thread(target=self._run_update, args=(mode,), daemon=True)
         worker.start()
 
@@ -281,29 +292,41 @@ class TelegramUpdateBot:
                     LOG.info("update[%s] %s", mode, line)
                     if line.startswith("BOT_STEP:"):
                         candidate = line.partition(":")[2]
-                        if candidate in {"pull", "build", "migrate", "start"}:
+                        if candidate in {"pull", "build", "migrate", "start", "restart"}:
                             current_step = candidate
-                            self.notify(f"🔄 Update {mode}: {self._step_label(mode, current_step)}.")
+                            operation = "Git pull" if mode == "pull" else f"Update {mode}"
+                            if mode == "restart":
+                                operation = "Container restart"
+                            self.notify(f"🔄 {operation}: {self._step_label(mode, current_step)}.")
                     else:
                         output_tail.append(line)
             exit_code = process.wait()
             if exit_code == 0:
-                self.notify(f"✅ Update {mode} finished successfully.")
+                if mode == "pull":
+                    self.notify("✅ Git pull finished successfully. No containers were built or restarted.")
+                elif mode == "restart":
+                    self.notify("✅ Production Compose services restarted successfully.")
+                else:
+                    self.notify(f"✅ Update {mode} finished successfully.")
             else:
                 tail = "\n".join(output_tail)
                 if len(tail) > 1800:
                     tail = "…\n" + tail[-1800:]
                 details = f"\n\nLast output:\n{tail}" if tail else ""
+                operation = "Git pull" if mode == "pull" else f"Update {mode}"
+                if mode == "restart":
+                    operation = "Container restart"
                 self.notify(
-                    f"❌ Update {mode} failed during {self._step_label(mode, current_step)} "
+                    f"❌ {operation} failed during {self._step_label(mode, current_step)} "
                     f"(exit code {exit_code}).{details}"
                 )
         except Exception as error:
             LOG.exception("Update worker failed for mode %s", mode)
             detail = self._redact(str(error), self.config.token)[:800]
-            self.notify(
-                f"❌ Update {mode} failed during {self._step_label(mode, current_step)}.\n{detail}"
-            )
+            operation = "Git pull" if mode == "pull" else f"Update {mode}"
+            if mode == "restart":
+                operation = "Container restart"
+            self.notify(f"❌ {operation} failed during {self._step_label(mode, current_step)}.\n{detail}")
         finally:
             with self._state_lock:
                 self._busy = False

@@ -7,9 +7,11 @@ MODE="${1:-}"
 
 usage() {
   cat <<'USAGE'
-Usage: bash scripts/update-prod.sh <frontend|backend|both|both-migrate>
+Usage: bash scripts/update-prod.sh <pull|restart|frontend|backend|both|both-migrate>
 
 Modes:
+  pull          Pull master only; do not build or restart containers.
+  restart       Restart all production Compose services without pulling or building.
   frontend     Pull master, then rebuild and start the client.
   backend      Pull master, then rebuild and start the server.
   both         Pull master, then rebuild and start the server and client.
@@ -19,7 +21,7 @@ USAGE
 }
 
 case "$MODE" in
-  frontend|backend|both|both-migrate) ;;
+  pull|restart|frontend|backend|both|both-migrate) ;;
   *)
     usage >&2
     exit 2
@@ -28,14 +30,8 @@ esac
 
 cd "$PROJECT_DIR"
 
-if [[ ! -f .env ]]; then
+if [[ "$MODE" != "pull" && ! -f .env ]]; then
   echo "ERROR: .env file not found in $PROJECT_DIR." >&2
-  exit 1
-fi
-
-CURRENT_BRANCH="$(git branch --show-current)"
-if [[ "$CURRENT_BRANCH" != "master" ]]; then
-  echo "ERROR: Expected the master branch, but found '${CURRENT_BRANCH:-detached HEAD}'." >&2
   exit 1
 fi
 
@@ -45,9 +41,28 @@ report_step() {
   printf 'BOT_STEP:%s\n' "$1"
 }
 
+if [[ "$MODE" == "restart" ]]; then
+  report_step restart
+  echo "→ Restarting all production Compose services..."
+  "${COMPOSE[@]}" restart
+  echo "✓ Production Compose services restarted successfully."
+  exit 0
+fi
+
+CURRENT_BRANCH="$(git branch --show-current)"
+if [[ "$CURRENT_BRANCH" != "master" ]]; then
+  echo "ERROR: Expected the master branch, but found '${CURRENT_BRANCH:-detached HEAD}'." >&2
+  exit 1
+fi
+
 report_step pull
 echo "→ Pulling latest changes from origin/master..."
 git pull --ff-only origin master
+
+if [[ "$MODE" == "pull" ]]; then
+  echo "✓ Git pull completed successfully. Containers were not changed."
+  exit 0
+fi
 
 case "$MODE" in
   frontend)
