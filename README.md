@@ -235,6 +235,7 @@ BACKUP_FROM_EMAIL=backup@yourdomain.com   # verified sender in Resend
 RESEND_API_KEY=re_xxxxxxxxxxxxxxxxxxxx    # send-only key from resend.com
 TELEGRAM_BOT_TOKEN=                       # optional; create with @BotFather
 TELEGRAM_CHAT_ID=                         # optional; both Telegram values are required together
+TELEGRAM_ALLOWED_USER_ID=                 # numeric Telegram account ID allowed to run production updates
 ```
 
 ### Cron job
@@ -294,6 +295,38 @@ bash scripts/update-prod.sh both-migrate  # build both, migrate the database, th
 ```
 
 The migration mode applies Prisma migrations after building the new images and before replacing the running server and client. Use it when deploying database schema changes. `scripts/deploy.sh` remains the full deployment setup script.
+
+### Telegram production updates
+
+The Telegram bot can run these update modes from the existing private notification chat. Set `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID` as for the existing notifications, then set `TELEGRAM_ALLOWED_USER_ID` to your numeric Telegram account ID. For a one-to-one private chat, it is normally the same number as `TELEGRAM_CHAT_ID`, but configure it explicitly. Keep the bot token secret. The bot requires both the private chat ID and sender ID to match and silently ignores other users.
+
+Install it on the VPS while logged in as the project account that can run Docker:
+
+```bash
+bash scripts/install-telegram-update-bot.sh
+sudo systemctl status finance-manager-telegram-update-bot
+sudo journalctl -u finance-manager-telegram-update-bot -f
+```
+
+The installer checks that the bot has no webhook configured, then installs a systemd service that uses long polling; it does not open an inbound port or remove an existing webhook. On first startup, queued messages from before installation are discarded so an old command cannot start a deployment. If a webhook is configured, migrate or remove it deliberately before installing the poller.
+
+Restart the service after changing Telegram credentials or the allowed user ID:
+
+```bash
+sudo systemctl restart finance-manager-telegram-update-bot
+```
+
+Send one of these commands in the private chat:
+
+```text
+/help
+/update frontend
+/update backend
+/update both
+/update both-migrate
+```
+
+The bot reports the pull, build, migration (when selected), and service start steps, then sends a final success or failure message. A failure includes the failed step and a short output tail; complete command output remains in the systemd journal. Only one update can run at a time. If another is active, the bot replies that it is busy.
 
 To run the same tests manually on the VPS, use:
 

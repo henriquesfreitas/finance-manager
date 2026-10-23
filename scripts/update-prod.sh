@@ -41,29 +41,49 @@ fi
 
 COMPOSE=(docker compose --env-file .env -f docker-compose.prod.yml)
 
+report_step() {
+  printf 'BOT_STEP:%s\n' "$1"
+}
+
+report_step pull
 echo "→ Pulling latest changes from origin/master..."
 git pull --ff-only origin master
 
 case "$MODE" in
   frontend)
-    echo "→ Rebuilding and starting the client..."
-    "${COMPOSE[@]}" up -d --build --no-deps client
+    report_step build
+    echo "→ Building the client image..."
+    "${COMPOSE[@]}" build client
+    report_step start
+    echo "→ Starting the client..."
+    "${COMPOSE[@]}" up -d --no-deps client
     ;;
   backend)
-    echo "→ Rebuilding and starting the server..."
-    "${COMPOSE[@]}" up -d --build --no-deps server
+    report_step build
+    echo "→ Building the server image..."
+    "${COMPOSE[@]}" build server
+    report_step start
+    echo "→ Starting the server..."
+    "${COMPOSE[@]}" up -d --no-deps server
     ;;
   both)
-    echo "→ Rebuilding and starting the server and client..."
-    "${COMPOSE[@]}" up -d --build --no-deps server client
+    report_step build
+    echo "→ Building the server and client images..."
+    "${COMPOSE[@]}" build server client
+    report_step start
+    echo "→ Starting the server and client..."
+    "${COMPOSE[@]}" up -d --no-deps server client
     ;;
   both-migrate)
+    report_step build
     echo "→ Building the server and client images..."
     "${COMPOSE[@]}" build server client
 
+    report_step migrate
     echo "→ Applying database migrations..."
     "${COMPOSE[@]}" run --rm --no-deps server npx prisma migrate deploy
 
+    report_step start
     echo "→ Starting the server and client..."
     "${COMPOSE[@]}" up -d --no-deps server client
     ;;
