@@ -91,5 +91,5 @@ run_test_step() {
 }
 
 run_test_step test_build docker compose --env-file "$ENV_FILE" -f docker-compose.prod.yml --profile test build test-runner
-run_test_step test_run docker compose --env-file "$ENV_FILE" -f docker-compose.prod.yml --profile test run --no-build --rm test-runner
+run_test_step test_run docker compose --env-file "$ENV_FILE" -f docker-compose.prod.yml --profile test run --rm test-runner
 echo "[prod-tests] Tests passed."
