@@ -20,27 +20,26 @@ OUTPUT_FILE="$(mktemp)"
 trap 'rm -f "$OUTPUT_FILE"' EXIT
 
 echo "[prod-tests] Starting $RUN_SOURCE production test run at $(date --iso-8601=seconds)"
-if docker compose --env-file "$ENV_FILE" -f docker-compose.prod.yml --profile test \
-  run --build --rm test-runner >"$OUTPUT_FILE" 2>&1; then
-  cat "$OUTPUT_FILE"
-  echo "[prod-tests] Tests passed."
-  exit 0
-else
-  STATUS=$?
-fi
 
-cat "$OUTPUT_FILE" >&2
-echo "[prod-tests] Tests failed with exit code $STATUS." >&2
+notify_failure() {
+  local status="$1"
+  cat "$OUTPUT_FILE" >&2
+  echo "[prod-tests] Tests failed during $CURRENT_STEP with exit code $status." >&2
 
-if [[ -z "${TELEGRAM_BOT_TOKEN:-}" || -z "${TELEGRAM_CHAT_ID:-}" ]]; then
-  echo "[prod-tests] Telegram notification skipped: TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID must be configured." >&2
-  exit "$STATUS"
-fi
+  if [[ "$RUN_SOURCE" == "telegram" ]]; then
+    echo "[prod-tests] Telegram failure details will be sent by the update bot." >&2
+    return "$status"
+  fi
 
-ERROR_TAIL="$(tail -c 2800 "$OUTPUT_FILE")"
-RUN_AT="$(date --iso-8601=seconds)"
-export RUN_SOURCE RUN_AT STATUS ERROR_TAIL
-if python3 - <<'PY'
+  if [[ -z "${TELEGRAM_BOT_TOKEN:-}" || -z "${TELEGRAM_CHAT_ID:-}" ]]; then
+    echo "[prod-tests] Telegram notification skipped: TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID must be configured." >&2
+    return "$status"
+  fi
+
+  ERROR_TAIL="$(tail -c 2800 "$OUTPUT_FILE")"
+  RUN_AT="$(date --iso-8601=seconds)"
+  export RUN_SOURCE RUN_AT STATUS="$status" ERROR_TAIL
+  if python3 - <<'PY'
 import json
 import os
 import urllib.error
@@ -70,8 +69,27 @@ except (urllib.error.URLError, TimeoutError, ValueError, RuntimeError):
     raise SystemExit(1)
 print("[prod-tests] Failure details sent to Telegram.")
 PY
-then
-  exit "$STATUS"
-else
-  exit 1
-fi
+  then
+    return "$status"
+  fi
+  return 1
+}
+
+run_test_step() {
+  local step="$1"
+  shift
+  CURRENT_STEP="$step"
+  echo "BOT_STEP:$step"
+  if "$@" >"$OUTPUT_FILE" 2>&1; then
+    cat "$OUTPUT_FILE"
+    : >"$OUTPUT_FILE"
+  else
+    local status=$?
+    notify_failure "$status"
+    exit $?
+  fi
+}
+
+run_test_step test_build docker compose --env-file "$ENV_FILE" -f docker-compose.prod.yml --profile test build test-runner
+run_test_step test_run docker compose --env-file "$ENV_FILE" -f docker-compose.prod.yml --profile test run --no-build --rm test-runner
+echo "[prod-tests] Tests passed."

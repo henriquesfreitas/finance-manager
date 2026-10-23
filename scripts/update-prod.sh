@@ -7,11 +7,12 @@ MODE="${1:-}"
 
 usage() {
   cat <<'USAGE'
-Usage: bash scripts/update-prod.sh <pull|restart|frontend|backend|both|both-migrate>
+Usage: bash scripts/update-prod.sh <pull|restart|test|frontend|backend|both|both-migrate>
 
 Modes:
   pull          Pull master only; do not build or restart containers.
   restart       Restart all production Compose services without pulling or building.
+  test          Build and run the isolated production test suite; do not deploy.
   frontend     Pull master, then rebuild and start the client.
   backend      Pull master, then rebuild and start the server.
   both         Pull master, then rebuild and start the server and client.
@@ -21,7 +22,7 @@ USAGE
 }
 
 case "$MODE" in
-  pull|restart|frontend|backend|both|both-migrate) ;;
+  pull|restart|test|frontend|backend|both|both-migrate) ;;
   *)
     usage >&2
     exit 2
@@ -47,6 +48,11 @@ if [[ "$MODE" == "restart" ]]; then
   "${COMPOSE[@]}" restart
   echo "✓ Production Compose services restarted successfully."
   exit 0
+fi
+
+if [[ "$MODE" == "test" ]]; then
+  /bin/bash "$SCRIPT_DIR/test-prod.sh" telegram
+  exit $?
 fi
 
 CURRENT_BRANCH="$(git branch --show-current)"

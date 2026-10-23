@@ -5,6 +5,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 SERVICE_NAME="finance-manager-telegram-update-bot"
 UNIT_PATH="/etc/systemd/system/${SERVICE_NAME}.service"
+SUDOERS_PATH="/etc/sudoers.d/${SERVICE_NAME}"
 
 if [[ "$PROJECT_DIR" =~ [[:space:]] ]]; then
   echo "ERROR: The project path cannot contain whitespace for this systemd service: $PROJECT_DIR" >&2
@@ -40,7 +41,8 @@ if ! python3 "$PROJECT_DIR/scripts/telegram-update-bot.py" --check-webhook; then
 fi
 
 UNIT_TEMP="$(mktemp)"
-trap 'rm -f "$UNIT_TEMP"' EXIT
+SUDOERS_TEMP="$(mktemp)"
+trap 'rm -f "$UNIT_TEMP" "$SUDOERS_TEMP"' EXIT
 cat >"$UNIT_TEMP" <<UNIT
 [Unit]
 Description=Finance Manager Telegram production update bot
@@ -61,9 +63,19 @@ RestartSec=5
 WantedBy=multi-user.target
 UNIT
 
+printf '%s ALL=(root) NOPASSWD: /usr/bin/systemctl --no-block restart %s, /usr/bin/systemctl status --no-pager --lines=0 %s\n' \
+  "$SERVICE_USER" "$SERVICE_NAME" "$SERVICE_NAME" >"$SUDOERS_TEMP"
+if ! run_with_privileges visudo -cf "$SUDOERS_TEMP"; then
+  echo "ERROR: Generated sudoers rule is invalid." >&2
+  exit 1
+fi
+
 run_with_privileges install -m 0644 "$UNIT_TEMP" "$UNIT_PATH"
+run_with_privileges install -o root -g root -m 0440 "$SUDOERS_TEMP" "$SUDOERS_PATH"
+run_with_privileges visudo -cf "$SUDOERS_PATH"
 run_with_privileges systemctl daemon-reload
 run_with_privileges systemctl enable --now "$SERVICE_NAME"
+run_with_privileges systemctl restart "$SERVICE_NAME"
 
 echo "Telegram production update bot installed and started."
 echo "Check status with: sudo systemctl status $SERVICE_NAME"

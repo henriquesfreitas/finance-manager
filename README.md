@@ -285,11 +285,12 @@ The `RESEND_API_KEY` is send-only scoped — it cannot read email or access your
 
 ### Routine production updates
 
-For routine updates on the VPS, run `bash scripts/update-prod.sh` with one of these modes. Pull and deployment modes require the `master` branch and pull `origin/master` with fast-forward only. Local uncommitted changes are allowed; the script continues only if the pull succeeds. Docker builds use the resulting working tree, including any remaining local changes. Restart mode skips Git and restarts all production Compose services, including Postgres:
+For routine updates on the VPS, run `bash scripts/update-prod.sh` with one of these modes. Pull and deployment modes require the `master` branch and pull `origin/master` with fast-forward only. Local uncommitted changes are allowed; the script continues only if the pull succeeds. Docker builds use the resulting working tree, including any remaining local changes. Restart and test modes skip Git; restart restarts all production Compose services, including Postgres, while test builds and runs the isolated test profile without changing live services:
 
 ```bash
 bash scripts/update-prod.sh pull          # pull master only; do not change containers
 bash scripts/update-prod.sh restart      # restart all production Compose services
+bash scripts/update-prod.sh test         # build and run isolated production tests
 bash scripts/update-prod.sh frontend      # rebuild and start the client
 bash scripts/update-prod.sh backend       # rebuild and start the server
 bash scripts/update-prod.sh both          # rebuild and start server and client
@@ -310,7 +311,7 @@ sudo systemctl status finance-manager-telegram-update-bot
 sudo journalctl -u finance-manager-telegram-update-bot -f
 ```
 
-The installer checks that the bot has no webhook configured, then installs a systemd service that uses long polling; it does not open an inbound port or remove an existing webhook. On first startup, queued messages from before installation are discarded so an old command cannot start a deployment. If a webhook is configured, migrate or remove it deliberately before installing the poller.
+The installer checks that the bot has no webhook configured, then installs or updates a systemd service that uses long polling; it does not open an inbound port or remove an existing webhook. It also installs a restricted sudoers rule so the service account can restart and check the status of this bot service only, then restarts the service to load the installed code. On first startup, queued messages from before installation are discarded so an old command cannot start a deployment. If a webhook is configured, migrate or remove it deliberately before installing the poller.
 
 Restart the service after changing Telegram credentials or the allowed user ID:
 
@@ -324,13 +325,15 @@ Send one of these commands in the private chat:
 /help
 /update pull
 /update restart
+/update telegram
+/update test
 /update frontend
 /update backend
 /update both
 /update both-migrate
 ```
 
-`/update pull` only pulls `origin/master` with fast-forward-only behavior; it does not build or restart containers. `/update restart` restarts all production Compose services, including Postgres, without pulling or building. The other commands run the selected deployment mode. The bot reports each step and sends a final success or failure message. A failure includes the failed step and a short output tail; complete command output remains in the systemd journal. Only one operation can run at a time. If another is active, the bot replies that it is busy.
+`/update pull` only pulls `origin/master` with fast-forward-only behavior; it does not build or restart containers. `/update restart` restarts all production Compose services, including Postgres, without pulling or building. `/update telegram` restarts the Telegram bot systemd service and reports its status after it comes back up. `/update test` builds and runs the isolated production test profile against the current checkout; it does not pull code or touch live service containers. The bot reports the test image build and test run, then sends a final result. A failure includes the failed step and a short output tail; complete command output remains in the systemd journal. Only one operation can run at a time. If another is active, the bot replies that it is busy.
 
 To run the same tests manually on the VPS, use:
 

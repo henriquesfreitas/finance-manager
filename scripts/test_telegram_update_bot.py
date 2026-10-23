@@ -24,7 +24,14 @@ import sys
 import time
 
 failure, mode = sys.argv[1], sys.argv[2]
-steps = ["pull"] if mode == "pull" else ["pull", "build"] + (["migrate"] if mode == "both-migrate" else []) + ["start"]
+if mode == "test":
+    steps = ["test_build", "test_run"]
+elif mode == "pull":
+    steps = ["pull"]
+elif mode == "restart":
+    steps = ["restart"]
+else:
+    steps = ["pull", "build"] + (["migrate"] if mode == "both-migrate" else []) + ["start"]
 for step in steps:
     print(f"BOT_STEP:{step}", flush=True)
     if step == "pull":
@@ -152,6 +159,29 @@ class TelegramUpdateBotTests(unittest.TestCase):
         failure = next(message for message in self.message_snapshot() if "failed during" in message)
         self.assertIn("Git pull failed during Pulling latest code", failure)
         self.assertIn("synthetic failure during pull", failure)
+
+    def test_test_mode_reports_build_run_and_success(self) -> None:
+        self.bot.handle_message(self.message("/update test"))
+        self.wait_for_idle()
+        messages = self.message_snapshot()
+        self.assertTrue(any("Production test run accepted" in message for message in messages))
+        self.assertTrue(any("Building the isolated production test image" in message for message in messages))
+        self.assertTrue(any("Running the production test suite" in message for message in messages))
+        self.assertTrue(any("Production tests passed" in message for message in messages))
+
+    def test_test_mode_failures_report_the_failed_phase(self) -> None:
+        for step, expected_label in (
+            ("test_build", "Building the isolated production test image"),
+            ("test_run", "Running the production test suite"),
+        ):
+            with self.subTest(step=step):
+                self.api.messages.clear()
+                self.bot = self.make_bot(failure=step)
+                self.bot.handle_message(self.message("/update test"))
+                self.wait_for_idle()
+                failure = next(message for message in self.message_snapshot() if "failed during" in message)
+                self.assertIn(f"Production tests failed during {expected_label}", failure)
+                self.assertIn(f"synthetic failure during {step}", failure)
 
     def test_commands_for_another_bot_are_ignored(self) -> None:
         self.bot.bot_username = "finance_manager_bot"

@@ -21,8 +21,9 @@ from typing import Any
 
 
 PROJECT_DIR = Path(__file__).resolve().parent.parent
+SERVICE_NAME = "finance-manager-telegram-update-bot"
 ENV_KEYS = ("TELEGRAM_BOT_TOKEN", "TELEGRAM_CHAT_ID", "TELEGRAM_ALLOWED_USER_ID")
-MODES = {"frontend", "backend", "both", "both-migrate"}
+MODES = {"frontend", "backend", "both", "both-migrate", "test"}
 MODE_SERVICES = {
     "frontend": "client",
     "backend": "server",
@@ -33,11 +34,15 @@ STEP_LABELS = {
     "pull": "Pulling latest code from origin/master",
     "migrate": "Applying Prisma database migrations",
     "start": "Starting the updated services",
+    "test_build": "Building the isolated production test image",
+    "test_run": "Running the production test suite",
 }
 HELP_TEXT = (
     "Available commands:\n"
     "/update pull\n"
     "/update restart\n"
+    "/update telegram\n"
+    "/update test\n"
     "/update frontend\n"
     "/update backend\n"
     "/update both\n"
@@ -210,6 +215,10 @@ class TelegramUpdateBot:
             parts[0] = "/" + command_name
         return parts
 
+    @property
+    def _restart_request_path(self) -> Path:
+        return self.config.offset_path.parent / "restart-requested"
+
     def handle_message(self, message: Any) -> None:
         if not self._is_authorized(message):
             return
@@ -226,16 +235,56 @@ class TelegramUpdateBot:
         if command != "/update":
             self.notify(HELP_TEXT)
             return
-        if len(parts) != 2 or (parts[1] not in MODES and parts[1] not in {"pull", "restart"}):
-            self.notify(f"Usage: /update <pull|restart|frontend|backend|both|both-migrate>\n\n{HELP_TEXT}")
+        if len(parts) != 2 or (parts[1] not in MODES and parts[1] not in {"pull", "restart", "telegram"}):
+            self.notify(f"Usage: /update <pull|restart|telegram|test|frontend|backend|both|both-migrate>\n\n{HELP_TEXT}")
+            return
+        if parts[1] == "telegram":
+            self.start_telegram_restart()
             return
         self.start_update(parts[1])
+
+    def start_telegram_restart(self) -> None:
+        with self._state_lock:
+            already_running = self._busy
+            if not already_running:
+                self._busy = True
+        if already_running:
+            self.notify("A production operation is already running. Please wait for it to finish.")
+            return
+        self.notify("⏳ Telegram bot restart requested. I’ll report the service status after restarting.")
+        threading.Thread(target=self._restart_telegram_service, daemon=True).start()
+
+    def _restart_telegram_service(self) -> None:
+        marker = self._restart_request_path
+        restart_requested = False
+        try:
+            marker.parent.mkdir(parents=True, exist_ok=True)
+            marker.write_text("requested\n", encoding="ascii")
+            subprocess.run(
+                ["sudo", "-n", "/usr/bin/systemctl", "--no-block", "restart", SERVICE_NAME],
+                check=True,
+                capture_output=True,
+                text=True,
+                timeout=10,
+            )
+            restart_requested = True
+        except Exception as error:
+            marker.unlink(missing_ok=True)
+            LOG.exception("Could not request Telegram bot service restart")
+            detail = self._redact(str(error), self.config.token)[:800]
+            self.notify(f"❌ Telegram bot restart request failed.\n{detail}")
+        finally:
+            if not restart_requested:
+                with self._state_lock:
+                    self._busy = False
 
     def _step_label(self, mode: str, step: str) -> str:
         if mode == "pull":
             return "Pulling latest code from origin/master"
         if mode == "restart":
             return "Restarting all production Compose services"
+        if mode == "test":
+            return STEP_LABELS.get(step, "Running the production test suite")
         if step == "build":
             return f"Building {MODE_SERVICES[mode]} image(s)"
         return STEP_LABELS.get(step, "Checking deployment prerequisites")
@@ -253,6 +302,8 @@ class TelegramUpdateBot:
             self.notify("⏳ Git pull accepted. Checking the master branch and pulling origin/master.")
         elif mode == "restart":
             self.notify("⏳ Restart accepted. Restarting production Compose services without pulling or building.")
+        elif mode == "test":
+            self.notify("⏳ Production test run accepted. Building the isolated test image; live services will not be changed.")
         else:
             self.notify(f"⏳ Update {mode} accepted. Starting deployment checks.")
         worker = threading.Thread(target=self._run_update, args=(mode,), daemon=True)
@@ -292,11 +343,13 @@ class TelegramUpdateBot:
                     LOG.info("update[%s] %s", mode, line)
                     if line.startswith("BOT_STEP:"):
                         candidate = line.partition(":")[2]
-                        if candidate in {"pull", "build", "migrate", "start", "restart"}:
+                        if candidate in {"pull", "build", "migrate", "start", "restart", "test_build", "test_run"}:
                             current_step = candidate
                             operation = "Git pull" if mode == "pull" else f"Update {mode}"
                             if mode == "restart":
                                 operation = "Container restart"
+                            elif mode == "test":
+                                operation = "Production tests"
                             self.notify(f"🔄 {operation}: {self._step_label(mode, current_step)}.")
                     else:
                         output_tail.append(line)
@@ -306,6 +359,8 @@ class TelegramUpdateBot:
                     self.notify("✅ Git pull finished successfully. No containers were built or restarted.")
                 elif mode == "restart":
                     self.notify("✅ Production Compose services restarted successfully.")
+                elif mode == "test":
+                    self.notify("✅ Production tests passed.")
                 else:
                     self.notify(f"✅ Update {mode} finished successfully.")
             else:
@@ -316,6 +371,8 @@ class TelegramUpdateBot:
                 operation = "Git pull" if mode == "pull" else f"Update {mode}"
                 if mode == "restart":
                     operation = "Container restart"
+                elif mode == "test":
+                    operation = "Production tests"
                 self.notify(
                     f"❌ {operation} failed during {self._step_label(mode, current_step)} "
                     f"(exit code {exit_code}).{details}"
@@ -326,6 +383,8 @@ class TelegramUpdateBot:
             operation = "Git pull" if mode == "pull" else f"Update {mode}"
             if mode == "restart":
                 operation = "Container restart"
+            elif mode == "test":
+                operation = "Production tests"
             self.notify(f"❌ {operation} failed during {self._step_label(mode, current_step)}.\n{detail}")
         finally:
             with self._state_lock:
@@ -393,6 +452,7 @@ class TelegramUpdateBot:
                 self.bot_username = username if isinstance(username, str) else None
                 self.verify_polling_available()
                 offset = self.initialize_offset()
+                self._report_pending_telegram_restart()
                 break
             except TelegramApiError:
                 LOG.exception("Telegram startup check failed; retrying shortly")
@@ -412,6 +472,30 @@ class TelegramUpdateBot:
             except TelegramApiError:
                 LOG.exception("Telegram polling failed; retrying shortly")
                 time.sleep(5)
+
+    def _report_pending_telegram_restart(self) -> None:
+        marker = self._restart_request_path
+        if not marker.exists():
+            return
+        try:
+            result = subprocess.run(
+                ["sudo", "-n", "/usr/bin/systemctl", "status", "--no-pager", "--lines=0", SERVICE_NAME],
+                check=False,
+                capture_output=True,
+                text=True,
+                timeout=10,
+            )
+            status = self._redact((result.stdout or result.stderr).strip(), self.config.token)
+            if result.returncode == 0:
+                self.notify(f"✅ Telegram bot restarted successfully.\n{status[:1800]}")
+            else:
+                self.notify(f"❌ Telegram bot restarted, but systemctl status failed.\n{status[:1800]}")
+        except Exception as error:
+            LOG.exception("Could not report Telegram bot service status")
+            detail = self._redact(str(error), self.config.token)[:800]
+            self.notify(f"❌ Telegram bot restarted, but its status check failed.\n{detail}")
+        finally:
+            marker.unlink(missing_ok=True)
 
 
 def main() -> int:
