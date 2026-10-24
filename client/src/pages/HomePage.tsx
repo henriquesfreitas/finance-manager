@@ -249,7 +249,7 @@ export function HomePage(): React.JSX.Element {
       )}
 
       {/* ── Active investments table ─────────────────────────────────────────── */}
-      <section className="rounded-xl border bg-card p-3 shadow-sm sm:p-5">
+      <section className="rounded-xl border bg-card p-3 shadow-sm sm:p-5 md:-mx-4 md:px-0">
         <InvestmentTable
           investments={investments}
           isLoading={isLoading}
