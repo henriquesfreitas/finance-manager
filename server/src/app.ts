@@ -10,6 +10,7 @@ import { createBillRouter } from './routes/bill-routes.js';
 import { createBudgetRouter } from './routes/budget-routes.js';
 import { createAuthService } from './services/auth-service.js';
 import { createAuthMiddleware } from './middleware/auth-middleware.js';
+import { createCsrfMiddleware } from './middleware/csrf-middleware.js';
 import { requirePermission } from './middleware/permission-middleware.js';
 import { prisma } from './lib/prisma-client.js';
 
@@ -21,14 +22,16 @@ import { prisma } from './lib/prisma-client.js';
 export function createApp(): Application {
   const app = express();
   app.disable('x-powered-by');
+  const corsOrigin = process.env['CORS_ORIGIN'] ?? 'http://localhost:5173';
 
   // ── Middleware ──────────────────────────────────────────────────────────────
   app.use(cors({
-    origin: process.env['CORS_ORIGIN'] ?? 'http://localhost:5173',
+    origin: corsOrigin,
     credentials: true,
   }));
   app.use(express.json());
   app.use(cookieParser());
+  app.use('/api', createCsrfMiddleware(corsOrigin));
 
   // ── Auth setup ──────────────────────────────────────────────────────────────
   const authService = createAuthService({ db: prisma });

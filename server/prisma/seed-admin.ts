@@ -46,7 +46,7 @@ export async function seedAdmin(prisma: PrismaClient): Promise<void> {
     create: { username, passwordHash, permissions: [...permissions] },
   });
 
-  console.log(`Admin user "${username}" seeded successfully.`);
+  console.log('admin user seeded successfully.');
 }
 
 /** Seeds Amanda with Bills Control access only. */

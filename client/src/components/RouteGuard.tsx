@@ -25,6 +25,18 @@ import { useAuth } from '../contexts/auth-context';
 
 const LOGIN_PATH = '/login';
 
+function getSafeReturnTo(value: string | null, origin: string): string | null {
+  if (!value?.startsWith('/') || value.startsWith('//')) return null;
+
+  try {
+    const target = new URL(value, origin);
+    if (target.origin !== origin || target.pathname === LOGIN_PATH) return null;
+    return `${target.pathname}${target.search}${target.hash}`;
+  } catch {
+    return null;
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Internal components
 // ---------------------------------------------------------------------------
@@ -114,7 +126,7 @@ export function RouteGuard({
   if (isAuthenticated && isOnLoginPage) {
     const params = new URLSearchParams(locationService.getSearch());
     const returnTo = params.get('returnTo');
-    const safeReturnTo = returnTo?.startsWith('/') && !returnTo.startsWith('//') ? returnTo : null;
+    const safeReturnTo = getSafeReturnTo(returnTo, window.location.origin);
     const returnPath = safeReturnTo?.split(/[?#]/, 1)[0];
     const target = safeReturnTo && returnPath !== LOGIN_PATH
       && (returnPath === '/bills-control' ? canAccessBills : returnPath === '/budgets' ? canAccessBudgets : canAccessInvestments)
