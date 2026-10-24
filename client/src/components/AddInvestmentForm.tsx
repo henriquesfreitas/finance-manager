@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useCreateInvestment, useCreateTreasuryInvestment, useTreasuryProducts } from '@/hooks/useInvestments';
-import { INVESTMENT_SECTORS } from '@/lib/investment-sectors';
+import { CREATE_INVESTMENT_SECTORS } from '@/lib/investment-sectors';
 
 // ─── Asset type selector ──────────────────────────────────────────────────────
 
@@ -22,7 +22,7 @@ const stockSchema = z.object({
     .min(1, 'Ticker is required')
     .max(20, 'Ticker must be at most 20 characters')
     .regex(/^[A-Za-z0-9.\-]+$/, 'Ticker must contain only letters, digits, dots, and hyphens'),
-  sector: z.enum(INVESTMENT_SECTORS, { error: 'Sector is required' }),
+  sector: z.enum(CREATE_INVESTMENT_SECTORS as [string, ...string[]], { error: 'Sector is required' }),
 });
 
 type StockFormValues = z.infer<typeof stockSchema>;
@@ -109,7 +109,7 @@ function StockForm({ onSuccess }: StockFormProps): React.JSX.Element {
             {...register('sector')}
           >
             <option value="">Select a sector…</option>
-            {INVESTMENT_SECTORS.map((s) => (
+            {CREATE_INVESTMENT_SECTORS.map((s) => (
               <option key={s} value={s}>
                 {s}
               </option>

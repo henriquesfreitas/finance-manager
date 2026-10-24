@@ -3,7 +3,20 @@ import {
   validateCreateInvestmentInput,
   validateUpdateTargetPricesInput,
   validateUpdateInvestmentRecommendationInput,
+  validateUpdateSectorInput,
 } from '../validators/investment-validator.js';
+
+describe('validateUpdateSectorInput', () => {
+  it.each(['FIIs', 'FIIs — Tijolo', 'FIIs — Papel', 'FIIs — Misto'])(
+    'accepts %s for an existing investment',
+    (sector) => {
+      expect(validateUpdateSectorInput({ sector })).toEqual({
+        success: true,
+        data: { sector },
+      });
+    },
+  );
+});
 
 describe('validateCreateInvestmentInput', () => {
   // ─── Valid inputs ───────────────────────────────────────────────────────────
@@ -21,6 +34,19 @@ describe('validateCreateInvestmentInput', () => {
     expect(result.success).toBe(true);
     if (!result.success) return;
     expect(result.data.ticker).toBe('PETR4');
+  });
+
+  it.each(['FIIs — Tijolo', 'FIIs — Papel', 'FIIs — Misto'])(
+    'accepts the FII sector label %s for a new stock',
+    (sector) => {
+      const result = validateCreateInvestmentInput({ ticker: 'TEST11', sector });
+      expect(result.success).toBe(true);
+    },
+  );
+
+  it('rejects the generic FIIs sector for new investments', () => {
+    const result = validateCreateInvestmentInput({ ticker: 'TEST11', sector: 'FIIs' });
+    expect(result.success).toBe(false);
   });
 
   it('accepts ticker with dot (fund tickers like BOVA11 and US-style like BTC.USD)', () => {

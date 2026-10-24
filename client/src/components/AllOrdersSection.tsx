@@ -27,6 +27,10 @@ function formatOrderDate(dateStr: string): string {
   return new Date(`${dateStr}T12:00:00`).toLocaleDateString('pt-BR');
 }
 
+function isFiiSector(sector: string | null): boolean {
+  return sector === 'FIIs' || sector?.startsWith('FIIs — ') === true;
+}
+
 /**
  * Displays a global list of all orders across all investments, latest first.
  * Shows ticker, type, quantity/factor, price, date, and total.
@@ -49,7 +53,7 @@ export function AllOrdersSection(): React.JSX.Element {
     if (orderFilter === 'sales') return true;
     return order.orderDate.slice(0, 4) === orderFilter.slice('year:'.length);
   });
-  const fiiSales = orders?.filter((order) => order.type === 'SELL' && order.sector === 'FIIs') ?? [];
+  const fiiSales = orders?.filter((order) => order.type === 'SELL' && isFiiSector(order.sector)) ?? [];
   const fiiSalesWithAveragePrice = fiiSales.filter((order) => order.averagePriceAtSell !== null);
   const fiiSalesMissingAveragePrice = fiiSales.length - fiiSalesWithAveragePrice.length;
   const fiiTotalSold = fiiSales.reduce(

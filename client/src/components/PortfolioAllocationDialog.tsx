@@ -16,7 +16,11 @@ const GROUPS = [
 
 function investmentGroup(investment: InvestmentListItem): (typeof GROUPS)[number]['name'] {
   if (investment.type === 'TREASURY' || investment.sector === 'Renda Fixa') return 'Renda Fixa';
-  if (investment.sector === 'FIIs' || investment.sector === 'Fiagros') return 'FIIs';
+  if (
+    investment.sector === 'FIIs'
+    || investment.sector?.startsWith('FIIs — ')
+    || investment.sector === 'Fiagros'
+  ) return 'FIIs';
   if (investment.sector === 'ETFs') return 'ETF';
   if (investment.sector === 'BDRs') return 'BDRs';
   if (investment.sector === 'Criptomoedas') return 'Criptomoedas';

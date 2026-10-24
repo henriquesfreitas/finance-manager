@@ -715,7 +715,7 @@ function InvestmentRow({ investment, pricesLoading = false, portfolioCurrentTota
       <TableCell>
         {investment.sector
           ? <span
-              className="inline-block max-w-24 truncate align-bottom"
+              className="inline-block max-w-32 truncate align-bottom"
               title={investment.sector}
             >{investment.sector}</span>
           : <span className="text-muted-foreground">—</span>}

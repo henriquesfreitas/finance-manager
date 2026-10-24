@@ -297,7 +297,7 @@ bash scripts/update-prod.sh both          # rebuild and start server and client
 bash scripts/update-prod.sh both-migrate  # build both, migrate the database, then start both
 ```
 
-The migration mode applies Prisma migrations after building the new images and before replacing the running server and client. Use it when deploying database schema changes. `scripts/deploy.sh` remains the full deployment setup script.
+The migration mode applies Prisma migrations after building the new images and before replacing the running server and client. Use it when deploying database schema or data migrations. `scripts/deploy.sh` remains the full deployment setup script.
 
 ### Telegram production updates
 

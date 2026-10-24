@@ -33,7 +33,11 @@ export const INVESTMENT_SECTORS = [
   'Transporte e Logística',
   'Telecomunicações',
   'Saneamento',
+  'Exploração de Imóveis',
   'FIIs',
+  'FIIs — Tijolo',
+  'FIIs — Papel',
+  'FIIs — Misto',
   'Fiagros',
   'ETFs',
   'BDRs',
@@ -43,6 +47,7 @@ export const INVESTMENT_SECTORS = [
 ] as const;
 
 export type InvestmentSector = (typeof INVESTMENT_SECTORS)[number];
+const CREATABLE_INVESTMENT_SECTORS = INVESTMENT_SECTORS.filter((sector) => sector !== 'FIIs');
 
 /**
  * Zod schema for creating an investment (ticker + sector in v3).
@@ -62,8 +67,8 @@ export const createInvestmentSchema = z.object({
     .max(20, 'ticker must be at most 20 characters')
     .regex(/^[A-Za-z0-9.\-]+$/, 'ticker must contain only letters, digits, dots, and hyphens')
     .transform((v) => v.toUpperCase()),
-  sector: z.enum(INVESTMENT_SECTORS, {
-    error: `sector must be one of: ${INVESTMENT_SECTORS.join(', ')}`,
+  sector: z.enum(CREATABLE_INVESTMENT_SECTORS as [InvestmentSector, ...InvestmentSector[]], {
+    error: `sector must be one of: ${CREATABLE_INVESTMENT_SECTORS.join(', ')}`,
   }),
 });
 

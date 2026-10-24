@@ -8,6 +8,7 @@ For the database tables, columns, relationships, indexes, and enums, see [`DATAB
 
 - An investment is either a `STOCK` or `TREASURY` asset. Stock tickers are stored uppercase and unique. A treasury investment refers to a catalog product; its slug is used as its unique ticker and its sector is `Renda Fixa`.
 - Stock sectors must come from the server's `INVESTMENT_SECTORS` list. The client list is for display and must stay aligned with the server list.
+- FIIs use the sector labels `FIIs — Tijolo`, `FIIs — Papel`, or `FIIs — Misto`. Classify by the fund's primary strategy; use Misto when property and credit strategies are both material. New stock records cannot use the generic `FIIs` label; it remains available for legacy records and sector edits.
 - Treasury products are catalog entries, not hardcoded investment options.
 - Active investments can be archived and later restored. Archived investments remain visible in the archive and cannot receive new, edited, or deleted orders. Archived stocks do not fetch live quotes.
 - Target buy price, target sell price, intended buy quantity, manual current value, and recommendation are optional user-entered fields. Prices and quantities must be positive when set; they can be cleared. Recommendation is an integer from 1 through 5, or unset.

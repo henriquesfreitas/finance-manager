@@ -353,82 +353,82 @@ const stocks: StockEntry[] = [
   // ═══════════════════════════════════════════════════════════════════════════
   // FIIs
   // ═══════════════════════════════════════════════════════════════════════════
-  { ticker: 'HGLG11', sector: 'FIIs', orders: [
+  { ticker: 'HGLG11', sector: 'FIIs — Tijolo', orders: [
     { type: 'BUY', quantity: 30, price: 164.99, orderDate: '2026-07-19' },
   ]},
-  { ticker: 'KNRI11', sector: 'FIIs', orders: [
+  { ticker: 'KNRI11', sector: 'FIIs — Tijolo', orders: [
     { type: 'BUY', quantity: 60, price: 142.25, orderDate: '2026-07-19' },
   ]},
-  { ticker: 'FIIB11', sector: 'FIIs', orders: [
+  { ticker: 'FIIB11', sector: 'FIIs — Tijolo', orders: [
     { type: 'BUY', quantity: 11, price: 462.83, orderDate: '2026-07-19' },
   ]},
-  { ticker: 'VISC11', sector: 'FIIs', orders: [
+  { ticker: 'VISC11', sector: 'FIIs — Tijolo', orders: [
     { type: 'BUY', quantity: 114, price: 108.22, orderDate: '2026-07-19' },
   ]},
-  { ticker: 'LVBI11', sector: 'FIIs', orders: [
+  { ticker: 'LVBI11', sector: 'FIIs — Tijolo', orders: [
     { type: 'BUY', quantity: 80, price: 99.08, orderDate: '2026-07-19' },
   ]},
-  { ticker: 'KNSC11', sector: 'FIIs', orders: [
+  { ticker: 'KNSC11', sector: 'FIIs — Papel', orders: [
     { type: 'BUY', quantity: 299, price: 8.43, orderDate: '2026-07-19' },
   ]},
-  { ticker: 'HGRE11', sector: 'FIIs', orders: [
+  { ticker: 'HGRE11', sector: 'FIIs — Tijolo', orders: [
     { type: 'BUY', quantity: 100, price: 122.72, orderDate: '2026-07-19' },
   ]},
-  { ticker: 'VRTA11', sector: 'FIIs', orders: [
+  { ticker: 'VRTA11', sector: 'FIIs — Papel', orders: [
     { type: 'BUY', quantity: 40, price: 88.47, orderDate: '2026-07-19' },
   ]},
-  { ticker: 'RCRB11', sector: 'FIIs', orders: [
+  { ticker: 'RCRB11', sector: 'FIIs — Tijolo', orders: [
     { type: 'BUY', quantity: 90, price: 127.95, orderDate: '2026-07-19' },
   ]},
-  { ticker: 'XPLG11', sector: 'FIIs', orders: [
+  { ticker: 'XPLG11', sector: 'FIIs — Tijolo', orders: [
     { type: 'BUY', quantity: 65, price: 97.77, orderDate: '2026-07-19' },
   ]},
-  { ticker: 'BCRI11', sector: 'FIIs', orders: [
+  { ticker: 'BCRI11', sector: 'FIIs — Papel', orders: [
     { type: 'BUY', quantity: 150, price: 76.15, orderDate: '2026-07-19' },
   ]},
-  { ticker: 'XPML11', sector: 'FIIs', orders: [
+  { ticker: 'XPML11', sector: 'FIIs — Tijolo', orders: [
     { type: 'BUY', quantity: 12, price: 98.59, orderDate: '2026-07-19' },
   ]},
-  { ticker: 'MXRF11', sector: 'FIIs', orders: [
+  { ticker: 'MXRF11', sector: 'FIIs — Papel', orders: [
     { type: 'BUY', quantity: 299, price: 9.28, orderDate: '2026-07-19' },
   ]},
-  { ticker: 'RBVA11', sector: 'FIIs', orders: [
+  { ticker: 'RBVA11', sector: 'FIIs — Tijolo', orders: [
     { type: 'BUY', quantity: 250, price: 12.50, orderDate: '2026-07-19' },
   ]},
-  { ticker: 'TRBL11', sector: 'FIIs', orders: [
+  { ticker: 'TRBL11', sector: 'FIIs — Tijolo', orders: [
     { type: 'BUY', quantity: 51, price: 92.78, orderDate: '2026-07-19' },
   ]},
-  { ticker: 'HSML11', sector: 'FIIs', orders: [
+  { ticker: 'HSML11', sector: 'FIIs — Tijolo', orders: [
     { type: 'BUY', quantity: 75, price: 84.26, orderDate: '2026-07-19' },
   ]},
-  { ticker: 'RBED11', sector: 'FIIs', orders: [
+  { ticker: 'RBED11', sector: 'FIIs — Tijolo', orders: [
     { type: 'BUY', quantity: 20, price: 123.00, orderDate: '2026-07-19' },
   ]},
-  { ticker: 'VILG11', sector: 'FIIs', orders: [
+  { ticker: 'VILG11', sector: 'FIIs — Tijolo', orders: [
     { type: 'BUY', quantity: 110, price: 95.68, orderDate: '2026-07-19' },
   ]},
-  { ticker: 'HGRU11', sector: 'FIIs', orders: [] },
-  { ticker: 'ALZR11', sector: 'FIIs', orders: [] },
-  { ticker: 'RECR11', sector: 'FIIs', orders: [] },
-  { ticker: 'MALL11', sector: 'FIIs', orders: [] },
-  { ticker: 'XPIN11', sector: 'FIIs', orders: [] },
-  { ticker: 'GGRC11', sector: 'FIIs', orders: [] },
-  { ticker: 'HGPO11', sector: 'FIIs', orders: [] },
-  { ticker: 'JSRE11', sector: 'FIIs', orders: [] },
-  { ticker: 'LUGG11', sector: 'FIIs', orders: [] },
-  { ticker: 'IRDM11', sector: 'FIIs', orders: [] },
-  { ticker: 'VINO11', sector: 'FIIs', orders: [] },
-  { ticker: 'MAXR11', sector: 'FIIs', orders: [] },
-  { ticker: 'BBRC11', sector: 'FIIs', orders: [] },
-  { ticker: 'BCFF11', sector: 'FIIs', orders: [] },
-  { ticker: 'BTAL11', sector: 'FIIs', orders: [] },
-  { ticker: 'CVBI11', sector: 'FIIs', orders: [] },
-  { ticker: 'HFOF11', sector: 'FIIs', orders: [] },
-  { ticker: 'HTMX11', sector: 'FIIs', orders: [] },
-  { ticker: 'KNCR11', sector: 'FIIs', orders: [] },
-  { ticker: 'HCTR11', sector: 'FIIs', orders: [] },
-  { ticker: 'DEVA11', sector: 'FIIs', orders: [] },
-  { ticker: 'IGTI11', sector: 'FIIs', orders: [] },
+  { ticker: 'HGRU11', sector: 'FIIs — Tijolo', orders: [] },
+  { ticker: 'ALZR11', sector: 'FIIs — Tijolo', orders: [] },
+  { ticker: 'RECR11', sector: 'FIIs — Papel', orders: [] },
+  { ticker: 'MALL11', sector: 'FIIs — Tijolo', orders: [] },
+  { ticker: 'XPIN11', sector: 'FIIs — Tijolo', orders: [] },
+  { ticker: 'GGRC11', sector: 'FIIs — Tijolo', orders: [] },
+  { ticker: 'HGPO11', sector: 'FIIs — Tijolo', orders: [] },
+  { ticker: 'JSRE11', sector: 'FIIs — Misto', orders: [] },
+  { ticker: 'LUGG11', sector: 'FIIs — Tijolo', orders: [] },
+  { ticker: 'IRDM11', sector: 'FIIs — Papel', orders: [] },
+  { ticker: 'VINO11', sector: 'FIIs — Tijolo', orders: [] },
+  { ticker: 'MAXR11', sector: 'FIIs — Tijolo', orders: [] },
+  { ticker: 'BBRC11', sector: 'FIIs — Tijolo', orders: [] },
+  { ticker: 'BCFF11', sector: 'FIIs — Misto', orders: [] },
+  { ticker: 'BTAL11', sector: 'FIIs — Tijolo', orders: [] },
+  { ticker: 'CVBI11', sector: 'FIIs — Papel', orders: [] },
+  { ticker: 'HFOF11', sector: 'FIIs — Misto', orders: [] },
+  { ticker: 'HTMX11', sector: 'FIIs — Tijolo', orders: [] },
+  { ticker: 'KNCR11', sector: 'FIIs — Papel', orders: [] },
+  { ticker: 'HCTR11', sector: 'FIIs — Papel', orders: [] },
+  { ticker: 'DEVA11', sector: 'FIIs — Papel', orders: [] },
+  { ticker: 'IGTI11', sector: 'Exploração de Imóveis', orders: [] },
 
   // ═══════════════════════════════════════════════════════════════════════════
   // FIAGROS

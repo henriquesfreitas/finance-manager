@@ -25,7 +25,11 @@ export const INVESTMENT_SECTORS = [
   'Transporte e Logística',
   'Telecomunicações',
   'Saneamento',
+  'Exploração de Imóveis',
   'FIIs',
+  'FIIs — Tijolo',
+  'FIIs — Papel',
+  'FIIs — Misto',
   'Fiagros',
   'ETFs',
   'BDRs',
@@ -35,3 +39,6 @@ export const INVESTMENT_SECTORS = [
 ] as const;
 
 export type InvestmentSector = (typeof INVESTMENT_SECTORS)[number];
+
+/** Options for new stock records; generic FIIs remains available for legacy edits only. */
+export const CREATE_INVESTMENT_SECTORS = INVESTMENT_SECTORS.filter((sector) => sector !== 'FIIs');
