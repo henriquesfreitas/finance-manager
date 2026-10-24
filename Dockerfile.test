@@ -12,7 +12,7 @@ COPY client/package.json client/package-lock.json ./client/
 RUN npm ci --prefix client --legacy-peer-deps
 
 COPY . .
-RUN npm run db:generate --prefix server
+RUN DATABASE_URL="postgresql://build:build@localhost:5432/build" npm run db:generate --prefix server
 
 ENV CI=true
 CMD ["npm", "test"]

@@ -13,12 +13,12 @@ COPY prisma ./prisma/
 COPY prisma.config.ts ./
 
 # Generate Prisma client
-RUN npx prisma generate
+RUN DATABASE_URL="postgresql://build:build@localhost:5432/build" npx prisma generate
 
 # Copy source and build
 COPY tsconfig.json tsconfig.build.json ./
 COPY src ./src/
-RUN npm run build
+RUN DATABASE_URL="postgresql://build:build@localhost:5432/build" npm run build
 
 # ── Stage 2: Production ──────────────────────────────────────────────────────
 FROM node:24.22.1-alpine3.24 AS production
@@ -36,7 +36,7 @@ RUN npm ci --omit=dev
 # Keep this after dependency installation so Prisma changes don't reinstall packages.
 COPY prisma ./prisma/
 COPY prisma.config.ts ./
-RUN npx prisma generate
+RUN DATABASE_URL="postgresql://build:build@localhost:5432/build" npx prisma generate
 
 # Copy built output from builder
 COPY --from=builder /app/dist ./dist/
