@@ -140,8 +140,8 @@ export function HomePage(): React.JSX.Element {
     <div className="min-h-screen w-full max-w-full overflow-x-clip bg-background">
       {/* ── Header ──────────────────────────────────────────────────────────── */}
       <header id="top" className="app-header scroll-mt-0 bg-blue-600 text-white shadow-md">
-        <div className="container mx-auto flex min-h-16 flex-col items-stretch gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-          <h1 className="text-lg font-semibold tracking-tight sm:text-2xl">Finance Investment Manager</h1>
+        <div className="container mx-auto flex min-h-16 flex-col items-stretch gap-3 px-4 py-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-start">
+          <h1 className="whitespace-nowrap text-lg font-semibold tracking-tight sm:text-2xl">Finance Investment Manager</h1>
           <TickerSearch
             investments={investments}
             onSelect={(investment) => handleTickerClick(

@@ -152,8 +152,8 @@ export function InvestmentTable({
   if (isLoading) {
     return (
       <>
-      <div className="hidden rounded-md border md:block">
-        <Table className="[&_th]:px-0.5 [&_td]:px-0.5">
+      <div className="hidden overflow-x-auto rounded-md border md:block">
+        <Table className="min-w-[1500px] [&_th]:px-0.5 [&_td]:px-0.5">
           <TableHeader>
             <TableHeaderRow sort={sort} onSort={handleSort} />
           </TableHeader>
@@ -185,8 +185,8 @@ export function InvestmentTable({
   if (investments.length === 0) {
     return (
       <>
-      <div className="hidden rounded-md border md:block">
-        <Table className="[&_th]:px-0.5 [&_td]:px-0.5">
+      <div className="hidden overflow-x-auto rounded-md border md:block">
+        <Table className="min-w-[1500px] [&_th]:px-0.5 [&_td]:px-0.5">
           <TableHeader>
             <TableHeaderRow sort={sort} onSort={handleSort} />
           </TableHeader>
@@ -210,8 +210,8 @@ export function InvestmentTable({
 
   return (
     <>
-      <div className="hidden rounded-md border md:block">
-        <Table className="[&_th]:px-0.5 [&_td]:px-0.5">
+      <div className="hidden overflow-x-auto rounded-md border md:block">
+        <Table className="min-w-[1500px] [&_th]:px-0.5 [&_td]:px-0.5">
           <TableHeader>
             <TableHeaderRow sort={sort} onSort={handleSort} />
           </TableHeader>
@@ -268,8 +268,8 @@ export function InvestmentTable({
             </button>
             <a href="#top" className="shrink-0 text-xs font-medium text-primary hover:underline">Back to top ↑</a>
           </div>
-          {watchlistOpen && <div id="watchlist-investments" className="hidden rounded-md border md:block">
-            <Table className="[&_th]:px-0.5 [&_td]:px-0.5">
+          {watchlistOpen && <div id="watchlist-investments" className="hidden overflow-x-auto rounded-md border md:block">
+            <Table className="min-w-[1500px] [&_th]:px-0.5 [&_td]:px-0.5">
               <TableHeader>
                 <TableHeaderRow sort={sort} onSort={handleSort} />
               </TableHeader>
