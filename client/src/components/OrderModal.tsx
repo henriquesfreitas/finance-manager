@@ -160,12 +160,12 @@ function OrderForm({ investmentId, isTreasury, onSuccess }: OrderFormProps): Rea
     // SPLIT orders don't have a price — force it to 0
     const payload = values.type === 'SPLIT' ? { ...values, price: 0 } : values;
     // Sanitize contractedRate: NaN (empty input) → undefined (don't send)
+    const { contractedRate, ...orderValues } = payload;
     const sanitized = {
-      ...payload,
-      contractedRate:
-        payload.contractedRate != null && !Number.isNaN(payload.contractedRate)
-          ? payload.contractedRate
-          : undefined,
+      ...orderValues,
+      ...(contractedRate != null && !Number.isNaN(contractedRate)
+        ? { contractedRate }
+        : {}),
     };
     createOrder.mutate(sanitized, {
       onSuccess: () => {

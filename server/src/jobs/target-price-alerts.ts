@@ -1,10 +1,10 @@
 import 'dotenv/config';
-import { PrismaClient } from '@prisma/client';
+import { createPrismaClient } from '../lib/create-prisma-client.js';
 import { resolve } from 'node:path';
 import { fetchQuotes } from '../services/yahoo-finance-quote-service.js';
 import { findReachedTargetAlerts } from '../services/target-price-alert-service.js';
 
-const prisma = new PrismaClient();
+const prisma = createPrismaClient();
 
 function escapeHtml(value: string): string {
   return value

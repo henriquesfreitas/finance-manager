@@ -1,4 +1,4 @@
-import type { PrismaClient } from '@prisma/client';
+import type { PrismaClient } from '../generated/prisma/client.js';
 import type { CreateCommentInput, UpdateCommentInput, CommentRecord } from '../types/comment.js';
 
 /** Converts a Prisma Comment row to the plain CommentRecord shape. */

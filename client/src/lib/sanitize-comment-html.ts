@@ -42,7 +42,7 @@ function parseCsvRecords(content: string): string[][] {
   let inQuotes = false;
 
   for (let index = 0; index < content.length; index += 1) {
-    const character = content[index];
+    const character = content.charAt(index);
     if (character === '"') {
       if (inQuotes && content[index + 1] === '"') {
         cell += '"';
@@ -71,10 +71,11 @@ function parseCsvRecords(content: string): string[][] {
 
 function csvTableHtml(content: string): string | null {
   const records = parseCsvRecords(content);
-  if (records.length < 2 || records[0].length < 3) return null;
-  if (!records.every((record) => record.length === records[0].length)) return null;
+  const headerRecord = records[0];
+  if (records.length < 2 || !headerRecord || headerRecord.length < 3) return null;
+  if (!records.every((record) => record.length === headerRecord.length)) return null;
 
-  const headers = records[0].map((cell) => `<th>${markdownCellHtml(cell)}</th>`).join('');
+  const headers = headerRecord.map((cell) => `<th>${markdownCellHtml(cell)}</th>`).join('');
   const rows = records.slice(1).map((record) => (
     `<tr>${record.map((cell) => `<td>${markdownCellHtml(cell)}</td>`).join('')}</tr>`
   )).join('');
@@ -90,26 +91,30 @@ function convertPastedTables(content: string): string {
   const output: string[] = [];
 
   for (let index = 0; index < lines.length;) {
-    if (index + 2 >= lines.length || !lines[index].includes('|') || !lines[index + 1].includes('|')) {
-      output.push(lines[index]);
+    const line = lines[index];
+    const nextLine = lines[index + 1];
+    const firstDataLine = lines[index + 2];
+    if (line === undefined) break;
+    if (nextLine === undefined || firstDataLine === undefined || !line.includes('|') || !nextLine.includes('|')) {
+      output.push(line);
       index += 1;
       continue;
     }
 
-    const headers = splitMarkdownRow(lines[index]);
-    const separators = splitMarkdownRow(lines[index + 1]);
+    const headers = splitMarkdownRow(line);
+    const separators = splitMarkdownRow(nextLine);
     const isSeparator = separators.length === headers.length
       && separators.every((cell) => /^:?-{3,}:?$/.test(cell));
-    if (!isSeparator || !lines[index + 2].includes('|')) {
-      output.push(lines[index]);
+    if (!isSeparator || !firstDataLine.includes('|')) {
+      output.push(line);
       index += 1;
       continue;
     }
 
     const rows: string[][] = [];
     let rowIndex = index + 2;
-    while (rowIndex < lines.length && lines[rowIndex].includes('|')) {
-      rows.push(splitMarkdownRow(lines[rowIndex]));
+    while (rowIndex < lines.length && lines[rowIndex]?.includes('|')) {
+      rows.push(splitMarkdownRow(lines[rowIndex] ?? ''));
       rowIndex += 1;
     }
 

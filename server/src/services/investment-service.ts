@@ -1,4 +1,4 @@
-import type { PrismaClient } from '@prisma/client';
+import type { PrismaClient } from '../generated/prisma/client.js';
 import { fetchQuotes, resolveYahooSymbol } from './yahoo-finance-quote-service.js';
 import { fetchRawPriceHistory, type PriceHistoryRange } from '../lib/yahoo-finance-wrapper.js';
 import { createWeightedAverageCalculator } from './weighted-average-calculator.js';

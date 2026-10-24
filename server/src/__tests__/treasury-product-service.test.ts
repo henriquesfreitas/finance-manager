@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createTreasuryProductService } from '../services/treasury-product-service.js';
-import type { PrismaClient } from '@prisma/client';
+import type { PrismaClient } from '../generated/prisma/client.js';
 
 /** Builds a minimal fake Prisma client scoped to treasuryProduct. */
 function makeFakePrisma(overrides: Partial<{

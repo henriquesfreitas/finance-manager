@@ -12,16 +12,16 @@
  */
 
 import { describe, it, expect, beforeAll, afterAll, afterEach } from 'vitest';
+import { createPrismaClient } from '../lib/create-prisma-client.js';
 import request from 'supertest';
 import bcrypt from 'bcryptjs';
-import { PrismaClient } from '@prisma/client';
 import { createApp } from '../app.js';
 
 // ---------------------------------------------------------------------------
 // Setup
 // ---------------------------------------------------------------------------
 
-const prisma = new PrismaClient();
+const prisma = createPrismaClient();
 const app = createApp();
 
 const TEST_USERNAME = 'integration_test_admin';

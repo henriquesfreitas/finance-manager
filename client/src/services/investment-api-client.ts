@@ -50,7 +50,7 @@ export function fetchActiveInvestmentRecords(): Promise<InvestmentListItem[]> {
 
 /** Fetches market quotes separately from the stored investment list. */
 export function fetchActiveInvestmentQuotes(signal?: AbortSignal): Promise<Record<string, MarketQuote | null>> {
-  return request<Record<string, MarketQuote | null>>('/api/investments/quotes', { signal });
+  return request<Record<string, MarketQuote | null>>('/api/investments/quotes', signal ? { signal } : {});
 }
 
 export interface HistoricalPricePoint {

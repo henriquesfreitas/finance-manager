@@ -20,7 +20,7 @@ A personal investment portfolio tracker for Brazilian and international stocks. 
 ## Prerequisites
 
 - [Docker Desktop](https://www.docker.com/products/docker-desktop/) (for PostgreSQL)
-- [Node.js 22+](https://nodejs.org/)
+- [Node.js 24.22.1](https://nodejs.org/) (the repository pins this patched LTS release in `.nvmrc`; Node 22.23.4 or newer also meets the package engine requirement)
 - **Windows users**: run all commands in **Command Prompt (cmd)**, not PowerShell. PowerShell may block npm scripts due to execution policy. Open cmd with `Win + R → cmd`.
 
 ## Setup

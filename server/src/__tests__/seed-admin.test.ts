@@ -8,7 +8,7 @@
  * - Success log is emitted
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import type { PrismaClient } from '@prisma/client';
+import type { PrismaClient } from '../generated/prisma/client.js';
 
 // ─── Fake Prisma ─────────────────────────────────────────────────────────────
 

@@ -52,7 +52,7 @@ function StockForm({ onSuccess }: StockFormProps): React.JSX.Element {
     formState: { errors },
   } = useForm<StockFormValues>({
     resolver: zodResolver(stockSchema),
-    defaultValues: { ticker: '', sector: undefined },
+    defaultValues: { ticker: '' },
   });
 
   const { field: tickerField } = useController({ name: 'ticker', control });

@@ -1,4 +1,4 @@
-import type { PrismaClient } from '@prisma/client';
+import type { PrismaClient } from '../generated/prisma/client.js';
 import type { TreasuryProductRecord } from '../types/investment.js';
 
 /** Converts a Prisma TreasuryProduct row to the plain serialisable record. */

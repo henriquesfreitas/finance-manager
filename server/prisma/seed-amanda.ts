@@ -1,8 +1,8 @@
 import 'dotenv/config';
-import { PrismaClient } from '@prisma/client';
+import { createPrismaClient } from '../src/lib/create-prisma-client.js';
 import { seedAmanda } from './seed-admin.js';
 
-const prisma = new PrismaClient();
+const prisma = createPrismaClient();
 
 seedAmanda(prisma)
   .catch((err: unknown) => {

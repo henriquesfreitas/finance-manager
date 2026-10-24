@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import express from 'express';
 import request from 'supertest';
-import type { AppPermission } from '@prisma/client';
+import type { AppPermission } from '../generated/prisma/client.js';
 
 const fakePrisma = {
   adminUser: { findMany: vi.fn() },

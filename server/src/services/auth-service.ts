@@ -1,6 +1,6 @@
 import { randomBytes } from 'crypto';
 import bcrypt from 'bcryptjs';
-import type { AppPermission, PrismaClient } from '@prisma/client';
+import type { AppPermission, PrismaClient } from '../generated/prisma/client.js';
 import { createRateLimiter } from '../lib/rate-limiter.js';
 
 // ---------------------------------------------------------------------------

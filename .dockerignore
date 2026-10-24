@@ -4,6 +4,7 @@
 !.env.example
 node_modules
 **/node_modules
+**/src/generated
 **/dist
 **/coverage
 **/test-results

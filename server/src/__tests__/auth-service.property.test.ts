@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeAll } from 'vitest';
 import * as fc from 'fast-check';
 import bcrypt from 'bcryptjs';
-import type { PrismaClient } from '@prisma/client';
+import type { PrismaClient } from '../generated/prisma/client.js';
 import { createAuthService } from '../services/auth-service.js';
 
 // ─── Shared hash ─────────────────────────────────────────────────────────────

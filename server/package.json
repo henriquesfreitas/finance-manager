@@ -9,7 +9,9 @@
     "prebuild": "prisma generate",
     "build": "tsc --project tsconfig.build.json",
     "start": "node dist/index.js",
+    "pretest": "prisma generate",
     "test": "vitest run --exclude src/__tests__/auth-integration.test.ts",
+    "pretest:integration": "prisma generate",
     "test:integration": "vitest run src/__tests__/auth-integration.test.ts",
     "test:watch": "vitest --exclude src/__tests__/auth-integration.test.ts",
     "test:coverage": "vitest run --coverage --exclude src/__tests__/auth-integration.test.ts",
@@ -25,41 +27,42 @@
     "orders:import-2025": "tsx src/scripts/import-2025-orders.ts",
     "db:seed": "tsx prisma/seed.ts"
   },
-  "prisma": {
-    "seed": "tsx prisma/seed.ts"
-  },
   "engines": {
-    "node": ">=22.0.0"
+    "node": ">=22.23.4"
   },
   "dependencies": {
-    "@prisma/client": "^6.19.3",
-    "@types/bcryptjs": "^2.4.6",
+    "@prisma/adapter-pg": "^7.10.1",
+    "@prisma/client": "^7.10.1",
     "@types/cookie-parser": "^1.4.10",
     "bcryptjs": "^3.0.3",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.6",
-    "dotenv": "^17.4.2",
-    "express": "^5.2.1",
-    "prisma": "^6.19.3",
-    "tsx": "^4.23.0",
-    "yahoo-finance2": "^4.0.0",
-    "zod": "^4.4.3"
+    "dotenv": "^18.0.9",
+    "express": "^5.3.0",
+    "pg": "^8.23.1",
+    "prisma": "^7.10.1",
+    "tsx": "^4.23.15",
+    "yahoo-finance2": "^4.0.5",
+    "zod": "^4.6.7"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
-    "@types/node": "^26.1.1",
-    "@types/supertest": "^7.2.0",
-    "@typescript-eslint/eslint-plugin": "^8.63.0",
-    "@typescript-eslint/parser": "^8.63.0",
-    "@vitest/coverage-v8": "^4.1.10",
-    "eslint": "^10.7.0",
+    "@types/node": "^26.6.5",
+    "@types/pg": "^8.23.1",
+    "@types/supertest": "^7.2.1",
+    "@typescript-eslint/eslint-plugin": "^8.72.0",
+    "@typescript-eslint/parser": "^8.72.0",
+    "@vitest/coverage-v8": "^5.0.5",
+    "eslint": "^10.13.0",
     "eslint-config-prettier": "^10.1.8",
-    "fast-check": "^4.9.0",
-    "prettier": "^3.9.5",
-    "supertest": "^7.2.2",
-    "typescript": "^5.8.3",
-    "vite": "^6.3.5",
-    "vitest": "^4.1.10"
+    "fast-check": "^4.10.2",
+    "prettier": "^3.9.10",
+    "supertest": "^7.3.1",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.72.0",
+    "vite": "^8.3.5",
+    "vitest": "^5.0.5"
   }
 }

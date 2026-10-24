@@ -1,5 +1,5 @@
 # ── Stage 1: Build ────────────────────────────────────────────────────────────
-FROM node:22-alpine AS builder
+FROM node:24.22.1-alpine3.24 AS builder
 
 WORKDIR /app
 
@@ -10,6 +10,7 @@ RUN npm install
 # Schema and migrations change more often than dependencies. Copy them after
 # dependency installation so Prisma changes don't invalidate the npm layer.
 COPY prisma ./prisma/
+COPY prisma.config.ts ./
 
 # Generate Prisma client
 RUN npx prisma generate
@@ -20,7 +21,7 @@ COPY src ./src/
 RUN npm run build
 
 # ── Stage 2: Production ──────────────────────────────────────────────────────
-FROM node:22-alpine AS production
+FROM node:24.22.1-alpine3.24 AS production
 
 WORKDIR /app
 
@@ -34,6 +35,7 @@ RUN npm ci --omit=dev
 
 # Keep this after dependency installation so Prisma changes don't reinstall packages.
 COPY prisma ./prisma/
+COPY prisma.config.ts ./
 RUN npx prisma generate
 
 # Copy built output from builder

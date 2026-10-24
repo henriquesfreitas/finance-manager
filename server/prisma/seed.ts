@@ -5,10 +5,10 @@
  *
  * Safe to re-run — uses upsert so existing rows are not duplicated.
  */
-import { PrismaClient } from '@prisma/client';
+import { createPrismaClient } from '../src/lib/create-prisma-client.js';
 import { seedAdmin, seedAmanda } from './seed-admin.js';
 
-const prisma = new PrismaClient();
+const prisma = createPrismaClient();
 
 const TREASURY_PRODUCTS = [
   { name: 'IPCA+ 2026',              slug: 'TESOURO-IPCA-2026' },

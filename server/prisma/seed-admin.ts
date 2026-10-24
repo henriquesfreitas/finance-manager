@@ -10,7 +10,7 @@
  *
  * Typical usage: called from prisma/seed.ts as part of the full seed run.
  */
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient } from '../src/generated/prisma/client.js';
 import bcrypt from 'bcryptjs';
 
 const BCRYPT_COST_FACTOR = 12;

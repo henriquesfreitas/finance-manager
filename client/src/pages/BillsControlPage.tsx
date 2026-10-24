@@ -414,7 +414,7 @@ export function BillsControlPage(): React.JSX.Element {
                 const settlementTwiceCents = splitDifferenceCents + group.fullReimbursementBalanceCents * 2;
                 const settlementCents = Math.round(Math.abs(settlementTwiceCents) / 2);
                 const settlementPaid = settlementPaidByMonth.get(group.key) ?? false;
-                let settlementText = copy.noPaymentDue;
+                let settlementText: string = copy.noPaymentDue;
                 if (settlementTwiceCents > 0) settlementText = language === 'pt'
                   ? `Amanda paga ${formatCents(settlementCents, language)} a Henrique pelo acerto das contas pagas.`
                   : `Amanda pays Henrique ${formatCents(settlementCents, language)} to balance paid bills.`;

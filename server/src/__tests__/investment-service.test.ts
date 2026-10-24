@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createInvestmentService } from '../services/investment-service.js';
-import type { PrismaClient } from '@prisma/client';
+import type { PrismaClient } from '../generated/prisma/client.js';
 import type { MarketQuote } from '../types/investment.js';
 
 // Mock the Yahoo Finance quote service — tests must not hit the real API

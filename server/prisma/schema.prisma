@@ -2,12 +2,14 @@
 // Docs: https://pris.ly/d/prisma-schema
 
 generator client {
-  provider = "prisma-client-js"
+  provider             = "prisma-client"
+  output               = "../src/generated/prisma"
+  moduleFormat         = "cjs"
+  importFileExtension  = "js"
 }
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
 }
 
 // Catalog of available Tesouro Direto products.

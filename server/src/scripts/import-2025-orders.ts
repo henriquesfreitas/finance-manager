@@ -7,9 +7,10 @@
  * The script requires the investments to exist, refuses duplicate imports, and
  * updates the existing SANB11 BUY before adding its SELL.
  */
-import { Prisma, PrismaClient } from '@prisma/client';
+import { Prisma } from '../generated/prisma/client.js';
+import { createPrismaClient } from '../lib/create-prisma-client.js';
 
-const prisma = new PrismaClient();
+const prisma = createPrismaClient();
 const apply = process.argv.includes('--apply');
 
 const orders = [

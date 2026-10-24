@@ -36,6 +36,7 @@ test-results/
 
 # Prisma
 server/prisma/*.db
+server/src/generated/
 
 # Docker volumes
 pgdata/

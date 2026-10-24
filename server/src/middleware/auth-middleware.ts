@@ -1,5 +1,5 @@
 import type { RequestHandler, Request, Response, NextFunction } from 'express';
-import type { AppPermission } from '@prisma/client';
+import type { AppPermission } from '../generated/prisma/client.js';
 import type { AuthService } from '../services/auth-service.js';
 
 // ---------------------------------------------------------------------------

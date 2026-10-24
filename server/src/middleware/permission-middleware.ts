@@ -1,4 +1,4 @@
-import type { AppPermission } from '@prisma/client';
+import type { AppPermission } from '../generated/prisma/client.js';
 import type { RequestHandler } from 'express';
 
 /** Rejects authenticated sessions that do not have the requested permission. */

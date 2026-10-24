@@ -1,8 +1,8 @@
 import 'dotenv/config';
-import { PrismaClient } from '@prisma/client';
+import { createPrismaClient } from '../lib/create-prisma-client.js';
 import bcrypt from 'bcryptjs';
 
-const prisma = new PrismaClient();
+const prisma = createPrismaClient();
 const username = 'pedro';
 const budgetName = 'Casa Boa Vista';
 const bcryptCostFactor = 12;

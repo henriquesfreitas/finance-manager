@@ -1,4 +1,4 @@
-import type { PrismaClient } from '@prisma/client';
+import type { PrismaClient } from '../generated/prisma/client.js';
 import type { CreateOrderInput, UpdateOrderInput, OrderRecord, OrderType, OrderWithTicker, ComputedPosition } from '../types/order.js';
 import { validateCreateOrderInput, validateUpdateOrderInput } from '../validators/order-validator.js';
 import { createWeightedAverageCalculator } from './weighted-average-calculator.js';
