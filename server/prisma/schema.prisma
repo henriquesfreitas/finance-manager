@@ -87,6 +87,15 @@ model Comment {
   @@map("comments")
 }
 
+model PortfolioComment {
+  id        String   @id @default(uuid())
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("portfolio_comments")
+}
+
 model Bill {
   id        String   @id @default(uuid())
   amount    Decimal  @db.Decimal(18, 2)

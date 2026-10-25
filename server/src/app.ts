@@ -4,6 +4,7 @@ import cookieParser from 'cookie-parser';
 import { createInvestmentRouter } from './routes/investment-routes.js';
 import { createOrderRouter } from './routes/order-routes.js';
 import { createCommentRouter } from './routes/comment-routes.js';
+import { createPortfolioCommentRouter } from './routes/portfolio-comment-routes.js';
 import { createTreasuryProductRouter } from './routes/treasury-product-routes.js';
 import { createAuthRouter } from './routes/auth-routes.js';
 import { createBillRouter } from './routes/bill-routes.js';
@@ -56,6 +57,7 @@ export function createApp(): Application {
       await prisma.budgetItem.deleteMany({});
       await prisma.budget.deleteMany({});
       await prisma.bill.deleteMany({});
+      await prisma.portfolioComment.deleteMany({});
       await prisma.comment.deleteMany({});
       await prisma.order.deleteMany({});
       await prisma.investment.deleteMany({});
@@ -76,6 +78,7 @@ export function createApp(): Application {
   app.use('/api', createInvestmentRouter());
   app.use('/api', createOrderRouter());
   app.use('/api', createCommentRouter());
+  app.use('/api', createPortfolioCommentRouter());
   app.use('/api', createTreasuryProductRouter());
   app.use('/api', createBillRouter());
   app.use('/api', createBudgetRouter());

@@ -1,6 +1,6 @@
 import React from 'react';
 import { useQueries } from '@tanstack/react-query';
-import { PlusCircle, Archive, ArrowDown, ArrowUp, ArrowUpDown, ChevronDown, ChevronRight } from 'lucide-react';
+import { PlusCircle, Archive, ArrowDown, ArrowUp, ArrowUpDown, ChevronDown, ChevronRight, MessageSquareText } from 'lucide-react';
 import {
   Table,
   TableBody,
@@ -28,6 +28,8 @@ import { useLatestCommentDates } from '@/hooks/useComments';
 import { calculateDailyPortfolioVariation } from '@/lib/portfolio-variation';
 import { fetchInvestmentPriceHistory } from '@/services/investment-api-client';
 import { PortfolioVariationDialog } from '@/components/PortfolioVariationDialog';
+import { PortfolioPlanNotesDialog } from '@/components/PortfolioPlanNotesDialog';
+import { getInitialPortfolioPlanLanguage, portfolioPlanCopy } from '@/i18n/portfolio-plan';
 
 interface InvestmentTableProps {
   investments: InvestmentListItem[];
@@ -121,6 +123,7 @@ export function InvestmentTable({
 }: InvestmentTableProps): React.JSX.Element {
   const [sort, setSort] = React.useState<SortState>({ key: null, direction: 'ascending' });
   const [variationDialogOpen, setVariationDialogOpen] = React.useState(false);
+  const [portfolioNotesOpen, setPortfolioNotesOpen] = React.useState(false);
   const [mobileTableOpen, setMobileTableOpen] = React.useState(false);
 
   const stockHoldings = investments.filter((investment) => investment.type === 'STOCK'
@@ -234,6 +237,9 @@ export function InvestmentTable({
   if (investments.length === 0) {
     return (
       <>
+      <div className="mb-3 flex justify-end">
+        <PortfolioPlanNotesButton onClick={() => setPortfolioNotesOpen(true)} />
+      </div>
       <div className="hidden overflow-x-auto rounded-md border md:block">
         <Table className="min-w-[1500px] [&_th]:px-0.5 [&_td]:px-0.5">
           <TableHeader>
@@ -249,6 +255,7 @@ export function InvestmentTable({
         </Table>
       </div>
       <p className="py-10 text-center text-sm text-muted-foreground md:hidden">No investments yet. Click "Add Investment" to get started.</p>
+      <PortfolioPlanNotesDialog open={portfolioNotesOpen} onOpenChange={setPortfolioNotesOpen} />
       </>
     );
   }
@@ -262,6 +269,7 @@ export function InvestmentTable({
       <div className="hidden overflow-x-auto rounded-md border md:block">
         <Table className="min-w-[1500px] [&_th]:px-0.5 [&_td]:px-0.5">
           <TableHeader>
+            <PortfolioPlanNotesTableRow onClick={() => setPortfolioNotesOpen(true)} />
             {stockHoldings.length > 0 && (
               <PortfolioVariationSummaryRow
                 variation={dailyVariation}
@@ -290,7 +298,8 @@ export function InvestmentTable({
       </div>
 
       <div className="md:hidden">
-        <div className="mb-2 flex justify-end">
+        <div className="mb-2 flex items-center justify-between gap-2">
+          <PortfolioPlanNotesButton onClick={() => setPortfolioNotesOpen(true)} />
           <button
             type="button"
             className="text-sm font-medium text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:underline"
@@ -412,7 +421,32 @@ export function InvestmentTable({
         onOpenChange={setVariationDialogOpen}
         investments={investments}
       />
+      <PortfolioPlanNotesDialog open={portfolioNotesOpen} onOpenChange={setPortfolioNotesOpen} />
     </>
+  );
+}
+
+function PortfolioPlanNotesButton({ onClick }: { onClick: () => void }): React.JSX.Element {
+  const copy = portfolioPlanCopy[getInitialPortfolioPlanLanguage()];
+  return (
+    <button
+      type="button"
+      className="inline-flex items-center gap-1 text-sm font-medium text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:underline"
+      onClick={onClick}
+    >
+      <MessageSquareText className="h-4 w-4" />
+      {copy.link}
+    </button>
+  );
+}
+
+function PortfolioPlanNotesTableRow({ onClick }: { onClick: () => void }): React.JSX.Element {
+  return (
+    <TableRow>
+      <TableHead colSpan={16} className="py-2 text-right">
+        <PortfolioPlanNotesButton onClick={onClick} />
+      </TableHead>
+    </TableRow>
   );
 }
 

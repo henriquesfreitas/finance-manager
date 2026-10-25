@@ -189,12 +189,16 @@ LATEST_CHANGE=$(psql_query '
     || (SELECT md5(COALESCE(string_agg(to_jsonb(b)::text, '"'"''"'"' ORDER BY b.id), '"'"''"'"')) FROM budgets AS b)
     || '"'"'|'"'"'
     || (SELECT md5(COALESCE(string_agg(to_jsonb(i)::text, '"'"''"'"' ORDER BY i.id), '"'"''"'"')) FROM budget_items AS i)
+    || '"'"'|'"'"'
+    || (SELECT md5(COALESCE(string_agg(to_jsonb(pc)::text, '"'"''"'"' ORDER BY pc.id), '"'"''"'"')) FROM portfolio_comments AS pc)
   FROM (
     SELECT MAX("updatedAt") AS latest FROM investments
     UNION ALL
     SELECT MAX("updatedAt") AS latest FROM orders
     UNION ALL
     SELECT MAX("updatedAt") AS latest FROM comments
+    UNION ALL
+    SELECT MAX("updatedAt") AS latest FROM portfolio_comments
     UNION ALL
     SELECT MAX("createdAt") AS latest FROM treasury_products
     UNION ALL

@@ -18,6 +18,13 @@ vi.mock('@/hooks/useComments', () => ({
   useLatestCommentDates: () => ({ data: {}, isLoading: false, isError: false }),
 }));
 
+vi.mock('@/hooks/usePortfolioComments', () => ({
+  usePortfolioComments: () => ({ data: [], isLoading: false, isError: false, refetch: vi.fn() }),
+  useCreatePortfolioComment: () => ({ mutate: vi.fn(), isPending: false }),
+  useUpdatePortfolioComment: () => ({ mutate: vi.fn(), isPending: false }),
+  useDeletePortfolioComment: () => ({ mutate: vi.fn(), isPending: false }),
+}));
+
 vi.mock('@tanstack/react-query', () => ({
   useQueries: ({ queries }: { queries: Array<{ enabled: boolean; queryKey: unknown[] }> }) => queries.map(({ enabled, queryKey }) => ({
     data: enabled ? queryKey[1] === 'no-history' ? [] : [
@@ -200,8 +207,9 @@ describe('InvestmentTable portfolio daily variation', () => {
     expect(within(summary).getByText('+1.00%')).toBeInTheDocument();
 
     const desktopRows = within(screen.getAllByRole('table')[0]!).getAllByRole('row');
-    expect(desktopRows[0]?.textContent).toContain('Today’s portfolio variation');
-    expect(desktopRows[1]?.textContent).toContain('Ticker');
+    expect(desktopRows[0]?.textContent).toContain('Investment plan notes');
+    expect(desktopRows[1]?.textContent).toContain('Today’s portfolio variation');
+    expect(desktopRows[2]?.textContent).toContain('Ticker');
 
     await user.click(within(summary).getByRole('button', { name: /Amount/ }));
     const dialog = screen.getByRole('dialog', { name: 'Portfolio variation' });

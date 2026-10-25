@@ -35,8 +35,9 @@ For the database tables, columns, relationships, indexes, and enums, see [`DATAB
 
 ## Comments
 
-- Comments belong to one investment, contain 1–2000 characters, and are listed newest first.
-- Updating or deleting a comment must verify that it belongs to the investment in the request.
+- Investment comments belong to one investment and are listed newest first. Portfolio plan comments are shared across users with `INVESTMENTS` permission and are also listed newest first.
+- Both comment types contain 1–10000 characters.
+- Updating or deleting an investment comment must verify that it belongs to the investment in the request.
 
 ## Bills Control
 

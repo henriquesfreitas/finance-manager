@@ -53,6 +53,12 @@ erDiagram
         datetime createdAt
         datetime updatedAt
     }
+    PORTFOLIO_COMMENTS {
+        uuid id PK
+        string content
+        datetime createdAt
+        datetime updatedAt
+    }
     BILLS {
         uuid id PK
         decimal amount
@@ -158,6 +164,15 @@ erDiagram
 | `id` | UUID | Primary key; generated UUID |
 | `investmentId` | UUID | Required foreign key to `investments.id`; delete restricted |
 | `content` | TEXT | Required |
+| `createdAt` | TIMESTAMP | Required; defaults to current time |
+| `updatedAt` | TIMESTAMP | Required; maintained by Prisma on update |
+
+### `portfolio_comments` (`PortfolioComment`)
+
+| Column | PostgreSQL type | Constraints and behavior |
+|---|---|---|
+| `id` | UUID | Primary key; generated UUID |
+| `content` | TEXT | Required; 1–10000 characters |
 | `createdAt` | TIMESTAMP | Required; defaults to current time |
 | `updatedAt` | TIMESTAMP | Required; maintained by Prisma on update |
 
