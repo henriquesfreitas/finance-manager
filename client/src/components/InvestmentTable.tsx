@@ -1,4 +1,5 @@
 import React from 'react';
+import { useQueries } from '@tanstack/react-query';
 import { PlusCircle, Archive, ArrowDown, ArrowUp, ArrowUpDown, ChevronDown, ChevronRight } from 'lucide-react';
 import {
   Table,
@@ -24,6 +25,9 @@ import { toast } from 'sonner';
 import { formatQuantity } from '@/lib/utils';
 import { getRecommendationColorClass } from '@/lib/recommendation';
 import { useLatestCommentDates } from '@/hooks/useComments';
+import { calculateDailyPortfolioVariation } from '@/lib/portfolio-variation';
+import { fetchInvestmentPriceHistory } from '@/services/investment-api-client';
+import { PortfolioVariationDialog } from '@/components/PortfolioVariationDialog';
 
 interface InvestmentTableProps {
   investments: InvestmentListItem[];
@@ -91,6 +95,15 @@ function profitColorClass(value: number | null): string {
   return 'text-foreground';
 }
 
+function hasUsableDailyQuote(investment: InvestmentListItem): boolean {
+  const quote = investment.quote;
+  return quote !== null
+    && Number.isFinite(quote.currentPrice)
+    && quote.currentPrice > 0
+    && Number.isFinite(quote.dailyChangePercent)
+    && quote.dailyChangePercent > -100;
+}
+
 /**
  * Investment portfolio table (v2).
  * Displays computed position from server response, live market data, and derived fields.
@@ -107,6 +120,41 @@ export function InvestmentTable({
   onToggleWatchlist = () => undefined,
 }: InvestmentTableProps): React.JSX.Element {
   const [sort, setSort] = React.useState<SortState>({ key: null, direction: 'ascending' });
+  const [variationDialogOpen, setVariationDialogOpen] = React.useState(false);
+
+  const stockHoldings = investments.filter((investment) => investment.type === 'STOCK'
+    && Number(investment.position.quantity) > 0);
+  const historyFallbackHoldings = stockHoldings.filter((investment) => !hasUsableDailyQuote(investment));
+  const historyQueries = useQueries({
+    queries: historyFallbackHoldings.map((investment) => ({
+      queryKey: ['investments', investment.id, 'price-history', '1Y'],
+      queryFn: () => fetchInvestmentPriceHistory(investment.id, '1Y'),
+      enabled: true,
+      staleTime: 1000 * 60 * 5,
+    })),
+  });
+  const historyByInvestmentId = new Map(historyFallbackHoldings.map((investment, index) => [
+    investment.id,
+    historyQueries[index]?.data,
+  ]));
+  const dailyVariation = calculateDailyPortfolioVariation(stockHoldings.map((investment) => ({
+    quantity: Number(investment.position.quantity),
+    currentPrice: investment.quote?.currentPrice ?? null,
+    dailyChangePercent: investment.quote?.dailyChangePercent ?? null,
+    history: historyByInvestmentId.get(investment.id),
+  })));
+  const historicalDate = historyQueries
+    .flatMap((query) => query.data ?? [])
+    .map((point) => point.date.slice(0, 10))
+    .sort()
+    .at(-1);
+  const hasHistoricalData = (dailyVariation?.historicalHoldings ?? 0) > 0;
+  const isPartialVariation = dailyVariation !== null
+    && dailyVariation.includedHoldings < dailyVariation.totalHoldings;
+  const variationLabel = dailyVariation && (hasHistoricalData || isPartialVariation)
+    ? `Latest available variation${isPartialVariation ? ` (${dailyVariation.includedHoldings}/${dailyVariation.totalHoldings} stocks)` : ''}${historicalDate ? ` · ${new Date(`${historicalDate}T00:00:00.000Z`).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', timeZone: 'UTC' })}` : ''}`
+    : 'Today’s portfolio variation';
+  const historyLoading = dailyVariation === null && historyQueries.some((query) => query.isLoading);
 
   // Compute portfolio-level totals once for the weight column.
   // Hybrid approach: for each investment, use currentTotal if available (has live price
@@ -213,6 +261,14 @@ export function InvestmentTable({
       <div className="hidden overflow-x-auto rounded-md border md:block">
         <Table className="min-w-[1500px] [&_th]:px-0.5 [&_td]:px-0.5">
           <TableHeader>
+            {stockHoldings.length > 0 && (
+              <PortfolioVariationSummaryRow
+                variation={dailyVariation}
+                label={variationLabel}
+                isLoading={historyLoading}
+                onClick={() => setVariationDialogOpen(true)}
+              />
+            )}
             <TableHeaderRow sort={sort} onSort={handleSort} />
           </TableHeader>
           <TableBody>
@@ -233,6 +289,14 @@ export function InvestmentTable({
       </div>
 
       <div className="grid gap-3 md:hidden">
+        {stockHoldings.length > 0 && (
+          <PortfolioVariationSummary
+            variation={dailyVariation}
+            label={variationLabel}
+            isLoading={historyLoading}
+            onClick={() => setVariationDialogOpen(true)}
+          />
+        )}
         {invested.map((investment) => (
           <MobileInvestmentCard
             key={investment.id}
@@ -305,7 +369,76 @@ export function InvestmentTable({
           </div>}
         </section>
       )}
+
+      <PortfolioVariationDialog
+        open={variationDialogOpen}
+        onOpenChange={setVariationDialogOpen}
+        investments={investments}
+      />
     </>
+  );
+}
+
+function PortfolioVariationSummary({
+  variation,
+  label,
+  isLoading,
+  onClick,
+}: {
+  variation: ReturnType<typeof calculateDailyPortfolioVariation>;
+  label: string;
+  isLoading: boolean;
+  onClick: () => void;
+}): React.JSX.Element {
+  return (
+    <section className="rounded-xl border bg-muted/40 p-3" aria-label={label}>
+      <p className="mb-2 text-xs font-medium text-muted-foreground">{label}</p>
+      <div className="grid grid-cols-2 gap-2">
+        <button type="button" onClick={onClick} className="text-left focus-visible:outline-none focus-visible:underline">
+          <span className="block text-xs text-muted-foreground">Amount</span>
+          <span className={`font-semibold tabular-nums ${variation ? profitColorClass(variation.amount) : 'text-muted-foreground'}`}>
+            {isLoading ? 'Loading…' : variation ? formatCurrency(variation.amount) : 'N/A'}
+          </span>
+        </button>
+        <button type="button" onClick={onClick} className="text-right focus-visible:outline-none focus-visible:underline">
+          <span className="block text-xs text-muted-foreground">Var %</span>
+          <span className={`font-semibold tabular-nums ${variation ? profitColorClass(variation.percent) : 'text-muted-foreground'}`}>
+            {isLoading ? 'Loading…' : variation ? formatPercent(variation.percent) : 'N/A'}
+          </span>
+        </button>
+      </div>
+    </section>
+  );
+}
+
+function PortfolioVariationSummaryRow({
+  variation,
+  label,
+  isLoading,
+  onClick,
+}: {
+  variation: ReturnType<typeof calculateDailyPortfolioVariation>;
+  label: string;
+  isLoading: boolean;
+  onClick: () => void;
+}): React.JSX.Element {
+  return (
+    <TableRow className="bg-muted/30">
+      <TableHead colSpan={11} className="text-right text-xs font-medium text-muted-foreground">
+        {label}
+      </TableHead>
+      <TableHead className="text-right">
+        <button type="button" onClick={onClick} className={`font-semibold tabular-nums hover:underline focus-visible:outline-none focus-visible:underline ${variation ? profitColorClass(variation.amount) : 'text-muted-foreground'}`}>
+          {isLoading ? 'Loading…' : variation ? formatCurrency(variation.amount) : 'N/A'}
+        </button>
+      </TableHead>
+      <TableHead className="text-right">
+        <button type="button" onClick={onClick} className={`font-semibold tabular-nums hover:underline focus-visible:outline-none focus-visible:underline ${variation ? profitColorClass(variation.percent) : 'text-muted-foreground'}`}>
+          {isLoading ? 'Loading…' : variation ? formatPercent(variation.percent) : 'N/A'}
+        </button>
+      </TableHead>
+      <TableHead colSpan={3} />
+    </TableRow>
   );
 }
 

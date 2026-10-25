@@ -225,7 +225,7 @@ export function HomePage(): React.JSX.Element {
           </div>
         </div>
       </header>
-      <main className="container mx-auto px-4 py-6 sm:py-8">
+      <main className="mx-auto w-full max-w-[1536px] px-2 py-6 sm:px-3 sm:py-8 lg:px-4">
         <section className="mb-6 rounded-xl border bg-card p-4 shadow-sm sm:p-5">
           <h2 className="mb-3 text-lg font-semibold">Add Investment</h2>
           <AddInvestmentForm />
@@ -249,7 +249,7 @@ export function HomePage(): React.JSX.Element {
       )}
 
       {/* ── Active investments table ─────────────────────────────────────────── */}
-      <section className="rounded-xl border bg-card p-3 shadow-sm sm:p-5 md:-mx-4 md:px-0">
+      <section className="rounded-xl border bg-card p-3 shadow-sm sm:p-5 md:px-0">
         <InvestmentTable
           investments={investments}
           isLoading={isLoading}

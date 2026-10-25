@@ -18,6 +18,19 @@ vi.mock('@/hooks/useComments', () => ({
   useLatestCommentDates: () => ({ data: {}, isLoading: false, isError: false }),
 }));
 
+vi.mock('@tanstack/react-query', () => ({
+  useQueries: ({ queries }: { queries: Array<{ enabled: boolean; queryKey: unknown[] }> }) => queries.map(({ enabled, queryKey }) => ({
+    data: enabled ? queryKey[1] === 'no-history' ? [] : [
+      { date: '2025-10-24T20:00:00.000Z', price: 10 },
+      { date: '2026-09-24T20:00:00.000Z', price: 12 },
+      { date: '2026-10-17T20:00:00.000Z', price: 11 },
+      { date: '2026-10-24T20:00:00.000Z', price: 13 },
+    ] : undefined,
+    isLoading: false,
+    isError: false,
+  })),
+}));
+
 afterEach(() => cleanup());
 
 function makeInvestment(overrides: Partial<InvestmentListItem> = {}): InvestmentListItem {
@@ -113,5 +126,92 @@ describe('InvestmentTable planned buys', () => {
     expect(within(row!).getAllByText('2').length).toBeGreaterThan(0);
     expect(within(row!).getByText('R$ 10,00')).toBeInTheDocument();
     expect(within(row!).getAllByText('Loading…').length).toBeGreaterThan(0);
+  });
+});
+
+describe('InvestmentTable portfolio daily variation', () => {
+  it('shows the aggregate daily amount and percent and opens the history modal', async () => {
+    const user = (await import('@testing-library/user-event')).default.setup();
+    renderInvestmentTable([makeInvestment({
+      position: { quantity: '2', averagePrice: '10' },
+      quote: { currentPrice: 13, dailyChangePercent: 1 },
+    })]);
+
+    const summary = screen.getAllByRole('region', { name: /portfolio variation/i })[0]!;
+    expect(within(summary).getByText('R$ 0,26')).toBeInTheDocument();
+    expect(within(summary).getByText('+1.00%')).toBeInTheDocument();
+
+    const desktopRows = within(screen.getAllByRole('table')[0]!).getAllByRole('row');
+    expect(desktopRows[0]?.textContent).toContain('Today’s portfolio variation');
+    expect(desktopRows[1]?.textContent).toContain('Ticker');
+
+    await user.click(within(summary).getByRole('button', { name: /Amount/ }));
+    const dialog = screen.getByRole('dialog', { name: 'Portfolio variation' });
+    expect(dialog).toBeInTheDocument();
+    expect(within(dialog).getByText('7 days')).toBeInTheDocument();
+    expect(within(dialog).getByText('30 days')).toBeInTheDocument();
+    expect(within(dialog).getByText('365 days')).toBeInTheDocument();
+    expect(within(dialog).getByText('R$ 4,00')).toBeInTheDocument();
+    expect(within(dialog).getByText('R$ 2,00')).toBeInTheDocument();
+    expect(within(dialog).getByText('R$ 6,00')).toBeInTheDocument();
+    expect(within(dialog).getByRole('img', { name: /Portfolio value chart/ })).toBeInTheDocument();
+    expect(within(dialog).getByText(/Uses current quantities for 1 of 1 stock holdings with available history/)).toBeInTheDocument();
+  });
+
+  it('falls back to the latest historical daily variation when a held stock quote is missing', () => {
+    renderInvestmentTable([makeInvestment({
+      position: { quantity: '2', averagePrice: '10' },
+      quote: null,
+    })]);
+
+    const summary = screen.getByRole('region', { name: /Latest available variation/ });
+    expect(within(summary).getByText('R$ 4,00')).toBeInTheDocument();
+    expect(within(summary).getByText('+18.18%')).toBeInTheDocument();
+    expect(within(summary).getByText(/Latest available variation/)).toBeInTheDocument();
+  });
+
+  it('does not show the portfolio daily summary for portfolios without stock positions', () => {
+    renderInvestmentTable([makeInvestment({
+      type: 'TREASURY',
+      position: { quantity: '2', averagePrice: '10' },
+      quote: null,
+      currentValue: '12',
+    })]);
+
+    expect(screen.queryByRole('region', { name: /portfolio variation/i })).not.toBeInTheDocument();
+  });
+
+  it('shows a no-history state when historical prices are unavailable', async () => {
+    const user = (await import('@testing-library/user-event')).default.setup();
+    renderInvestmentTable([makeInvestment({
+      id: 'no-history',
+      position: { quantity: '2', averagePrice: '10' },
+    })]);
+
+    const summary = screen.getAllByRole('region', { name: /portfolio variation/i })[0]!;
+    await user.click(within(summary).getAllByRole('button')[0]!);
+    expect(await screen.findByText('No portfolio price history available.')).toBeInTheDocument();
+  });
+
+  it('shows history for available stocks when another stock has no historical prices', async () => {
+    const user = (await import('@testing-library/user-event')).default.setup();
+    renderInvestmentTable([
+      makeInvestment({
+        position: { quantity: '2', averagePrice: '10' },
+      }),
+      makeInvestment({
+        id: 'no-history',
+        ticker: 'NOHISTORY3',
+        position: { quantity: '3', averagePrice: '20' },
+      }),
+    ]);
+
+    const summary = screen.getAllByRole('region', { name: /portfolio variation/i })[0]!;
+    await user.click(within(summary).getAllByRole('button')[0]!);
+
+    const dialog = screen.getByRole('dialog', { name: 'Portfolio variation' });
+    expect(within(dialog).getByRole('img', { name: /Portfolio value chart/ })).toBeInTheDocument();
+    expect(within(dialog).getByText(/Uses current quantities for 1 of 2 stock holdings with available history/)).toBeInTheDocument();
+    expect(within(dialog).queryByText('No portfolio price history available.')).not.toBeInTheDocument();
   });
 });
