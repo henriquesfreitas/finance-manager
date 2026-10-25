@@ -11,6 +11,7 @@
  * test uses a unique synthetic IP to avoid cross-test interference.
  */
 
+import 'dotenv/config';
 import { describe, it, expect, beforeAll, afterAll, afterEach } from 'vitest';
 import { createPrismaClient } from '../lib/create-prisma-client.js';
 import request from 'supertest';
@@ -21,8 +22,27 @@ import { createApp } from '../app.js';
 // Setup
 // ---------------------------------------------------------------------------
 
+const databaseUrl = process.env['DATABASE_URL'];
+if (!databaseUrl) {
+  throw new Error('DATABASE_URL is required for auth integration tests. Configure server/.env first.');
+}
+
+try {
+  const parsedDatabaseUrl = new URL(databaseUrl);
+  if (!['postgres:', 'postgresql:'].includes(parsedDatabaseUrl.protocol) || !parsedDatabaseUrl.password) {
+    throw new Error();
+  }
+} catch {
+  throw new Error('DATABASE_URL must be a PostgreSQL URL with a password for auth integration tests.');
+}
+
 const prisma = createPrismaClient();
 const app = createApp();
+const trustedOrigin = new URL(process.env['CORS_ORIGIN'] ?? 'http://localhost:5173').origin;
+
+function post(path: string) {
+  return request(app).post(path).set('Origin', trustedOrigin);
+}
 
 const TEST_USERNAME = 'integration_test_admin';
 const TEST_PASSWORD = 'TestPass123!';
@@ -59,8 +79,7 @@ afterEach(async () => {
   // We suppress errors — if the DB isn't available or the reset login fails for any
   // reason, we don't want afterEach to mask the real test failure.
   try {
-    const resetRes = await request(app)
-      .post('/api/auth/login')
+    const resetRes = await post('/api/auth/login')
       .send({ username: TEST_USERNAME, password: TEST_PASSWORD });
     if (resetRes.status === 200) {
       // Session created by the reset login — clean it up immediately
@@ -107,8 +126,7 @@ function findCookieString(
 
 /** Logs in with the test admin and returns the session cookie string. */
 async function loginAndGetCookie(): Promise<string> {
-  const res = await request(app)
-    .post('/api/auth/login')
+  const res = await post('/api/auth/login')
     .send({ username: TEST_USERNAME, password: TEST_PASSWORD });
 
   expect(res.status).toBe(200);
@@ -124,8 +142,7 @@ async function loginAndGetCookie(): Promise<string> {
 
 describe('Login flow', () => {
   it('returns 200, sets httpOnly cookie, and returns admin info on valid credentials (Req 1.1)', async () => {
-    const res = await request(app)
-      .post('/api/auth/login')
+    const res = await post('/api/auth/login')
       .send({ username: TEST_USERNAME, password: TEST_PASSWORD });
 
     expect(res.status).toBe(200);
@@ -150,8 +167,7 @@ describe('Login flow', () => {
   });
 
   it('creates a session record in the database on successful login', async () => {
-    const res = await request(app)
-      .post('/api/auth/login')
+    const res = await post('/api/auth/login')
       .send({ username: TEST_USERNAME, password: TEST_PASSWORD });
 
     expect(res.status).toBe(200);
@@ -168,8 +184,7 @@ describe('Login flow', () => {
 
 describe('Invalid credentials', () => {
   it('returns 401 with generic error for wrong password (Req 1.2)', async () => {
-    const res = await request(app)
-      .post('/api/auth/login')
+    const res = await post('/api/auth/login')
       .send({ username: TEST_USERNAME, password: 'WrongPassword!' });
 
     expect(res.status).toBe(401);
@@ -177,8 +192,7 @@ describe('Invalid credentials', () => {
   });
 
   it('returns 401 with generic error for non-existent username (Req 1.2)', async () => {
-    const res = await request(app)
-      .post('/api/auth/login')
+    const res = await post('/api/auth/login')
       .send({ username: 'does_not_exist', password: TEST_PASSWORD });
 
     expect(res.status).toBe(401);
@@ -187,11 +201,9 @@ describe('Invalid credentials', () => {
 
   it('returns identical error messages for wrong-username and wrong-password (Req 1.2)', async () => {
     const [wrongUser, wrongPass] = await Promise.all([
-      request(app)
-        .post('/api/auth/login')
+      post('/api/auth/login')
         .send({ username: 'no_such_user', password: 'irrelevant1' }),
-      request(app)
-        .post('/api/auth/login')
+      post('/api/auth/login')
         .send({ username: TEST_USERNAME, password: 'WrongPass99' }),
     ]);
 
@@ -199,8 +211,7 @@ describe('Invalid credentials', () => {
   });
 
   it('does not set a session cookie on invalid credentials', async () => {
-    const res = await request(app)
-      .post('/api/auth/login')
+    const res = await post('/api/auth/login')
       .send({ username: TEST_USERNAME, password: 'WrongPassword!' });
 
     expect(res.status).toBe(401);
@@ -214,8 +225,7 @@ describe('Invalid credentials', () => {
 
 describe('Login validation', () => {
   it('returns 400 with "Validation failed" when username is too short (Req 1.3)', async () => {
-    const res = await request(app)
-      .post('/api/auth/login')
+    const res = await post('/api/auth/login')
       .send({ username: 'ab', password: TEST_PASSWORD });
 
     expect(res.status).toBe(400);
@@ -224,8 +234,7 @@ describe('Login validation', () => {
   });
 
   it('returns 400 when password is too short', async () => {
-    const res = await request(app)
-      .post('/api/auth/login')
+    const res = await post('/api/auth/login')
       .send({ username: TEST_USERNAME, password: 'short' });
 
     expect(res.status).toBe(400);
@@ -233,7 +242,7 @@ describe('Login validation', () => {
   });
 
   it('returns 400 when the request body is empty', async () => {
-    const res = await request(app).post('/api/auth/login').send({});
+    const res = await post('/api/auth/login').send({});
 
     expect(res.status).toBe(400);
     expect(res.body).toMatchObject({ error: 'Validation failed' });
@@ -309,8 +318,7 @@ describe('Logout', () => {
   it('returns 204 and clears the session cookie on valid session (Req 5.2)', async () => {
     const cookie = await loginAndGetCookie();
 
-    const res = await request(app)
-      .post('/api/auth/logout')
+    const res = await post('/api/auth/logout')
       .set('Cookie', cookie);
 
     expect(res.status).toBe(204);
@@ -328,7 +336,7 @@ describe('Logout', () => {
     const sessionsBefore = await prisma.adminSession.findMany({ where: { adminId } });
     expect(sessionsBefore).toHaveLength(1);
 
-    await request(app).post('/api/auth/logout').set('Cookie', cookie);
+    await post('/api/auth/logout').set('Cookie', cookie);
 
     const sessionsAfter = await prisma.adminSession.findMany({ where: { adminId } });
     expect(sessionsAfter).toHaveLength(0);
@@ -338,7 +346,7 @@ describe('Logout', () => {
     const cookie = await loginAndGetCookie();
 
     // Logout
-    await request(app).post('/api/auth/logout').set('Cookie', cookie);
+    await post('/api/auth/logout').set('Cookie', cookie);
 
     // Try to use the same cookie
     const res = await request(app).get('/api/auth/me').set('Cookie', cookie);
@@ -347,7 +355,7 @@ describe('Logout', () => {
   });
 
   it('returns 401 when attempting to logout without a session cookie', async () => {
-    const res = await request(app).post('/api/auth/logout');
+    const res = await post('/api/auth/logout');
 
     expect(res.status).toBe(401);
     expect(res.body).toEqual({ error: 'Authentication required' });
@@ -374,13 +382,13 @@ describe('Rate limiting', () => {
     // accept gracefully below).
     const responses: number[] = [];
     for (let i = 0; i < 5; i++) {
-      const r = await request(app).post('/api/auth/login').send(wrongBody);
+      const r = await post('/api/auth/login').send(wrongBody);
       responses.push(r.status);
     }
 
     // After 5 failed attempts the rate limiter must have triggered.
     // The 6th request from the same IP must be 429.
-    const finalRes = await request(app).post('/api/auth/login').send(wrongBody);
+    const finalRes = await post('/api/auth/login').send(wrongBody);
 
     // Either the lockout started mid-loop (prior state) or on the 6th call
     const allStatuses = [...responses, finalRes.status];
@@ -409,7 +417,7 @@ describe('Rate limiting', () => {
     let rateLimitedRes: Awaited<ReturnType<typeof request.agent>> | null = null;
 
     for (let attempt = 0; attempt < 7; attempt++) {
-      const r = await request(app).post('/api/auth/login').send(wrongBody);
+      const r = await post('/api/auth/login').send(wrongBody);
       if (r.status === 429) {
         rateLimitedRes = r;
         break;

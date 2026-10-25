@@ -65,7 +65,8 @@ describe('PortfolioAllocationDialog', () => {
 
     await user.click(screen.getByRole('button', { name: 'Portfolio Allocation' }));
 
-    expect(screen.getByRole('img', { name: 'Stocks color' })).toHaveStyle({ backgroundColor: 'rgb(8, 145, 178)' });
+    const currentAllocation = screen.getByRole('list', { name: 'Current allocation by asset type' });
+    expect(within(currentAllocation).getByRole('img', { name: 'Stocks color' })).toHaveStyle({ backgroundColor: 'rgb(8, 145, 178)' });
   });
 
   it('projects planned buys and caps planned sells at the current position', async () => {
@@ -85,7 +86,7 @@ describe('PortfolioAllocationDialog', () => {
     await user.click(screen.getByRole('button', { name: 'Portfolio Allocation' }));
 
     const projected = screen.getByRole('list', { name: 'Projected allocation by asset type' });
-    const stockValue = within(projected).getByRole('button', { name: /Stocks projected value.*change \+R\$ 50,00/ });
+    const stockValue = within(projected).getByRole('button', { name: /Stocks projected value.*change \+R\$\s*50,00/ });
     expect(stockValue).toHaveClass('text-emerald-700');
     expect(within(projected).getByText('100.0%')).toBeInTheDocument();
     await user.click(stockValue);
@@ -93,7 +94,7 @@ describe('PortfolioAllocationDialog', () => {
     expect(within(stockImpacts).getByText('ACME3')).toBeInTheDocument();
     expect(stockImpacts).toHaveTextContent('+R$ 50,00');
 
-    const fixedIncomeValue = within(projected).getByRole('button', { name: /Renda Fixa projected value.*change −R\$ 10,00/ });
+    const fixedIncomeValue = within(projected).getByRole('button', { name: /Renda Fixa projected value.*change −R\$\s*10,00/ });
     expect(fixedIncomeValue).toHaveClass('text-red-700');
     await user.click(fixedIncomeValue);
     const fixedIncomeImpacts = screen.getByRole('list', { name: 'Renda Fixa changed tickers' });
