@@ -129,6 +129,64 @@ describe('InvestmentTable planned buys', () => {
   });
 });
 
+describe('InvestmentTable mobile table view', () => {
+  it('toggles to a compact table with held and watchlist investments and only the requested columns', async () => {
+    const user = (await import('@testing-library/user-event')).default.setup();
+    const { container } = render(
+      <InvestmentTable
+        investments={[
+          makeInvestment({
+            position: { quantity: '2', averagePrice: '10' },
+            quote: { currentPrice: 13, dailyChangePercent: 1.25 },
+          }),
+          makeInvestment({
+            id: 'watchlist-1',
+            ticker: 'WATCH3',
+            position: { quantity: '0', averagePrice: '0' },
+          }),
+        ]}
+        isLoading={false}
+        onAddOrder={vi.fn()}
+        onArchive={vi.fn()}
+        onTickerClick={vi.fn()}
+      />,
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Show all tickers as table' }));
+
+    const mobileView = container.querySelector('#mobile-investment-view');
+    expect(mobileView).not.toBeNull();
+    const table = within(mobileView as HTMLElement).getByRole('table');
+    expect(within(table).getByRole('button', { name: 'View comments for ACME3' })).toBeInTheDocument();
+    expect(within(table).getByRole('button', { name: 'View comments for WATCH3' })).toBeInTheDocument();
+    expect(within(table).getAllByRole('columnheader')[0]).toHaveClass('sticky', 'left-0', 'z-20', 'bg-card');
+    expect(within(table).getByRole('button', { name: 'View comments for ACME3' }).closest('td'))
+      .toHaveClass('sticky', 'left-0', 'z-10', 'bg-card');
+    expect(within(table).getByText('R$ 20,00')).toBeInTheDocument();
+    expect(within(table).getByText('R$ 26,00')).toBeInTheDocument();
+    expect(within(table).getByText('R$ 6,00')).toBeInTheDocument();
+    expect(within(table).getByText('+30.00%')).toBeInTheDocument();
+    expect(within(table).getAllByRole('columnheader').map((header) => header.textContent?.trim())).toEqual([
+      'Ticker',
+      'Sector',
+      'Qty',
+      'Avg Price',
+      'Price Now',
+      'Var %',
+      'Total Invested',
+      'Current Total',
+      'Profit',
+      'Var %',
+      '%',
+    ]);
+    expect(within(table).queryByRole('columnheader', { name: /target sell/i })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Show as cards' })).toHaveAttribute('aria-expanded', 'true');
+
+    await user.click(screen.getByRole('button', { name: 'Show as cards' }));
+    expect(screen.getByRole('button', { name: 'Show all tickers as table' })).toHaveAttribute('aria-expanded', 'false');
+  });
+});
+
 describe('InvestmentTable portfolio daily variation', () => {
   it('shows the aggregate daily amount and percent and opens the history modal', async () => {
     const user = (await import('@testing-library/user-event')).default.setup();

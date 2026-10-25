@@ -121,6 +121,7 @@ export function InvestmentTable({
 }: InvestmentTableProps): React.JSX.Element {
   const [sort, setSort] = React.useState<SortState>({ key: null, direction: 'ascending' });
   const [variationDialogOpen, setVariationDialogOpen] = React.useState(false);
+  const [mobileTableOpen, setMobileTableOpen] = React.useState(false);
 
   const stockHoldings = investments.filter((investment) => investment.type === 'STOCK'
     && Number(investment.position.quantity) > 0);
@@ -288,27 +289,63 @@ export function InvestmentTable({
         </Table>
       </div>
 
-      <div className="grid gap-3 md:hidden">
-        {stockHoldings.length > 0 && (
-          <PortfolioVariationSummary
-            variation={dailyVariation}
-            label={variationLabel}
-            isLoading={historyLoading}
-            onClick={() => setVariationDialogOpen(true)}
-          />
-        )}
-        {invested.map((investment) => (
-          <MobileInvestmentCard
-            key={investment.id}
-            investment={investment}
-            pricesLoading={pricesLoading}
-            portfolioCurrentTotal={portfolioCurrentTotal}
-            portfolioTotalInvested={portfolioTotalInvested}
-            onAddOrder={onAddOrder}
-            onArchive={onArchive}
-            onTickerClick={onTickerClick}
-          />
-        ))}
+      <div className="md:hidden">
+        <div className="mb-2 flex justify-end">
+          <button
+            type="button"
+            className="text-sm font-medium text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:underline"
+            aria-expanded={mobileTableOpen}
+            aria-controls="mobile-investment-view"
+            onClick={() => { setMobileTableOpen((open) => !open); }}
+          >
+            {mobileTableOpen ? 'Show as cards' : 'Show all tickers as table'}
+          </button>
+        </div>
+        <div id="mobile-investment-view">
+          {mobileTableOpen ? (
+            <div className="overflow-x-auto rounded-md border">
+              <Table className="min-w-[1050px] [&_th]:px-1 [&_td]:px-1">
+                <TableHeader>
+                  <CompactTableHeaderRow sort={sort} onSort={handleSort} />
+                </TableHeader>
+                <TableBody>
+                  {[...invested, ...watchlist].map((investment) => (
+                    <CompactInvestmentRow
+                      key={investment.id}
+                      investment={investment}
+                      pricesLoading={pricesLoading}
+                      portfolioCurrentTotal={portfolioCurrentTotal}
+                      onTickerClick={onTickerClick}
+                    />
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          ) : (
+            <div className="grid gap-3">
+              {stockHoldings.length > 0 && (
+                <PortfolioVariationSummary
+                  variation={dailyVariation}
+                  label={variationLabel}
+                  isLoading={historyLoading}
+                  onClick={() => setVariationDialogOpen(true)}
+                />
+              )}
+              {invested.map((investment) => (
+                <MobileInvestmentCard
+                  key={investment.id}
+                  investment={investment}
+                  pricesLoading={pricesLoading}
+                  portfolioCurrentTotal={portfolioCurrentTotal}
+                  portfolioTotalInvested={portfolioTotalInvested}
+                  onAddOrder={onAddOrder}
+                  onArchive={onArchive}
+                  onTickerClick={onTickerClick}
+                />
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       <BuyPlanTable
@@ -623,6 +660,30 @@ function TableHeaderRow({ sort, onSort }: TableHeaderRowProps): React.JSX.Elemen
       <SortableTableHead label="%" title="Portfolio %" sortKey="portfolioWeight" sort={sort} onSort={onSort} className="text-right" />
       <TableHead className="text-right" title="Last comment or update">Comment Date</TableHead>
       <TableHead className="text-right">Actions</TableHead>
+    </TableRow>
+  );
+}
+
+function CompactTableHeaderRow({ sort, onSort }: TableHeaderRowProps): React.JSX.Element {
+  return (
+    <TableRow>
+      <SortableTableHead
+        label="Ticker"
+        sortKey="ticker"
+        sort={sort}
+        onSort={onSort}
+        className="sticky left-0 z-20 bg-card shadow-[2px_0_3px_-2px_hsl(var(--border))]"
+      />
+      <SortableTableHead label="Sector" sortKey="sector" sort={sort} onSort={onSort} />
+      <SortableTableHead label="Qty" sortKey="quantity" sort={sort} onSort={onSort} className="text-right" />
+      <SortableTableHead label="Avg Price" sortKey="averagePrice" sort={sort} onSort={onSort} className="text-right" />
+      <SortableTableHead label="Price Now" sortKey="currentPrice" sort={sort} onSort={onSort} className="text-right" />
+      <SortableTableHead label="Var %" sortKey="dailyChangePercent" sort={sort} onSort={onSort} className="text-right" />
+      <SortableTableHead label="Total Invested" sortKey="totalInvested" sort={sort} onSort={onSort} className="text-right" />
+      <SortableTableHead label="Current Total" sortKey="currentTotal" sort={sort} onSort={onSort} className="text-right" />
+      <SortableTableHead label="Profit" sortKey="profit" sort={sort} onSort={onSort} className="text-right" />
+      <SortableTableHead label="Var %" title="Variation %" sortKey="totalVariation" sort={sort} onSort={onSort} className="text-right" />
+      <SortableTableHead label="%" title="Portfolio %" sortKey="portfolioWeight" sort={sort} onSort={onSort} className="text-right" />
     </TableRow>
   );
 }
@@ -991,6 +1052,85 @@ function InvestmentRow({ investment, pricesLoading = false, portfolioCurrentTota
             <Archive className="h-3.5 w-3.5" />
           </Button>
         </div>
+      </TableCell>
+    </TableRow>
+  );
+}
+
+function CompactInvestmentRow({
+  investment,
+  pricesLoading = false,
+  portfolioCurrentTotal,
+  onTickerClick,
+}: Pick<InvestmentRowProps, 'investment' | 'pricesLoading' | 'portfolioCurrentTotal' | 'onTickerClick'>): React.JSX.Element {
+  const isTreasury = investment.type === 'TREASURY';
+  const noOrders = hasNoOrders(investment);
+  const quoteIsLoading = pricesLoading && !isTreasury && investment.quote === null;
+  const quantity = parseFloat(investment.position.quantity);
+  const averagePrice = parseFloat(investment.position.averagePrice);
+  const currentPrice = isTreasury
+    ? (investment.currentValue !== null ? parseFloat(investment.currentValue) : null)
+    : (investment.quote?.currentPrice ?? null);
+  const dailyChangePercent = investment.quote?.dailyChangePercent ?? null;
+  const totalInvested = noOrders ? 0 : calculateTotalInvested(quantity, averagePrice);
+  const currentTotal = noOrders ? 0 : calculateCurrentTotal(quantity, currentPrice);
+  const profit = noOrders ? 0 : calculateProfit(currentTotal, totalInvested);
+  const totalVariation = noOrders ? 0 : calculateTotalVariation(profit, totalInvested);
+  const positionValueForWeight = noOrders
+    ? 0
+    : (currentTotal !== null ? currentTotal : totalInvested);
+  const portfolioWeight = noOrders
+    ? null
+    : calculatePortfolioWeight(positionValueForWeight, portfolioCurrentTotal);
+  const displayLabel = isTreasury && investment.treasuryProductName
+    ? investment.treasuryProductName
+    : investment.ticker;
+
+  return (
+    <TableRow>
+      <TableCell className="sticky left-0 z-10 bg-card font-medium shadow-[2px_0_3px_-2px_hsl(var(--border))]">
+        <button
+          type="button"
+          onClick={() => { onTickerClick(investment.id, investment.ticker, investment.sector, investment.recommendation); }}
+          aria-label={`View comments for ${displayLabel}`}
+          className={`cursor-pointer text-left underline-offset-2 hover:underline focus-visible:outline-none focus-visible:underline ${getRecommendationColorClass(investment.recommendation)}`}
+        >
+          {displayLabel}
+        </button>
+      </TableCell>
+      <TableCell>{investment.sector ?? <span className="text-muted-foreground">—</span>}</TableCell>
+      <TableCell className="text-right">
+        {noOrders ? <span className="text-muted-foreground">—</span> : <span title={formatQuantity(quantity)}>{formatCompactQuantity(quantity)}</span>}
+      </TableCell>
+      <TableCell className="text-right">
+        {noOrders || isTreasury ? <span className="text-muted-foreground">—</span> : formatCurrency(averagePrice)}
+      </TableCell>
+      <TableCell className="text-right">
+        {quoteIsLoading
+          ? <span className="animate-pulse text-muted-foreground">Loading…</span>
+          : currentPrice !== null ? formatCurrency(currentPrice) : <span className="text-muted-foreground">N/A</span>}
+      </TableCell>
+      <TableCell className={`text-right ${!isTreasury && !noOrders && dailyChangePercent !== null ? profitColorClass(dailyChangePercent) : 'text-muted-foreground'}`}>
+        {isTreasury || noOrders
+          ? '—'
+          : quoteIsLoading
+            ? <span className="animate-pulse text-muted-foreground">Loading…</span>
+            : dailyChangePercent !== null ? formatPercent(dailyChangePercent) : 'N/A'}
+      </TableCell>
+      <TableCell className="text-right">
+        {noOrders ? <span className="text-muted-foreground">—</span> : formatCurrency(totalInvested)}
+      </TableCell>
+      <TableCell className="text-right">
+        {noOrders ? <span className="text-muted-foreground">—</span> : quoteIsLoading ? <span className="animate-pulse text-muted-foreground">Loading…</span> : currentTotal !== null ? formatCurrency(currentTotal) : <span className="text-muted-foreground">N/A</span>}
+      </TableCell>
+      <TableCell className={`text-right ${noOrders ? 'text-muted-foreground' : profitColorClass(profit)}`}>
+        {noOrders ? '—' : quoteIsLoading ? <span className="animate-pulse text-muted-foreground">Loading…</span> : profit !== null ? formatCurrency(profit) : <span className="text-muted-foreground">N/A</span>}
+      </TableCell>
+      <TableCell className={`text-right ${noOrders ? 'text-muted-foreground' : profitColorClass(totalVariation)}`}>
+        {noOrders ? '—' : quoteIsLoading ? <span className="animate-pulse text-muted-foreground">Loading…</span> : totalVariation !== null ? formatPercent(totalVariation) : <span className="text-muted-foreground">N/A</span>}
+      </TableCell>
+      <TableCell className="text-right">
+        {noOrders ? <span className="text-muted-foreground">—</span> : quoteIsLoading ? <span className="animate-pulse text-muted-foreground">Loading…</span> : portfolioWeight !== null ? formatPortfolioPercent(portfolioWeight) : <span className="text-muted-foreground">N/A</span>}
       </TableCell>
     </TableRow>
   );
