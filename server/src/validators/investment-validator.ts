@@ -155,6 +155,7 @@ export const updateTargetPricesSchema = z.object({
   targetSellPrice: nullablePositivePrice.optional(),
   targetBuyPrice: nullablePositivePrice.optional(),
   targetBuyQuantity: nullablePositivePrice.optional(),
+  targetSellQuantity: nullablePositivePrice.optional(),
 });
 
 /**

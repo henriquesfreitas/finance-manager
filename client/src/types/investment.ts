@@ -45,6 +45,8 @@ export interface InvestmentRecord {
   targetBuyPrice: string | null;
   /** User-defined quantity intended for the next buy. Null when not set. */
   targetBuyQuantity: string | null;
+  /** User-defined quantity intended for the next sell. Null when not set. */
+  targetSellQuantity: string | null;
   /** User-assigned recommendation from 1 (lowest) to 5 (best), or null. */
   recommendation: number | null;
   /**

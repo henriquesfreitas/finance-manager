@@ -49,6 +49,7 @@ describe('ticker recommendation', () => {
       targetSellPrice: null,
       targetBuyPrice: null,
       targetBuyQuantity: null,
+    targetSellQuantity: null,
       recommendation: null,
       currentValue: null,
       treasuryProductId: null,

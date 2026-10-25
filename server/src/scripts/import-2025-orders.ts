@@ -302,6 +302,7 @@ async function main(): Promise<void> {
     });
 
     for (const row of rows) {
+      let remainingTargetSellQuantity = row.investment.targetSellQuantity?.toNumber() ?? null;
       for (const order of ordersToCreate.filter((plannedOrder) => plannedOrder.ticker === row.investment.ticker)) {
         await tx.order.create({
           data: {
@@ -326,6 +327,16 @@ async function main(): Promise<void> {
           await tx.investment.update({
             where: { id: row.investment.id },
             data: { targetBuyQuantity: new Prisma.Decimal(remainingTargetBuyQuantity) },
+          });
+        }
+        if (order.type === 'SELL' && remainingTargetSellQuantity !== null) {
+          remainingTargetSellQuantity = Math.max(
+            0,
+            remainingTargetSellQuantity - order.quantity,
+          );
+          await tx.investment.update({
+            where: { id: row.investment.id },
+            data: { targetSellQuantity: new Prisma.Decimal(remainingTargetSellQuantity) },
           });
         }
       }

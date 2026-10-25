@@ -219,6 +219,13 @@ describe('validateUpdateTargetPricesInput', () => {
     expect(result.data.targetBuyPrice).toBeNull();
   });
 
+  it('accepts and clears a planned sell quantity', () => {
+    const set = validateUpdateTargetPricesInput({ targetSellQuantity: 2.5 });
+    const cleared = validateUpdateTargetPricesInput({ targetSellQuantity: null });
+    expect(set.success && set.data.targetSellQuantity).toBe(2.5);
+    expect(cleared.success && cleared.data.targetSellQuantity).toBeNull();
+  });
+
   it('accepts an empty object (no-op update)', () => {
     const result = validateUpdateTargetPricesInput({});
     expect(result.success).toBe(true);
@@ -245,6 +252,12 @@ describe('validateUpdateTargetPricesInput', () => {
     expect(result.success).toBe(false);
     if (result.success) return;
     expect(result.errors['targetBuyPrice']).toBeDefined();
+  });
+
+  it.each([0, -1, 'two'])('rejects invalid targetSellQuantity %s', (targetSellQuantity) => {
+    const result = validateUpdateTargetPricesInput({ targetSellQuantity });
+    expect(result.success).toBe(false);
+    if (!result.success) expect(result.errors['targetSellQuantity']).toBeDefined();
   });
 
   it('rejects non-numeric targetSellPrice', () => {

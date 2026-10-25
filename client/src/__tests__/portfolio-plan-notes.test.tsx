@@ -45,7 +45,8 @@ afterEach(() => {
 function makeInvestment(): InvestmentListItem {
   return {
     id: 'investment-1', ticker: 'ACME3', type: 'STOCK', sector: 'Industry', archivedAt: null,
-    targetSellPrice: null, targetBuyPrice: null, targetBuyQuantity: null, recommendation: null,
+    targetSellPrice: null, targetBuyPrice: null, targetBuyQuantity: null,
+    targetSellQuantity: null, recommendation: null,
     currentValue: null, treasuryProductId: null, treasuryProductName: null,
     createdAt: '2026-01-01T00:00:00.000Z', updatedAt: '2026-01-01T00:00:00.000Z',
     position: { quantity: '2', averagePrice: '10' },

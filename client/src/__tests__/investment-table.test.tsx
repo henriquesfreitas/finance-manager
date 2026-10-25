@@ -50,6 +50,7 @@ function makeInvestment(overrides: Partial<InvestmentListItem> = {}): Investment
     targetSellPrice: '15',
     targetBuyPrice: '9',
     targetBuyQuantity: '2',
+    targetSellQuantity: null,
     recommendation: 1,
     currentValue: null,
     treasuryProductId: null,
@@ -92,6 +93,7 @@ describe('InvestmentTable planned buys', () => {
         id: 'investment-3',
         ticker: 'NOQTY3',
         targetBuyQuantity: null,
+    targetSellQuantity: null,
       }),
     ]);
 
@@ -116,6 +118,32 @@ describe('InvestmentTable planned buys', () => {
     ]);
 
     expect(screen.queryByRole('region', { name: 'Planned Buys' })).not.toBeInTheDocument();
+  });
+
+  it('shows planned sells using current prices and excludes investments without a positive sell quantity', () => {
+    renderInvestmentTable([
+      makeInvestment({ targetSellQuantity: '3' }),
+      makeInvestment({ id: 'investment-2', ticker: 'MISSING3', targetSellQuantity: '2', quote: null }),
+      makeInvestment({ id: 'investment-3', ticker: 'NOQTY3', targetSellQuantity: '0' }),
+    ]);
+
+    const section = screen.getByRole('region', { name: 'Planned Sells' });
+    const table = within(section).getByRole('table');
+    expect(within(table).getByText('ACME3')).toBeInTheDocument();
+    expect(within(table).getByText('MISSING3')).toBeInTheDocument();
+    expect(within(table).queryByText('NOQTY3')).not.toBeInTheDocument();
+    expect(within(table).getAllByText('R$ 30,00')).toHaveLength(2);
+    expect(within(table).getAllByText('N/A')).toHaveLength(2);
+    expect(within(table).getByText(/Combined total\s*\(partial\)/)).toBeInTheDocument();
+  });
+
+  it('does not render the planned sells summary without positive sell quantities', () => {
+    renderInvestmentTable([
+      makeInvestment({ targetSellQuantity: '0' }),
+      makeInvestment({ id: 'investment-2', targetSellQuantity: null }),
+    ]);
+
+    expect(screen.queryByRole('region', { name: 'Planned Sells' })).not.toBeInTheDocument();
   });
 
   it('keeps tickers and stored fields visible while quote-dependent values load', () => {
@@ -177,6 +205,8 @@ describe('InvestmentTable mobile table view', () => {
       'Ticker',
       'Sector',
       'Qty',
+      'Buy Qty',
+      'Sell Qty',
       'Avg Price',
       'Price Now',
       'Var %',

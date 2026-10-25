@@ -11,8 +11,9 @@ For the database tables, columns, relationships, indexes, and enums, see [`DATAB
 - FIIs use the sector labels `FIIs — Tijolo`, `FIIs — Papel`, or `FIIs — Misto`. Classify by the fund's primary strategy; use Misto when property and credit strategies are both material. New stock records cannot use the generic `FIIs` label; it remains available for legacy records and sector edits.
 - Treasury products are catalog entries, not hardcoded investment options.
 - Active investments can be archived and later restored. Archived investments remain visible in the archive and cannot receive new, edited, or deleted orders. Archived stocks do not fetch live quotes.
-- Target buy price, target sell price, intended buy quantity, manual current value, and recommendation are optional user-entered fields. Prices and quantities must be positive when set; they can be cleared. Recommendation is an integer from 1 through 5, or unset.
+- Target buy price, target sell price, intended buy and sell quantities, manual current value, and recommendation are optional user-entered fields. Prices and quantities must be positive when set; they can be cleared. Recommendation is an integer from 1 through 5, or unset.
 - A BUY reduces an investment's intended buy quantity by the order quantity, down to zero. Other order types do not consume it.
+- A SELL reduces an investment's intended sell quantity by the order quantity, down to zero. Other order types do not consume it.
 
 ## Orders and positions
 

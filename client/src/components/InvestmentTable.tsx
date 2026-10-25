@@ -51,6 +51,7 @@ type SortKey =
   | 'targetSellPrice'
   | 'targetBuyPrice'
   | 'targetBuyQuantity'
+  | 'targetSellQuantity'
   | 'dailyChangePercent'
   | 'totalInvested'
   | 'currentTotal'
@@ -205,14 +206,14 @@ export function InvestmentTable({
     return (
       <>
       <div className="hidden overflow-x-auto rounded-md border md:block">
-        <Table className="min-w-[1500px] [&_th]:px-0.5 [&_td]:px-0.5">
+        <Table className="w-full table-fixed [&_th]:px-0.5 [&_td]:px-0.5">
           <TableHeader>
             <TableHeaderRow sort={sort} onSort={handleSort} />
           </TableHeader>
           <TableBody>
             {Array.from({ length: 3 }).map((_, i) => (
               <TableRow key={i}>
-                {Array.from({ length: 16 }).map((_, j) => (
+                {Array.from({ length: 17 }).map((_, j) => (
                   <TableCell key={j}>
                     <div className="h-4 w-full animate-pulse rounded bg-muted" />
                   </TableCell>
@@ -241,13 +242,13 @@ export function InvestmentTable({
         <PortfolioPlanNotesButton onClick={() => setPortfolioNotesOpen(true)} />
       </div>
       <div className="hidden overflow-x-auto rounded-md border md:block">
-        <Table className="min-w-[1500px] [&_th]:px-0.5 [&_td]:px-0.5">
+        <Table className="w-full table-fixed [&_th]:px-0.5 [&_td]:px-0.5">
           <TableHeader>
             <TableHeaderRow sort={sort} onSort={handleSort} />
           </TableHeader>
           <TableBody>
             <TableRow>
-              <TableCell colSpan={16} className="py-12 text-center text-muted-foreground">
+              <TableCell colSpan={17} className="py-12 text-center text-muted-foreground">
                 No investments yet. Click "Add Investment" to get started.
               </TableCell>
             </TableRow>
@@ -267,7 +268,7 @@ export function InvestmentTable({
   return (
     <>
       <div className="hidden overflow-x-auto rounded-md border md:block">
-        <Table className="min-w-[1500px] [&_th]:px-0.5 [&_td]:px-0.5">
+        <Table className="w-full table-fixed [&_th]:px-0.5 [&_td]:px-0.5">
           <TableHeader>
             <PortfolioPlanNotesTableRow onClick={() => setPortfolioNotesOpen(true)} />
             {stockHoldings.length > 0 && (
@@ -313,7 +314,7 @@ export function InvestmentTable({
         <div id="mobile-investment-view">
           {mobileTableOpen ? (
             <div className="overflow-x-auto rounded-md border">
-              <Table className="min-w-[1050px] [&_th]:px-1 [&_td]:px-1">
+              <Table className="min-w-[1250px] [&_th]:px-1 [&_td]:px-1">
                 <TableHeader>
                   <CompactTableHeaderRow sort={sort} onSort={handleSort} />
                 </TableHeader>
@@ -362,6 +363,11 @@ export function InvestmentTable({
         pricesLoading={pricesLoading}
         onTickerClick={onTickerClick}
       />
+      <SellPlanTable
+        investments={investments}
+        pricesLoading={pricesLoading}
+        onTickerClick={onTickerClick}
+      />
 
       {watchlist.length > 0 && (
         <section id="watchlist" className="mt-6 scroll-mt-4">
@@ -379,7 +385,7 @@ export function InvestmentTable({
             <a href="#top" className="shrink-0 text-xs font-medium text-primary hover:underline">Back to top ↑</a>
           </div>
           {watchlistOpen && <div id="watchlist-investments" className="hidden overflow-x-auto rounded-md border md:block">
-            <Table className="min-w-[1500px] [&_th]:px-0.5 [&_td]:px-0.5">
+            <Table className="w-full table-fixed [&_th]:px-0.5 [&_td]:px-0.5">
               <TableHeader>
                 <TableHeaderRow sort={sort} onSort={handleSort} />
               </TableHeader>
@@ -443,7 +449,7 @@ function PortfolioPlanNotesButton({ onClick }: { onClick: () => void }): React.J
 function PortfolioPlanNotesTableRow({ onClick }: { onClick: () => void }): React.JSX.Element {
   return (
     <TableRow>
-      <TableHead colSpan={16} className="py-2 text-right">
+      <TableHead colSpan={17} className="py-2 text-right">
         <PortfolioPlanNotesButton onClick={onClick} />
       </TableHead>
     </TableRow>
@@ -661,6 +667,135 @@ function BuyPlanTable({
   );
 }
 
+/** Read-only summary of intended sales, valued at the latest available price. */
+function SellPlanTable({
+  investments,
+  pricesLoading = false,
+  onTickerClick,
+}: {
+  investments: InvestmentListItem[];
+  pricesLoading?: boolean;
+  onTickerClick: InvestmentTableProps['onTickerClick'];
+}): React.JSX.Element | null {
+  const plannedSells = investments
+    .filter((investment) => investment.targetSellQuantity !== null
+      && Number.isFinite(Number(investment.targetSellQuantity))
+      && Number(investment.targetSellQuantity) > 0)
+    .map((investment) => {
+      const currentPrice = investment.type === 'TREASURY'
+        ? (investment.currentValue !== null ? parseFloat(investment.currentValue) : null)
+        : (investment.quote?.currentPrice ?? null);
+      const sellQuantity = Number(investment.targetSellQuantity);
+
+      return {
+        investment,
+        currentPrice,
+        sellQuantity,
+        sellValue: currentPrice !== null ? currentPrice * sellQuantity : null,
+      };
+    });
+
+  if (plannedSells.length === 0) return null;
+
+  const hasMissingPrice = plannedSells.some((sell) => sell.sellValue === null);
+  const plannedPricesLoading = pricesLoading && plannedSells.some(({ investment }) =>
+    investment.type === 'STOCK' && investment.quote === null);
+  const combinedValue = plannedSells.reduce((total, sell) => total + (sell.sellValue ?? 0), 0);
+
+  return (
+    <section id="planned-sells" className="mt-6 scroll-mt-4" aria-labelledby="sell-plan-heading">
+      <div className="mb-2 flex items-center justify-between gap-3">
+        <h2 id="sell-plan-heading" className="text-lg font-semibold">Planned Sells</h2>
+        <a href="#top" className="shrink-0 text-xs font-medium text-primary hover:underline">Back to top â†‘</a>
+      </div>
+      <div className="hidden rounded-md border md:block">
+        <Table className="min-w-[640px] [&_th]:px-2 [&_td]:px-2">
+          <TableHeader>
+            <TableRow>
+              <TableHead>Ticker</TableHead>
+              <TableHead className="text-right">Price Now</TableHead>
+              <TableHead className="text-right">Target Sell</TableHead>
+              <TableHead className="text-right">Sell Qty</TableHead>
+              <TableHead className="text-right">Estimated Total</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {plannedSells.map(({ investment, currentPrice, sellQuantity, sellValue }) => (
+              <TableRow key={investment.id}>
+                <TableCell className="font-medium">
+                  <button
+                    type="button"
+                    onClick={() => onTickerClick(investment.id, investment.ticker, investment.sector, investment.recommendation)}
+                    aria-label={`View comments for ${investment.treasuryProductName ?? investment.ticker}`}
+                    className={`cursor-pointer text-left underline-offset-2 hover:underline focus-visible:outline-none focus-visible:underline ${getRecommendationColorClass(investment.recommendation)}`}
+                  >
+                    {investment.type === 'TREASURY' && investment.treasuryProductName
+                      ? investment.treasuryProductName
+                      : investment.ticker}
+                  </button>
+                </TableCell>
+                <TableCell className="text-right">
+                  {pricesLoading && investment.type === 'STOCK' && !investment.quote
+                    ? <span className="animate-pulse text-muted-foreground">Loadingâ€¦</span>
+                    : currentPrice !== null ? formatCurrency(currentPrice) : <span className="text-muted-foreground">N/A</span>}
+                </TableCell>
+                <TableCell className="text-right">
+                  {investment.targetSellPrice !== null
+                    ? formatCurrency(parseFloat(investment.targetSellPrice))
+                    : <span className="text-muted-foreground">â€”</span>}
+                </TableCell>
+                <TableCell className="text-right">{formatQuantity(sellQuantity)}</TableCell>
+                <TableCell className="text-right">
+                  {pricesLoading && investment.type === 'STOCK' && !investment.quote
+                    ? <span className="animate-pulse text-muted-foreground">Loadingâ€¦</span>
+                    : sellValue !== null ? formatCurrency(sellValue) : <span className="text-muted-foreground">N/A</span>}
+                </TableCell>
+              </TableRow>
+            ))}
+            <TableRow>
+              <TableCell colSpan={4} className="text-right font-semibold">
+                Combined total{hasMissingPrice ? ' (partial)' : ''}
+              </TableCell>
+              <TableCell className="text-right font-semibold">
+                {plannedPricesLoading ? <span className="animate-pulse text-muted-foreground">Loadingâ€¦</span> : formatCurrency(combinedValue)}
+              </TableCell>
+            </TableRow>
+          </TableBody>
+        </Table>
+      </div>
+      <div className="grid gap-3 md:hidden">
+        {plannedSells.map(({ investment, currentPrice, sellQuantity, sellValue }) => (
+          <article key={investment.id} className="rounded-xl border bg-card p-4 shadow-sm">
+            <h3 className="break-words font-semibold">
+              <button
+                type="button"
+                onClick={() => onTickerClick(investment.id, investment.ticker, investment.sector, investment.recommendation)}
+                aria-label={`View comments for ${investment.treasuryProductName ?? investment.ticker}`}
+                className={`text-left underline-offset-2 hover:underline focus-visible:outline-none focus-visible:underline ${getRecommendationColorClass(investment.recommendation)}`}
+              >
+                {investment.type === 'TREASURY' && investment.treasuryProductName
+                  ? investment.treasuryProductName
+                  : investment.ticker}
+              </button>
+            </h3>
+            <div className="mt-3 grid grid-cols-2 gap-x-3 gap-y-3 border-t pt-3">
+              <MobileMetric label="Price now" value={pricesLoading && investment.type === 'STOCK' && !investment.quote ? 'Loadingâ€¦' : currentPrice !== null ? formatCurrency(currentPrice) : 'N/A'} />
+              <MobileMetric label="Target sell" value={investment.targetSellPrice !== null ? formatCurrency(Number(investment.targetSellPrice)) : 'â€”'} />
+              <MobileMetric label="Sell quantity" value={formatQuantity(sellQuantity)} />
+              <MobileMetric label="Estimated total" value={pricesLoading && investment.type === 'STOCK' && !investment.quote ? 'Loadingâ€¦' : sellValue !== null ? formatCurrency(sellValue) : 'N/A'} />
+            </div>
+          </article>
+        ))}
+        <div className="flex items-center justify-between rounded-lg bg-muted/60 px-4 py-3 text-sm font-semibold">
+          <span>Combined total{hasMissingPrice ? ' (partial)' : ''}</span>
+          <span className="tabular-nums">{plannedPricesLoading ? 'Loadingâ€¦' : formatCurrency(combinedValue)}</span>
+        </div>
+      </div>
+      <p className="mt-1 text-xs text-muted-foreground">Information only. Edit planned sell quantities in the investment details above.</p>
+    </section>
+  );
+}
+
 interface TableHeaderRowProps {
   sort: SortState;
   onSort: (key: SortKey) => void;
@@ -687,6 +822,7 @@ function TableHeaderRow({ sort, onSort }: TableHeaderRowProps): React.JSX.Elemen
       <SortableTableHead label="Sell" title="Target Sell" sortKey="targetSellPrice" sort={sort} onSort={onSort} className="max-w-20 text-right whitespace-normal" />
       <SortableTableHead label="Buy" title="Target Buy" sortKey="targetBuyPrice" sort={sort} onSort={onSort} className="max-w-20 text-right whitespace-normal" />
       <SortableTableHead label="Buy Qty" title="Target Buy Qty" sortKey="targetBuyQuantity" sort={sort} onSort={onSort} className="max-w-20 text-right whitespace-normal" />
+      <SortableTableHead label="Sell Qty" title="Target Sell Qty" sortKey="targetSellQuantity" sort={sort} onSort={onSort} className="max-w-20 text-right whitespace-normal" />
       <SortableTableHead label="Total Invested" sortKey="totalInvested" sort={sort} onSort={onSort} className="text-right" />
       <SortableTableHead label="Current Total" sortKey="currentTotal" sort={sort} onSort={onSort} className="text-right" />
       <SortableTableHead label="Profit" sortKey="profit" sort={sort} onSort={onSort} className="text-right" />
@@ -710,6 +846,8 @@ function CompactTableHeaderRow({ sort, onSort }: TableHeaderRowProps): React.JSX
       />
       <SortableTableHead label="Sector" sortKey="sector" sort={sort} onSort={onSort} />
       <SortableTableHead label="Qty" sortKey="quantity" sort={sort} onSort={onSort} className="text-right" />
+      <SortableTableHead label="Buy Qty" title="Target Buy Qty" sortKey="targetBuyQuantity" sort={sort} onSort={onSort} className="text-right" />
+      <SortableTableHead label="Sell Qty" title="Target Sell Qty" sortKey="targetSellQuantity" sort={sort} onSort={onSort} className="text-right" />
       <SortableTableHead label="Avg Price" sortKey="averagePrice" sort={sort} onSort={onSort} className="text-right" />
       <SortableTableHead label="Price Now" sortKey="currentPrice" sort={sort} onSort={onSort} className="text-right" />
       <SortableTableHead label="Var %" sortKey="dailyChangePercent" sort={sort} onSort={onSort} className="text-right" />
@@ -802,6 +940,7 @@ function getSortValue(
     case 'targetSellPrice': return investment.targetSellPrice === null ? null : parseFloat(investment.targetSellPrice);
     case 'targetBuyPrice': return investment.targetBuyPrice === null ? null : parseFloat(investment.targetBuyPrice);
     case 'targetBuyQuantity': return investment.targetBuyQuantity == null ? null : parseFloat(investment.targetBuyQuantity);
+    case 'targetSellQuantity': return investment.targetSellQuantity == null ? null : parseFloat(investment.targetSellQuantity);
     case 'dailyChangePercent': return noOrders || investment.type === 'TREASURY' ? null : investment.quote?.dailyChangePercent ?? null;
     case 'totalInvested': return totalInvested;
     case 'currentTotal': return currentTotal;
@@ -853,6 +992,9 @@ function InvestmentRow({ investment, pricesLoading = false, portfolioCurrentTota
     : null;
   const targetBuyQuantity = investment.targetBuyQuantity != null
     ? parseFloat(investment.targetBuyQuantity)
+    : null;
+  const targetSellQuantity = investment.targetSellQuantity != null
+    ? parseFloat(investment.targetSellQuantity)
     : null;
 
   // Color coding: sell target turns green when current >= target (time to sell)
@@ -919,6 +1061,13 @@ function InvestmentRow({ investment, pricesLoading = false, portfolioCurrentTota
     saveTargetPrices(
       { id: investment.id, targetBuyQuantity: value },
       { onError: () => toast.error(`Failed to save Target Buy Quantity for ${displayLabel}`) },
+    );
+  }
+
+  function handleSellQuantitySave(value: number | null): void {
+    saveTargetPrices(
+      { id: investment.id, targetSellQuantity: value },
+      { onError: () => toast.error(`Failed to save Target Sell Quantity for ${displayLabel}`) },
     );
   }
 
@@ -1015,6 +1164,17 @@ function InvestmentRow({ investment, pricesLoading = false, portfolioCurrentTota
         />
       </TableCell>
       <TableCell className="text-right">
+        <EditablePriceCell
+          value={targetSellQuantity}
+          onSave={handleSellQuantitySave}
+          isPending={isSavingTargets}
+          formatValue={formatQuantity}
+          step="0.00000001"
+          title="Click to set intended sell quantity"
+          ariaLabel={`Edit Target Sell Quantity for ${displayLabel}`}
+        />
+      </TableCell>
+      <TableCell className="text-right">
         {noOrders
           ? <span className="text-muted-foreground">—</span>
           : formatCurrency(totalInvested)}
@@ -1097,6 +1257,7 @@ function CompactInvestmentRow({
   portfolioCurrentTotal,
   onTickerClick,
 }: Pick<InvestmentRowProps, 'investment' | 'pricesLoading' | 'portfolioCurrentTotal' | 'onTickerClick'>): React.JSX.Element {
+  const { mutate: saveTargetPrices, isPending: isSavingTargets } = useUpdateTargetPrices();
   const isTreasury = investment.type === 'TREASURY';
   const noOrders = hasNoOrders(investment);
   const quoteIsLoading = pricesLoading && !isTreasury && investment.quote === null;
@@ -1120,6 +1281,12 @@ function CompactInvestmentRow({
     ? investment.treasuryProductName
     : investment.ticker;
 
+  function saveTarget(field: 'targetBuyQuantity' | 'targetSellQuantity', value: number | null): void {
+    saveTargetPrices({ id: investment.id, [field]: value }, {
+      onError: () => toast.error(`Failed to save ${field} for ${displayLabel}`),
+    });
+  }
+
   return (
     <TableRow>
       <TableCell className="sticky left-0 z-10 bg-card font-medium shadow-[2px_0_3px_-2px_hsl(var(--border))]">
@@ -1135,6 +1302,26 @@ function CompactInvestmentRow({
       <TableCell>{investment.sector ?? <span className="text-muted-foreground">—</span>}</TableCell>
       <TableCell className="text-right">
         {noOrders ? <span className="text-muted-foreground">—</span> : <span title={formatQuantity(quantity)}>{formatCompactQuantity(quantity)}</span>}
+      </TableCell>
+      <TableCell className="text-right">
+        <EditablePriceCell
+          value={investment.targetBuyQuantity !== null ? Number(investment.targetBuyQuantity) : null}
+          onSave={(value) => saveTarget('targetBuyQuantity', value)}
+          isPending={isSavingTargets}
+          formatValue={formatQuantity}
+          step="0.00000001"
+          ariaLabel={`Edit Target Buy Quantity for ${displayLabel}`}
+        />
+      </TableCell>
+      <TableCell className="text-right">
+        <EditablePriceCell
+          value={investment.targetSellQuantity !== null ? Number(investment.targetSellQuantity) : null}
+          onSave={(value) => saveTarget('targetSellQuantity', value)}
+          isPending={isSavingTargets}
+          formatValue={formatQuantity}
+          step="0.00000001"
+          ariaLabel={`Edit Target Sell Quantity for ${displayLabel}`}
+        />
       </TableCell>
       <TableCell className="text-right">
         {noOrders || isTreasury ? <span className="text-muted-foreground">—</span> : formatCurrency(averagePrice)}
@@ -1189,7 +1376,7 @@ function MobileInvestmentCard({ investment, pricesLoading = false, portfolioCurr
     ? investment.treasuryProductName
     : investment.ticker;
 
-  function saveTarget(field: 'targetSellPrice' | 'targetBuyPrice' | 'targetBuyQuantity', value: number | null): void {
+  function saveTarget(field: 'targetSellPrice' | 'targetBuyPrice' | 'targetBuyQuantity' | 'targetSellQuantity', value: number | null): void {
     saveTargetPrices({ id: investment.id, [field]: value }, {
       onError: () => toast.error(`Failed to save ${field} for ${displayLabel}`),
     });
@@ -1274,6 +1461,17 @@ function MobileInvestmentCard({ investment, pricesLoading = false, portfolioCurr
               formatValue={formatQuantity}
               step="0.00000001"
               ariaLabel={`Edit Target Buy Quantity for ${displayLabel}`}
+            />
+          </div>
+          <div className="grid gap-1">
+            <span className="text-xs text-muted-foreground">Target sell quantity</span>
+            <EditablePriceCell
+              value={investment.targetSellQuantity !== null ? Number(investment.targetSellQuantity) : null}
+              onSave={(value) => saveTarget('targetSellQuantity', value)}
+              isPending={isSavingTargets}
+              formatValue={formatQuantity}
+              step="0.00000001"
+              ariaLabel={`Edit Target Sell Quantity for ${displayLabel}`}
             />
           </div>
           {isTreasury && (

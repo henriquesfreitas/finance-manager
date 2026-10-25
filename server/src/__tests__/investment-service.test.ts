@@ -47,6 +47,8 @@ function makeRow(partial: Partial<{
     archivedAt: partial.archivedAt ?? null,
     targetSellPrice: null,
     targetBuyPrice: null,
+    targetBuyQuantity: null,
+    targetSellQuantity: null,
     recommendation: null,
     currentValue: null,
     treasuryProductId: null,
@@ -389,6 +391,34 @@ describe('updateTargetPrices', () => {
     const result = await svc.updateTargetPrices('uuid-1', { targetSellPrice: null });
 
     expect(result.targetSellPrice).toBeNull();
+  });
+
+  it('updates and returns targetSellQuantity', async () => {
+    const existing = makeRow({ ticker: 'ITUB3' });
+    const updated = { ...existing, targetSellQuantity: decimalStub(12.5) };
+    const db = makeFakePrisma({
+      findUnique: vi.fn().mockResolvedValue(existing),
+      update: vi.fn().mockResolvedValue(updated),
+    });
+
+    const result = await createInvestmentService(db).updateTargetPrices('uuid-1', { targetSellQuantity: 12.5 });
+
+    expect(result.targetSellQuantity).toBe('12.5');
+    expect(db.investment.update).toHaveBeenCalledWith(expect.objectContaining({
+      data: { targetSellQuantity: 12.5 },
+    }));
+  });
+
+  it('clears targetSellQuantity when null is passed', async () => {
+    const existing = makeRow({ ticker: 'ITUB3' });
+    const db = makeFakePrisma({
+      findUnique: vi.fn().mockResolvedValue(existing),
+      update: vi.fn().mockResolvedValue({ ...existing, targetSellQuantity: null }),
+    });
+
+    const result = await createInvestmentService(db).updateTargetPrices('uuid-1', { targetSellQuantity: null });
+
+    expect(result.targetSellQuantity).toBeNull();
   });
 
   it('throws a not-found error when the investment does not exist', async () => {

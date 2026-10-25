@@ -187,6 +187,7 @@ export interface UpdateTargetPricesInput {
   targetSellPrice?: number | null;
   targetBuyPrice?: number | null;
   targetBuyQuantity?: number | null;
+  targetSellQuantity?: number | null;
 }
 
 /** Saves the recommendation score and refreshes active and archived ticker colors. */
@@ -206,7 +207,7 @@ export function useUpdateInvestmentRecommendation(): UseMutationResult<
 }
 
 /**
- * Updates the target sell/buy prices of an investment.
+ * Updates target prices and intended quantities for an investment.
  * Invalidates the active investments list on success so the table refreshes.
  *
  * @example mutateAsync({ id: 'some-uuid', targetSellPrice: 35.5 })

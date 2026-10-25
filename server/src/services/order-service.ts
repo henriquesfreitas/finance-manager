@@ -130,6 +130,19 @@ export function createOrderService(db: PrismaClient) {
         });
       }
 
+      // Consume the remaining planned sell quantity only when a SELL is recorded.
+      if (input.type === 'SELL' && investment.targetSellQuantity !== null) {
+        const remainingTargetSellQuantity = Math.max(
+          0,
+          investment.targetSellQuantity.toNumber() - input.quantity,
+        );
+
+        await db.investment.update({
+          where: { id: investmentId },
+          data: { targetSellQuantity: remainingTargetSellQuantity },
+        });
+      }
+
       // 5. Re-fetch all orders (including the new one) sorted chronologically for position
       const allOrders = await db.order.findMany({
         where: { investmentId },

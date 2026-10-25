@@ -35,6 +35,9 @@ export function HomePage(): React.JSX.Element {
   const hasPlannedBuys = investments.some((investment) => investment.targetBuyQuantity !== null
     && Number.isFinite(Number(investment.targetBuyQuantity))
     && Number(investment.targetBuyQuantity) > 0);
+  const hasPlannedSells = investments.some((investment) => investment.targetSellQuantity !== null
+    && Number.isFinite(Number(investment.targetSellQuantity))
+    && Number(investment.targetSellQuantity) > 0);
   const hasWatchlist = investments.some((investment) => Number(investment.position.quantity) === 0);
 
   async function handleLogout(): Promise<void> {
@@ -140,7 +143,7 @@ export function HomePage(): React.JSX.Element {
     <div className="min-h-screen w-full max-w-full overflow-x-clip bg-background">
       {/* ── Header ──────────────────────────────────────────────────────────── */}
       <header id="top" className="app-header scroll-mt-0 bg-blue-600 text-white shadow-md">
-        <div className="container mx-auto flex min-h-16 flex-col items-stretch gap-3 px-4 py-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-start">
+        <div className="mx-auto flex w-full max-w-[1720px] min-h-16 flex-col items-stretch gap-3 px-4 py-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-start">
           <h1 className="whitespace-nowrap text-lg font-semibold tracking-tight sm:text-2xl">Finance Investment Manager</h1>
           <TickerSearch
             investments={investments}
@@ -186,6 +189,15 @@ export function HomePage(): React.JSX.Element {
                         Planned Buys
                       </button>
                     )}
+                    {hasPlannedSells && (
+                      <button
+                        type="button"
+                        className="rounded-md px-3 py-2 text-left text-sm hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        onClick={() => navigateToSection('planned-sells')}
+                      >
+                        Planned Sells
+                      </button>
+                    )}
                     {hasWatchlist && (
                       <button
                         type="button"
@@ -225,7 +237,7 @@ export function HomePage(): React.JSX.Element {
           </div>
         </div>
       </header>
-      <main className="mx-auto w-full max-w-[1536px] px-2 py-6 sm:px-3 sm:py-8 lg:px-4">
+      <main className="mx-auto w-full max-w-[1720px] px-2 py-6 sm:px-3 sm:py-8 lg:px-4">
         <section className="mb-6 rounded-xl border bg-card p-4 shadow-sm sm:p-5">
           <h2 className="mb-3 text-lg font-semibold">Add Investment</h2>
           <AddInvestmentForm />

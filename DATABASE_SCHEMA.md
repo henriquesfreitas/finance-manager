@@ -28,6 +28,7 @@ erDiagram
         decimal targetSellPrice "nullable"
         decimal targetBuyPrice "nullable"
         decimal targetBuyQuantity "nullable"
+        decimal targetSellQuantity "nullable"
         int recommendation "nullable"
         decimal currentValue "nullable"
         uuid treasuryProductId FK "nullable"
