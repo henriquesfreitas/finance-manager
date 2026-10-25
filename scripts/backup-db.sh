@@ -66,6 +66,8 @@ psql_query_csv() {
     psql -v ON_ERROR_STOP=1 -U "${POSTGRES_USER}" -d "${POSTGRES_DB}" -t -A -F '|'
 }
 
+backup_tables=(investments orders comments portfolio_comments treasury_products admin_users budgets budget_items bills bill_month_settlements)
+
 # ── send_email <subject> <html_body> ─────────────────────────────────────────
 send_email() {
   local subject="$1"
@@ -128,6 +130,52 @@ send_telegram() {
   rm -f "$response_file"
 }
 
+send_telegram_report() {
+  local message="$1"
+  local chunk
+  local -a chunks=()
+
+  mapfile -d '' -t chunks < <(python3 -c '
+import sys
+
+text = sys.argv[1]
+limit = 3800  # Leave room for the part label under Telegram's UTF-16 limit.
+lines = text.splitlines() or [""]
+chunks = []
+current = ""
+units = lambda value: len(value.encode("utf-16-le")) // 2
+for line in lines:
+    while units(line) > limit:
+        if current:
+            chunks.append(current)
+            current = ""
+        piece = ""
+        remainder = ""
+        for character in line:
+            if units(piece + character) > limit:
+                remainder = line[len(piece):]
+                break
+            piece += character
+        chunks.append(piece)
+        line = remainder
+    candidate = line if not current else current + "\n" + line
+    if units(candidate) > limit:
+        chunks.append(current)
+        current = line
+    else:
+        current = candidate
+if current or not chunks:
+    chunks.append(current)
+
+for index, chunk in enumerate(chunks, start=1):
+    sys.stdout.write(f"Part {index}/{len(chunks)}\n{chunk}\0")
+' "$message")
+
+  for chunk in "${chunks[@]}"; do
+    send_telegram "$chunk" || return 1
+  done
+}
+
 # ── send_failure_email <reason> ───────────────────────────────────────────────
 send_failure_email() {
   local reason="$1"
@@ -178,19 +226,17 @@ trap 'handle_unexpected_error "$LINENO"' ERR
 # ── Check if any user data changed since last backup ─────────────────────────
 # Queries are passed via stdin to avoid bash mangling double-quoted column names.
 LATEST_CHANGE=$(psql_query '
-  SELECT COALESCE(MAX(latest)::text, '"'"'epoch'"'"')
-    || '"'"'|'"'"'
-    || (SELECT md5(COALESCE(string_agg(to_jsonb(b)::text, '"'"''"'"' ORDER BY b.id), '"'"''"'"')) FROM bills AS b)
-    || '"'"'|'"'"'
+  SELECT COALESCE(MAX(latest)::text, '"'"'epoch'"'"') || '"'"'|v2|'"'"'
+    || (SELECT md5(COALESCE(string_agg(to_jsonb(i)::text, '"'"''"'"' ORDER BY i.id), '"'"''"'"')) FROM investments AS i) || '"'"'|'"'"'
+    || (SELECT md5(COALESCE(string_agg(to_jsonb(o)::text, '"'"''"'"' ORDER BY o.id), '"'"''"'"')) FROM orders AS o) || '"'"'|'"'"'
+    || (SELECT md5(COALESCE(string_agg(to_jsonb(c)::text, '"'"''"'"' ORDER BY c.id), '"'"''"'"')) FROM comments AS c) || '"'"'|'"'"'
+    || (SELECT md5(COALESCE(string_agg(to_jsonb(pc)::text, '"'"''"'"' ORDER BY pc.id), '"'"''"'"')) FROM portfolio_comments AS pc) || '"'"'|'"'"'
+    || (SELECT md5(COALESCE(string_agg(to_jsonb(tp)::text, '"'"''"'"' ORDER BY tp.id), '"'"''"'"')) FROM treasury_products AS tp) || '"'"'|'"'"'
+    || (SELECT md5(COALESCE(string_agg(to_jsonb(u)::text, '"'"''"'"' ORDER BY u.id), '"'"''"'"')) FROM admin_users AS u) || '"'"'|'"'"'
+    || (SELECT md5(COALESCE(string_agg(to_jsonb(b)::text, '"'"''"'"' ORDER BY b.id), '"'"''"'"')) FROM budgets AS b) || '"'"'|'"'"'
+    || (SELECT md5(COALESCE(string_agg(to_jsonb(bi)::text, '"'"''"'"' ORDER BY bi.id), '"'"''"'"')) FROM budget_items AS bi) || '"'"'|'"'"'
+    || (SELECT md5(COALESCE(string_agg(to_jsonb(b)::text, '"'"''"'"' ORDER BY b.id), '"'"''"'"')) FROM bills AS b) || '"'"'|'"'"'
     || (SELECT md5(COALESCE(string_agg(to_jsonb(s)::text, '"'"''"'"' ORDER BY s.month), '"'"''"'"')) FROM bill_month_settlements AS s)
-    || '"'"'|'"'"'
-    || (SELECT md5(COALESCE(string_agg(to_jsonb(u)::text, '"'"''"'"' ORDER BY u.id), '"'"''"'"')) FROM admin_users AS u)
-    || '"'"'|'"'"'
-    || (SELECT md5(COALESCE(string_agg(to_jsonb(b)::text, '"'"''"'"' ORDER BY b.id), '"'"''"'"')) FROM budgets AS b)
-    || '"'"'|'"'"'
-    || (SELECT md5(COALESCE(string_agg(to_jsonb(i)::text, '"'"''"'"' ORDER BY i.id), '"'"''"'"')) FROM budget_items AS i)
-    || '"'"'|'"'"'
-    || (SELECT md5(COALESCE(string_agg(to_jsonb(pc)::text, '"'"''"'"' ORDER BY pc.id), '"'"''"'"')) FROM portfolio_comments AS pc)
   FROM (
     SELECT MAX("updatedAt") AS latest FROM investments
     UNION ALL
@@ -201,6 +247,8 @@ LATEST_CHANGE=$(psql_query '
     SELECT MAX("updatedAt") AS latest FROM portfolio_comments
     UNION ALL
     SELECT MAX("createdAt") AS latest FROM treasury_products
+    UNION ALL
+    SELECT MAX("updatedAt") AS latest FROM bills
     UNION ALL
     SELECT MAX("updatedAt") AS latest FROM admin_users
     UNION ALL
@@ -230,6 +278,22 @@ else
   echo "→ No previous backup marker found. Proceeding with first backup."
 fi
 
+IFS='|' read -r -a current_snapshot <<< "$LATEST_CHANGE"
+CHANGED_TABLES=()
+if [[ -f "$LAST_BACKUP_MARKER" ]]; then
+  IFS='|' read -r -a previous_snapshot <<< "$LAST_BACKUP_TS"
+fi
+if [[ ! -f "$LAST_BACKUP_MARKER" || "${current_snapshot[1]:-}" != "v2" || "${previous_snapshot[1]:-}" != "v2" ]]; then
+  CHANGED_TABLES=("${backup_tables[@]}")
+else
+  for index in "${!backup_tables[@]}"; do
+    snapshot_index=$((index + 2))
+    if [[ "${current_snapshot[$snapshot_index]:-}" != "${previous_snapshot[$snapshot_index]:-}" ]]; then
+      CHANGED_TABLES+=("${backup_tables[$index]}")
+    fi
+  done
+fi
+
 # ── Run pg_dump ───────────────────────────────────────────────────────────────
 BACKUP_FILE="$BACKUP_DIR/finance_${TIMESTAMP}.sql.gz"
 echo "→ Dumping database to $BACKUP_FILE..."
@@ -253,6 +317,40 @@ fi
 
 echo "✓ Uploaded to ${R2_REMOTE}/$(basename "$BACKUP_FILE")"
 echo "$LATEST_CHANGE" > "$LAST_BACKUP_MARKER"
+
+# ── Count recent additions and updates for changed tables ────────────────────
+ACTIVITY_COUNTS=$(psql_query_csv '
+  SELECT table_name, added, updated FROM (
+    SELECT '"'"'investments'"'"' AS table_name,
+      COUNT(*) FILTER (WHERE "createdAt" >= NOW() - INTERVAL '"'"'6 hours'"'"') AS added,
+      COUNT(*) FILTER (WHERE "updatedAt" >= NOW() - INTERVAL '"'"'6 hours'"'"' AND "createdAt" < NOW() - INTERVAL '"'"'6 hours'"'"') AS updated
+    FROM investments
+    UNION ALL SELECT '"'"'orders'"'"', COUNT(*) FILTER (WHERE "createdAt" >= NOW() - INTERVAL '"'"'6 hours'"'"'), COUNT(*) FILTER (WHERE "updatedAt" >= NOW() - INTERVAL '"'"'6 hours'"'"' AND "createdAt" < NOW() - INTERVAL '"'"'6 hours'"'"') FROM orders
+    UNION ALL SELECT '"'"'comments'"'"', COUNT(*) FILTER (WHERE "createdAt" >= NOW() - INTERVAL '"'"'6 hours'"'"'), COUNT(*) FILTER (WHERE "updatedAt" >= NOW() - INTERVAL '"'"'6 hours'"'"' AND "createdAt" < NOW() - INTERVAL '"'"'6 hours'"'"') FROM comments
+    UNION ALL SELECT '"'"'portfolio_comments'"'"', COUNT(*) FILTER (WHERE "createdAt" >= NOW() - INTERVAL '"'"'6 hours'"'"'), COUNT(*) FILTER (WHERE "updatedAt" >= NOW() - INTERVAL '"'"'6 hours'"'"' AND "createdAt" < NOW() - INTERVAL '"'"'6 hours'"'"') FROM portfolio_comments
+    UNION ALL SELECT '"'"'treasury_products'"'"', COUNT(*) FILTER (WHERE "createdAt" >= NOW() - INTERVAL '"'"'6 hours'"'"'), 0 FROM treasury_products
+    UNION ALL SELECT '"'"'admin_users'"'"', COUNT(*) FILTER (WHERE "createdAt" >= NOW() - INTERVAL '"'"'6 hours'"'"'), COUNT(*) FILTER (WHERE "updatedAt" >= NOW() - INTERVAL '"'"'6 hours'"'"' AND "createdAt" < NOW() - INTERVAL '"'"'6 hours'"'"') FROM admin_users
+    UNION ALL SELECT '"'"'budgets'"'"', COUNT(*) FILTER (WHERE "createdAt" >= NOW() - INTERVAL '"'"'6 hours'"'"'), 0 FROM budgets
+    UNION ALL SELECT '"'"'budget_items'"'"', COUNT(*) FILTER (WHERE "createdAt" >= NOW() - INTERVAL '"'"'6 hours'"'"'), COUNT(*) FILTER (WHERE "updatedAt" >= NOW() - INTERVAL '"'"'6 hours'"'"' AND "createdAt" < NOW() - INTERVAL '"'"'6 hours'"'"') FROM budget_items
+    UNION ALL SELECT '"'"'bills'"'"', COUNT(*) FILTER (WHERE "createdAt" >= NOW() - INTERVAL '"'"'6 hours'"'"'), COUNT(*) FILTER (WHERE "updatedAt" >= NOW() - INTERVAL '"'"'6 hours'"'"' AND "createdAt" < NOW() - INTERVAL '"'"'6 hours'"'"') FROM bills
+    UNION ALL SELECT '"'"'bill_month_settlements'"'"', 0, COUNT(*) FILTER (WHERE "updatedAt" >= NOW() - INTERVAL '"'"'6 hours'"'"') FROM bill_month_settlements
+  ) counts
+  ORDER BY table_name;
+' 2>/dev/null || echo "")
+
+CHANGED_TABLES_REPORT="Tables changed since the previous backup (row counts from the last 6 hours):"
+if [[ ${#CHANGED_TABLES[@]} -eq 0 ]]; then
+  CHANGED_TABLES_REPORT+=$'\nNo table changes detected.'
+else
+  declare -A activity_by_table=()
+  while IFS='|' read -r table_name added_count updated_count; do
+    [[ -n "$table_name" ]] || continue
+    activity_by_table["$table_name"]="${added_count} added, ${updated_count} updated"
+  done <<< "$ACTIVITY_COUNTS"
+  for changed_table in "${CHANGED_TABLES[@]}"; do
+    CHANGED_TABLES_REPORT+=$'\n'"${changed_table}: ${activity_by_table[$changed_table]:-counts unavailable}"
+  done
+fi
 
 # ── Query recent activity for the success email ───────────────────────────────
 INVESTMENTS_ROWS=$(psql_query_csv '
@@ -378,11 +476,12 @@ HTMLEOF
 )
 
 send_email "[Finance Manager] Backup ${TIMESTAMP} - ${BACKUP_SIZE}" "$SUCCESS_HTML"
-send_telegram "✓ Finance Manager backup completed
+send_telegram_report "✓ Finance Manager backup completed
 Run time: ${RUN_TIME}
 Backup file: $(basename "$BACKUP_FILE")
 Size: ${BACKUP_SIZE}
-Stored in: ${R2_REMOTE}" || true
+Stored in: ${R2_REMOTE}
+${CHANGED_TABLES_REPORT}" || true
 
 # ── Clean up local backups older than retention window ───────────────────────
 echo "→ Cleaning local backups older than ${RETENTION_DAYS} days..."

@@ -196,9 +196,10 @@ The script `scripts/backup-db.sh` runs a PostgreSQL dump, uploads it to Cloudfla
 ### How it works
 
 - Queries the latest change across `investments`, `orders`, `comments`, `portfolio_comments`, `treasury_products`, `admin_users`, `budgets`, `budget_items`, `bills`, and `bill_month_settlements`
-- Compares timestamps and full-table fingerprints for bills, settlements, users, budgets, budget items, and portfolio comments against the last successful backup marker, so updates and deletions are detected
+- Compares per-table fingerprints against the last successful backup marker, so inserts, updates, and deletions identify the affected tables
 - If nothing changed, exits silently — no dump, no email
 - On change: runs `pg_dump | gzip`, uploads via `rclone`, and sends success notifications with a summary of the backup
+- The success Telegram report lists changed tables and counts rows added or updated in the last 6 hours; it does not include row contents, and long reports are split into sequential messages
 - On any failure (DB down, rclone error, etc): sends failure alert notifications instead
 
 ### Dependencies on the server
@@ -274,7 +275,7 @@ The selected environment file must contain the existing `BACKUP_NOTIFY_EMAIL`, `
 ### Email and Telegram notifications
 
 - **Success email**: subject `✅ Backup YYYYMMDD_HHMMSS — <size>` with investments and orders tables from the last 7 days
-- **Success Telegram message**: run time, backup file, size, and R2 destination
+- **Success Telegram message**: run time, backup file, size, R2 destination, and changed tables with recent added/updated row counts
 - **Failure email and Telegram message**: the error reason and a pointer to the server log
 
 The `RESEND_API_KEY` is send-only scoped — it cannot read email or access your Google account. Safe to store in `.env`.

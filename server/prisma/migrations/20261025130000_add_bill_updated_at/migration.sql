@@ -1,0 +1,6 @@
+ALTER TABLE "bills" ADD COLUMN "updatedAt" TIMESTAMP(3);
+
+UPDATE "bills" SET "updatedAt" = "createdAt";
+
+ALTER TABLE "bills" ALTER COLUMN "updatedAt" SET NOT NULL;
+ALTER TABLE "bills" ALTER COLUMN "updatedAt" SET DEFAULT CURRENT_TIMESTAMP;

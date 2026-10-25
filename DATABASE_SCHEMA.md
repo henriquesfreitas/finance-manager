@@ -190,6 +190,7 @@ erDiagram
 | `responsibleBy` | `BillPayer` | Nullable |
 | `isPaid` | BOOLEAN | Required; defaults to `false` |
 | `createdAt` | TIMESTAMP | Required; defaults to current time; index with `billDate` |
+| `updatedAt` | TIMESTAMP | Required; maintained by Prisma on update; initialized from `createdAt` for existing bills |
 
 ### `bill_month_settlements` (`BillMonthSettlement`)
 

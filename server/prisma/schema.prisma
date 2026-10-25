@@ -108,6 +108,7 @@ model Bill {
   responsibleBy BillPayer?
   isPaid    Boolean  @default(false)
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([billDate, createdAt])
   @@map("bills")
