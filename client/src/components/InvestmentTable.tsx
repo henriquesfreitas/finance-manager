@@ -650,7 +650,7 @@ function BuyPlanTable({
                 value={investment.type === 'STOCK' && investment.quote ? formatPercent(investment.quote.dailyChangePercent) : '—'}
                 valueClassName={investment.type === 'STOCK' && investment.quote ? profitColorClass(investment.quote.dailyChangePercent) : ''}
               />
-              <MobileMetric label="Target sell" value={investment.targetSellPrice !== null ? formatCurrency(Number(investment.targetSellPrice)) : '—'} />
+              <MobileMetric label="Sell" value={investment.targetSellPrice !== null ? formatCurrency(Number(investment.targetSellPrice)) : '—'} />
               <MobileMetric label="Target buy" value={investment.targetBuyPrice !== null ? formatCurrency(Number(investment.targetBuyPrice)) : '—'} />
               <MobileMetric label="Buy quantity" value={formatQuantity(buyQuantity)} />
               <MobileMetric label="Estimated total" value={pricesLoading && investment.type === 'STOCK' && !investment.quote ? 'Loading…' : buyValue !== null ? formatCurrency(buyValue) : 'N/A'} />
@@ -714,7 +714,8 @@ function SellPlanTable({
             <TableRow>
               <TableHead>Ticker</TableHead>
               <TableHead className="text-right">Price Now</TableHead>
-              <TableHead className="text-right">Target Sell</TableHead>
+              <TableHead className="text-right">Sell</TableHead>
+              <TableHead className="text-right">Buy</TableHead>
               <TableHead className="text-right">Sell Qty</TableHead>
               <TableHead className="text-right">Estimated Total</TableHead>
             </TableRow>
@@ -744,6 +745,11 @@ function SellPlanTable({
                     ? formatCurrency(parseFloat(investment.targetSellPrice))
                     : <span className="text-muted-foreground">â€”</span>}
                 </TableCell>
+                <TableCell className="text-right">
+                  {investment.targetBuyPrice !== null
+                    ? formatCurrency(parseFloat(investment.targetBuyPrice))
+                    : <span className="text-muted-foreground">—</span>}
+                </TableCell>
                 <TableCell className="text-right">{formatQuantity(sellQuantity)}</TableCell>
                 <TableCell className="text-right">
                   {pricesLoading && investment.type === 'STOCK' && !investment.quote
@@ -753,7 +759,7 @@ function SellPlanTable({
               </TableRow>
             ))}
             <TableRow>
-              <TableCell colSpan={4} className="text-right font-semibold">
+              <TableCell colSpan={5} className="text-right font-semibold">
                 Combined total{hasMissingPrice ? ' (partial)' : ''}
               </TableCell>
               <TableCell className="text-right font-semibold">
@@ -780,8 +786,9 @@ function SellPlanTable({
             </h3>
             <div className="mt-3 grid grid-cols-2 gap-x-3 gap-y-3 border-t pt-3">
               <MobileMetric label="Price now" value={pricesLoading && investment.type === 'STOCK' && !investment.quote ? 'Loadingâ€¦' : currentPrice !== null ? formatCurrency(currentPrice) : 'N/A'} />
-              <MobileMetric label="Target sell" value={investment.targetSellPrice !== null ? formatCurrency(Number(investment.targetSellPrice)) : 'â€”'} />
+              <MobileMetric label="Sell" value={investment.targetSellPrice !== null ? formatCurrency(Number(investment.targetSellPrice)) : 'â€”'} />
               <MobileMetric label="Sell quantity" value={formatQuantity(sellQuantity)} />
+              <MobileMetric label="Buy" value={investment.targetBuyPrice !== null ? formatCurrency(Number(investment.targetBuyPrice)) : '—'} />
               <MobileMetric label="Estimated total" value={pricesLoading && investment.type === 'STOCK' && !investment.quote ? 'Loadingâ€¦' : sellValue !== null ? formatCurrency(sellValue) : 'N/A'} />
             </div>
           </article>

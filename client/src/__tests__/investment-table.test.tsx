@@ -129,10 +129,14 @@ describe('InvestmentTable planned buys', () => {
 
     const section = screen.getByRole('region', { name: 'Planned Sells' });
     const table = within(section).getByRole('table');
+    expect(within(table).getByRole('columnheader', { name: 'Sell' })).toBeInTheDocument();
+    expect(within(table).getByRole('columnheader', { name: 'Buy' })).toBeInTheDocument();
     expect(within(table).getByText('ACME3')).toBeInTheDocument();
     expect(within(table).getByText('MISSING3')).toBeInTheDocument();
     expect(within(table).queryByText('NOQTY3')).not.toBeInTheDocument();
     expect(within(table).getAllByText('R$ 30,00')).toHaveLength(2);
+    expect(within(table).getAllByText('R$ 15,00')).toHaveLength(2);
+    expect(within(table).getAllByText('R$ 9,00')).toHaveLength(2);
     expect(within(table).getAllByText('N/A')).toHaveLength(2);
     expect(within(table).getByText(/Combined total\s*\(partial\)/)).toBeInTheDocument();
   });
