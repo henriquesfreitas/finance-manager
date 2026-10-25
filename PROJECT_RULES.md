@@ -31,6 +31,7 @@ For the database tables, columns, relationships, indexes, and enums, see [`DATAB
 - Current value is position quantity × current unit price. Stock unit price comes from market quotes; treasury unit price comes from its manually entered current value.
 - If a required current price is unavailable, current value, profit/loss, and variation are unavailable rather than treated as zero. Variation is unavailable when invested amount is zero.
 - Portfolio weight uses current values when available. If any asset lacks a current value, that asset falls back to its invested amount so the portfolio weight can still be calculated.
+- Portfolio allocation projection applies planned buys and sells at the latest available price, limits planned sells to the current position, and excludes sale proceeds from the allocation. Planned transactions without a current price are omitted and make the projection partial.
 - Market quote failure must not make an otherwise valid investment disappear; show the quote-dependent values as unavailable.
 - Buy and sell target prices are user-defined thresholds. A sell target is reached when the current price is at or above it; a buy target is reached when the current price is at or below it.
 
