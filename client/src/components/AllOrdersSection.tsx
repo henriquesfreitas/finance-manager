@@ -53,7 +53,7 @@ export function AllOrdersSection(): React.JSX.Element {
     if (orderFilter === 'sales') return true;
     return order.orderDate.slice(0, 4) === orderFilter.slice('year:'.length);
   });
-  const fiiSales = orders?.filter((order) => order.type === 'SELL' && isFiiSector(order.sector)) ?? [];
+  const fiiSales = filteredOrders?.filter((order) => order.type === 'SELL' && isFiiSector(order.sector)) ?? [];
   const fiiSalesWithAveragePrice = fiiSales.filter((order) => order.averagePriceAtSell !== null);
   const fiiSalesMissingAveragePrice = fiiSales.length - fiiSalesWithAveragePrice.length;
   const fiiTotalSold = fiiSales.reduce(
@@ -75,6 +75,11 @@ export function AllOrdersSection(): React.JSX.Element {
         noSales: 'Nenhuma venda registrada neste filtro.',
         fiiSummary: 'Resumo das vendas de FIIs',
         fiiSalesCount: 'Vendas de FIIs',
+        fiiSalesDetails: 'Detalhes das vendas de FIIs',
+        fiiSaleDate: 'Data',
+        fiiSaleProfit: 'Lucro',
+        fiiSaleLoss: 'Prejuízo',
+        fiiSaleUnavailable: 'Indisponível',
         fiiTotalSold: 'Total vendido',
         fiiTotalInvested: 'Valor investido',
         fiiProfit: 'Lucro realizado',
@@ -88,6 +93,11 @@ export function AllOrdersSection(): React.JSX.Element {
         noSales: 'No sales recorded for this filter.',
         fiiSummary: 'FII sales summary',
         fiiSalesCount: 'FII sell orders',
+        fiiSalesDetails: 'FII sale details',
+        fiiSaleDate: 'Date',
+        fiiSaleProfit: 'Profit',
+        fiiSaleLoss: 'Loss',
+        fiiSaleUnavailable: 'Unavailable',
         fiiTotalSold: 'Total sold',
         fiiTotalInvested: 'Amount invested',
         fiiProfit: 'Realized profit',
@@ -258,13 +268,61 @@ export function AllOrdersSection(): React.JSX.Element {
         </div>
       )}
 
-      {!isLoading && !isError && orderFilter === 'sales' && fiiSales.length > 0 && (
+      {!isLoading && !isError && (orderFilter === 'sales' || orderFilter.startsWith('year:')) && fiiSales.length > 0 && (
         <section className="rounded-md border p-4" aria-label={copy.fiiSummary}>
           <h3 className="text-sm font-semibold">{copy.fiiSummary}</h3>
           <dl className="mt-3 grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
             <div>
               <dt className="text-muted-foreground">{copy.fiiSalesCount}</dt>
-              <dd className="font-medium">{fiiSales.length}</dd>
+              <dd className="font-medium">
+                <span className="group relative inline-flex">
+                  <button
+                    type="button"
+                    aria-label={copy.fiiSalesDetails}
+                    aria-describedby="fii-sales-tooltip"
+                    className="cursor-help rounded-sm underline decoration-dotted underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  >
+                    {fiiSales.length}
+                  </button>
+                  <span
+                    id="fii-sales-tooltip"
+                    role="tooltip"
+                    className="invisible absolute left-0 top-full z-30 w-72 max-w-[calc(100vw-3rem)] pt-2 text-left opacity-0 transition-opacity group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100"
+                  >
+                    <span className="block max-h-64 overflow-y-auto rounded-xl border border-border/80 bg-popover p-3 text-popover-foreground shadow-xl ring-1 ring-black/5">
+                      <span className="mb-2 block text-xs font-semibold">{copy.fiiSalesDetails}</span>
+                      <span className="grid gap-2">
+                        {fiiSales.map((order) => {
+                          const totalSold = parseFloat(order.quantity) * parseFloat(order.price);
+                          const invested = calculateSellTotalInvested(
+                            parseFloat(order.quantity),
+                            order.averagePriceAtSell === null ? null : parseFloat(order.averagePriceAtSell),
+                          );
+                          const profit = calculateSellProfit(totalSold, invested);
+                          const locale = language === 'pt' ? 'pt-BR' : 'en-US';
+                          const value = profit === null
+                            ? copy.fiiSaleUnavailable
+                            : `${profit >= 0 ? '+' : ''}${new Intl.NumberFormat(locale, { style: 'currency', currency: 'BRL' }).format(profit)}`;
+
+                          return (
+                            <span key={order.id} className="flex items-start justify-between gap-3 border-t pt-2 text-xs">
+                              <span className="min-w-0">
+                                <span className="block truncate font-medium">{order.ticker}</span>
+                                <span className="text-muted-foreground">
+                                  {copy.fiiSaleDate}: {new Date(`${order.orderDate}T12:00:00`).toLocaleDateString(locale)}
+                                </span>
+                              </span>
+                              <span className={`shrink-0 font-semibold ${profit === null ? 'text-muted-foreground' : profit >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                                {profit === null ? value : `${profit >= 0 ? copy.fiiSaleProfit : copy.fiiSaleLoss}: ${value}`}
+                              </span>
+                            </span>
+                          );
+                        })}
+                      </span>
+                    </span>
+                  </span>
+                </span>
+              </dd>
             </div>
             <div>
               <dt className="text-muted-foreground">{copy.fiiTotalSold}</dt>
