@@ -154,7 +154,7 @@ export function HomePage(): React.JSX.Element {
               investment.recommendation,
             )}
           />
-          <div className="flex w-full items-center justify-between gap-2 sm:w-auto sm:justify-end sm:gap-5">
+          <div className="flex w-full items-center justify-between gap-2 sm:ml-auto sm:w-auto sm:justify-end sm:gap-5">
             <div className="flex w-full shrink-0 items-center justify-between gap-1 sm:w-auto sm:justify-end sm:gap-2">
               <div className="relative">
                 <Button

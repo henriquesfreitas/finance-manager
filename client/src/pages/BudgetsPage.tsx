@@ -281,7 +281,8 @@ export function BudgetsPage(): React.JSX.Element {
       <header className="app-header bg-blue-600 text-white shadow-md">
         <div className="container mx-auto flex min-h-16 flex-wrap items-center justify-between gap-3 px-4 py-3">
           <h1 className="text-lg font-semibold tracking-tight sm:text-2xl">Finance Investment Manager</h1>
-          <nav aria-label={language === 'pt' ? 'Menu principal' : 'Main menu'} className="flex items-center gap-3 text-sm sm:gap-4 sm:text-base">
+          <div className="ml-auto flex flex-wrap items-center justify-end gap-3 sm:gap-5">
+            <nav aria-label={language === 'pt' ? 'Menu principal' : 'Main menu'} className="flex items-center gap-3 text-sm sm:gap-4 sm:text-base lg:text-lg">
             {admin?.permissions.includes('INVESTMENTS') && <a href="/" className="text-white/90 hover:text-white hover:underline">{strings.investments}</a>}
             {admin?.permissions.includes('BILLS_CONTROL') && <a href="/bills-control" className="text-white/90 hover:text-white hover:underline">{strings.bills}</a>}
             <span aria-current="page" className="underline underline-offset-4">{strings.budgets}</span>
@@ -297,6 +298,7 @@ export function BudgetsPage(): React.JSX.Element {
             <Button variant="ghost" size="sm" className="px-2 text-white hover:bg-white/15 hover:text-white sm:px-3" onClick={() => void handleLogout()} disabled={isLoggingOut} aria-label={strings.signOut}>
               {isLoggingOut ? <Loader2 className="h-4 w-4 animate-spin" /> : <><LogOut className="h-4 w-4 sm:mr-2" /><span className="hidden sm:inline">{admin?.username}</span><span className="sr-only sm:not-sr-only sm:ml-1">{strings.signOut}</span></>}
             </Button>
+          </div>
           </div>
         </div>
       </header>
