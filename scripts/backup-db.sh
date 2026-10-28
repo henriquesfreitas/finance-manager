@@ -482,7 +482,7 @@ SUCCESS_HTML=$(cat <<HTMLEOF
 HTMLEOF
 )
 
-send_email "[Finance Manager] Backup ${TIMESTAMP} - ${BACKUP_SIZE}" "$SUCCESS_HTML"
+send_email "[Finance Manager] Backup ${TIMESTAMP} - ${BACKUP_SIZE}" "$SUCCESS_HTML" || true
 send_telegram_report "✓ Finance Manager backup completed
 Run time: ${RUN_TIME}
 Backup file: $(basename "$BACKUP_FILE")
