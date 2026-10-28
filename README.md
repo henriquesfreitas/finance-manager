@@ -201,6 +201,7 @@ The script `scripts/backup-db.sh` runs a PostgreSQL dump, uploads it to Cloudfla
 - On change: runs `pg_dump | gzip`, uploads via `rclone`, and sends success notifications with a summary of the backup
 - The success Telegram report lists changed tables and counts rows added or updated in the last 6 hours; it does not include row contents, and long reports are split into sequential messages
 - On any failure (DB down, rclone error, etc): sends failure alert notifications instead
+- If Telegram rejects the post-upload success report, the script also emails an error alert through Resend
 
 ### Dependencies on the server
 
@@ -260,6 +261,8 @@ Ubuntu's standard cron uses the VPS's system timezone to schedule jobs; setting 
 Use a log path writable by the crontab owner. A user crontab usually cannot write to `/var/log` unless the log file was created and permissioned for that user. If the VPS system timezone is `America/Sao_Paulo`, use `0 11 * * 1,4` instead. The script defaults to the root `.env` file.
 
 The job logs its start, quote lookup results, reached targets, Resend acceptance, and failures. To diagnose a missed run on the VPS, check:
+
+If the job fails, including when Telegram rejects an alert, it sends a failure report email through Resend.
 
 ```bash
 timedatectl

@@ -3,6 +3,7 @@ import { createPrismaClient } from '../lib/create-prisma-client.js';
 import { resolve } from 'node:path';
 import { fetchQuotes } from '../services/yahoo-finance-quote-service.js';
 import { findReachedTargetAlerts } from '../services/target-price-alert-service.js';
+import { sendJobErrorEmail } from './job-error-email.js';
 
 const prisma = createPrismaClient();
 
@@ -196,6 +197,13 @@ async function run(): Promise<void> {
   } catch (error: unknown) {
     const message = error instanceof Error ? error.stack ?? error.message : String(error);
     console.error(`[target-alerts] Failed at ${new Date().toISOString()}: ${message}`);
+    try {
+      await sendJobErrorEmail('price target alerts', error);
+      console.log('[target-alerts] Failure email accepted by Resend.');
+    } catch (emailError: unknown) {
+      const emailMessage = emailError instanceof Error ? emailError.message : String(emailError);
+      console.error(`[target-alerts] Could not send failure email: ${emailMessage}`);
+    }
     throw error;
   } finally {
     await prisma.$disconnect();

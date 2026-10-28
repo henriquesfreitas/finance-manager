@@ -96,8 +96,11 @@ send_email() {
   else
     echo "⚠ Email notification failed (HTTP ${http_status})." >&2
     echo "  Response: $(cat /tmp/resend_response.json)" >&2
+    rm -f /tmp/resend_response.json
+    return 1
   fi
   rm -f /tmp/resend_response.json
+  return 0
 }
 
 # ── send_telegram <message> ─────────────────────────────────────────────────
@@ -139,7 +142,7 @@ send_telegram_report() {
 import sys
 
 text = sys.argv[1]
-limit = 3800  # Leave room for the part label under Telegram's UTF-16 limit.
+limit = 3800  # Reserve space for the Telegram part label.
 lines = text.splitlines() or [""]
 chunks = []
 current = ""
@@ -172,7 +175,11 @@ for index, chunk in enumerate(chunks, start=1):
 ' "$message")
 
   for chunk in "${chunks[@]}"; do
-    send_telegram "$chunk" || return 1
+    if ! send_telegram "$chunk"; then
+      send_email "[Finance Manager] Backup notification failed - ${RUN_TIME}" \
+        '<!DOCTYPE html><html><body><h2>Finance Manager backup notification failed</h2><p>The database backup completed and was uploaded, but Telegram rejected the success report. Check the production backup log for details.</p></body></html>' || true
+      return 1
+    fi
   done
 }
 
