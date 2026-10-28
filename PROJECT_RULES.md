@@ -57,3 +57,4 @@ For the database tables, columns, relationships, indexes, and enums, see [`DATAB
 - `BUDGET` grants access to the Budgets page and limits users to their own budgets. `ADMIN` allows cross-user budget access, and is granted only to the exact `admin_finance` username by the seed and migration.
 - A user may have any combination of these permissions. Both the UI and server enforce page access; the server remains authoritative.
 - Each budget belongs to the authenticated admin who created it. Users with only `BUDGET` can list, view, and manage items only in their own budgets. Users with `ADMIN` can select users with budgets and view and manage their budget items. Items store signed monetary values and the budget total includes all items regardless of paid status.
+- A budget can be deleted only while it has no items; the server enforces this even if the client view is stale.

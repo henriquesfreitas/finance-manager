@@ -423,14 +423,17 @@ export function BillsControlPage(): React.JSX.Element {
                   : `Henrique pays Amanda ${formatCents(settlementCents, language)} to balance paid bills.`;
 
                 return (
-                  <section key={group.key} className="overflow-hidden rounded-xl border">
-                    <div className="border-b bg-muted/50 p-4 sm:p-5">
-                      <h3 className="text-lg font-semibold capitalize">{group.label}</h3>
+                  <section key={group.key} className={`overflow-hidden rounded-xl border ${settlementPaid ? 'border-emerald-300 dark:border-emerald-800' : ''}`}>
+                    <div className={`border-b p-4 sm:p-5 ${settlementPaid ? 'bg-emerald-50 dark:bg-emerald-950/30' : 'bg-muted/50'}`}>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h3 className="text-lg font-semibold capitalize">{group.label}</h3>
+                        {settlementPaid && <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-medium text-emerald-800 dark:bg-emerald-900 dark:text-emerald-100"><Check className="h-3.5 w-3.5" />{copy.settlementPaid}</span>}
+                      </div>
                       <div className="mt-3 grid grid-cols-2 gap-3 lg:grid-cols-4">
                         <SummaryAmount label={copy.monthlyTotal} value={formatCents(group.totalCents, language)} />
                         <SummaryAmount label={copy.paidByHenrique} value={formatCents(group.paidByHenriqueCents, language)} />
                         <SummaryAmount label={copy.paidByAmanda} value={formatCents(group.paidByAmandaCents, language)} />
-                        <div className="rounded-lg border bg-card p-3">
+                        <div className={`rounded-lg border p-3 ${settlementPaid ? 'border-emerald-300 bg-emerald-50 dark:border-emerald-800 dark:bg-emerald-950/40' : 'bg-card'}`}>
                           <p className="text-xs text-muted-foreground">{copy.settlement}</p>
                           <p className="mt-1 text-sm font-semibold">{settlementText}</p>
                           {settlementTwiceCents !== 0 && (

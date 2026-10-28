@@ -1,5 +1,5 @@
 import React, { useEffect, useState, type FormEvent } from 'react';
-import { Check, Languages, Loader2, LogOut, Pencil, Plus, Trash2, Wallet } from 'lucide-react';
+import { Check, Languages, Loader2, LogOut, Pencil, Plus, Save, Trash2, Wallet } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ThemeToggle } from '@/components/ThemeToggle';
@@ -10,8 +10,10 @@ import {
   useBudgets,
   useCreateBudget,
   useCreateBudgetItem,
+  useDeleteBudget,
   useDeleteBudgetItem,
   useUpdateBudgetItem,
+  useUpdateBudgetName,
 } from '@/hooks/useBudgets';
 import type { BudgetItem, CreateBudgetItemData } from '@/types/budget';
 import { toast } from 'sonner';
@@ -25,9 +27,9 @@ const copy = {
     yourBudgets: 'Your budgets', noBudgets: 'No budgets yet. Create one to get started.', open: 'Open', usersWithBudgets: 'Users with budgets', noUsersWithBudgets: 'No users have budgets yet.',
     addItem: 'Add an item', editItem: 'Edit item', value: 'Value (R$)', date: 'Date', description: 'Description (optional)',
     additionalInfo: 'Additional information (optional)', paid: 'Paid', unpaid: 'Unpaid', saveItem: 'Save item', addItemButton: 'Add item', saving: 'Saving...',
-    cancel: 'Cancel', total: 'Total', unpaidTotal: 'Total unpaid', paidTotal: 'Total paid', items: 'Items', noItems: 'No items in this budget yet.', edit: 'Edit', delete: 'Remove',
+    cancel: 'Cancel', saveName: 'Save name', editBudgetName: 'Edit budget name', deleteBudget: 'Delete budget', total: 'Total', unpaidTotal: 'Total unpaid', paidTotal: 'Total paid', items: 'Items', noItems: 'No items in this budget yet.', edit: 'Edit', delete: 'Remove',
     loading: 'Loading...', retry: 'Retry', loadError: 'Unable to load budgets. Please try again.', saveError: 'Unable to save. Please try again.',
-    itemCreated: 'Item added', itemUpdated: 'Item updated', itemDeleted: 'Item removed', budgetCreated: 'Budget created',
+    itemCreated: 'Item added', itemUpdated: 'Item updated', itemDeleted: 'Item removed', budgetCreated: 'Budget created', budgetUpdated: 'Budget name updated', budgetDeleted: 'Budget deleted',
     dateLabel: (date: string) => new Intl.DateTimeFormat('en-US', { dateStyle: 'medium' }).format(new Date(`${date}T12:00:00`)),
   },
   pt: {
@@ -39,6 +41,8 @@ const copy = {
     cancel: 'Cancelar', total: 'Total', unpaidTotal: 'Total não pago', paidTotal: 'Total pago', items: 'Itens', noItems: 'Este orçamento ainda não tem itens.', edit: 'Editar', delete: 'Remover',
     loading: 'Carregando...', retry: 'Tentar novamente', loadError: 'Não foi possível carregar os orçamentos. Tente novamente.', saveError: 'Não foi possível salvar. Tente novamente.',
     itemCreated: 'Item adicionado', itemUpdated: 'Item atualizado', itemDeleted: 'Item removido', budgetCreated: 'Orçamento criado',
+    saveName: 'Salvar nome', editBudgetName: 'Editar nome do orçamento', deleteBudget: 'Excluir orçamento',
+    budgetUpdated: 'Nome do orçamento atualizado', budgetDeleted: 'Orçamento excluído',
     dateLabel: (date: string) => new Intl.DateTimeFormat('pt-BR', { dateStyle: 'medium' }).format(new Date(`${date}T12:00:00`)),
   },
 } as const;
@@ -143,6 +147,8 @@ export function BudgetsPage(): React.JSX.Element {
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [selectedBudgetId, setSelectedBudgetId] = useState<string | null>(null);
   const [budgetName, setBudgetName] = useState('');
+  const [editingBudgetName, setEditingBudgetName] = useState(false);
+  const [editedBudgetName, setEditedBudgetName] = useState('');
   const [editingItem, setEditingItem] = useState<BudgetItem | null>(null);
   const [language, setLanguage] = useState<BudgetLanguage>(initialLanguage);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
@@ -152,6 +158,8 @@ export function BudgetsPage(): React.JSX.Element {
   const selectedBudget = visibleBudgets.find((budget) => budget.id === selectedBudgetId) ?? null;
   const { data: budgetDetails, isLoading: itemsLoading, isError: itemsError } = useBudget(selectedBudgetId);
   const createBudgetMutation = useCreateBudget();
+  const updateBudgetNameMutation = useUpdateBudgetName();
+  const deleteBudgetMutation = useDeleteBudget();
   const createItemMutation = useCreateBudgetItem(selectedBudgetId ?? '');
   const updateItemMutation = useUpdateBudgetItem(selectedBudgetId ?? '');
   const deleteItemMutation = useDeleteBudgetItem(selectedBudgetId ?? '');
@@ -180,6 +188,30 @@ export function BudgetsPage(): React.JSX.Element {
       if (isBudgetAdmin && admin) setSelectedUserId(admin.id);
       setSelectedBudgetId(budget.id);
       toast.success(strings.budgetCreated);
+    } catch {
+      toast.error(strings.saveError);
+    }
+  }
+
+  async function handleBudgetNameSubmit(event: FormEvent<HTMLFormElement>): Promise<void> {
+    event.preventDefault();
+    if (!selectedBudget) return;
+    try {
+      await updateBudgetNameMutation.mutateAsync({ budgetId: selectedBudget.id, name: editedBudgetName.trim() });
+      setEditingBudgetName(false);
+      toast.success(strings.budgetUpdated);
+    } catch {
+      toast.error(strings.saveError);
+    }
+  }
+
+  async function handleDeleteBudget(): Promise<void> {
+    if (!selectedBudget) return;
+    try {
+      await deleteBudgetMutation.mutateAsync(selectedBudget.id);
+      setSelectedBudgetId(null);
+      setEditingBudgetName(false);
+      toast.success(strings.budgetDeleted);
     } catch {
       toast.error(strings.saveError);
     }
@@ -282,7 +314,7 @@ export function BudgetsPage(): React.JSX.Element {
           {usersError && <div className="flex flex-wrap items-center gap-3 text-sm text-destructive"><span>{strings.loadError}</span><Button variant="outline" size="sm" onClick={() => void refetchUsers()}>{strings.retry}</Button></div>}
           {!usersLoading && !usersError && budgetUsers.length === 0 && <p className="text-sm text-muted-foreground">{strings.noUsersWithBudgets}</p>}
           {budgetUsers.length > 0 && <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">{budgetUsers.map((user) => (
-            <li key={user.id}><button type="button" aria-pressed={selectedUserId === user.id} onClick={() => { setSelectedUserId(user.id); setSelectedBudgetId(user.budgets[0]?.id ?? null); setEditingItem(null); }} className={`flex w-full items-center justify-between gap-3 rounded-lg border p-3 text-left transition-colors hover:bg-accent ${selectedUserId === user.id ? 'border-primary bg-accent' : ''}`}>
+            <li key={user.id}><button type="button" aria-pressed={selectedUserId === user.id} onClick={() => { setSelectedUserId(user.id); setSelectedBudgetId(user.budgets[0]?.id ?? null); setEditingItem(null); setEditingBudgetName(false); }} className={`flex w-full items-center justify-between gap-3 rounded-lg border p-3 text-left transition-colors hover:bg-accent ${selectedUserId === user.id ? 'border-primary bg-accent' : ''}`}>
               <span className="font-medium">{user.username}</span><span className="text-sm text-muted-foreground">{user.budgets.length}</span>
             </button></li>
           ))}</ul>}
@@ -295,7 +327,7 @@ export function BudgetsPage(): React.JSX.Element {
           {!(isBudgetAdmin ? usersLoading : isLoading) && !(isBudgetAdmin ? usersError : isError) && visibleBudgets.length === 0 && <p className="text-sm text-muted-foreground">{strings.noBudgets}</p>}
           {visibleBudgets.length > 0 && <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">{visibleBudgets.map((budget) => (
             <li key={budget.id}>
-              <button type="button" aria-pressed={selectedBudgetId === budget.id} onClick={() => { setSelectedBudgetId(budget.id); setEditingItem(null); }} className={`flex w-full items-center justify-between gap-3 rounded-lg border p-3 text-left transition-colors hover:bg-accent ${selectedBudgetId === budget.id ? 'border-primary bg-accent' : ''}`}>
+              <button type="button" aria-pressed={selectedBudgetId === budget.id} onClick={() => { setSelectedBudgetId(budget.id); setEditingItem(null); setEditingBudgetName(false); }} className={`flex w-full items-center justify-between gap-3 rounded-lg border p-3 text-left transition-colors hover:bg-accent ${selectedBudgetId === budget.id ? 'border-primary bg-accent' : ''}`}>
                 <span><span className="block font-medium">{budget.name}</span><span className="mt-1 block text-xs text-muted-foreground">{strings.dateLabel(budget.createdAt.slice(0, 10))}</span></span>
                 <span className="text-sm text-primary">{strings.open}</span>
               </button>
@@ -305,7 +337,25 @@ export function BudgetsPage(): React.JSX.Element {
 
         {selectedBudget && <section className="grid gap-5 rounded-xl border bg-card p-4 shadow-sm sm:p-6">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <h2 className="text-xl font-semibold">{selectedBudget.name}</h2>
+            {editingBudgetName ? <form onSubmit={(event) => void handleBudgetNameSubmit(event)} className="flex min-w-0 flex-1 flex-wrap items-end gap-2">
+              <label className="grid min-w-48 flex-1 gap-1.5 text-sm font-medium">{strings.budgetName}
+                <Input value={editedBudgetName} onChange={(event) => setEditedBudgetName(event.target.value)} maxLength={200} required autoFocus />
+              </label>
+              <Button type="submit" size="sm" disabled={updateBudgetNameMutation.isPending}>
+                {updateBudgetNameMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                {strings.saveName}
+              </Button>
+              <Button type="button" size="sm" variant="outline" onClick={() => setEditingBudgetName(false)} disabled={updateBudgetNameMutation.isPending}>{strings.cancel}</Button>
+            </form> : <div className="flex min-w-0 items-center gap-2">
+              <h2 className="text-xl font-semibold">{selectedBudget.name}</h2>
+              <Button type="button" variant="ghost" size="icon" onClick={() => { setEditedBudgetName(selectedBudget.name); setEditingBudgetName(true); }} aria-label={strings.editBudgetName} title={strings.editBudgetName}>
+                <Pencil className="h-4 w-4" />
+              </Button>
+              {budgetDetails && !itemsLoading && !itemsError && budgetDetails.items.length === 0 && <Button type="button" variant="destructive" size="sm" onClick={() => void handleDeleteBudget()} disabled={deleteBudgetMutation.isPending}>
+                {deleteBudgetMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
+                {strings.deleteBudget}
+              </Button>}
+            </div>}
             <div className="flex flex-wrap items-center gap-x-5 gap-y-2 sm:gap-x-6">
               <p className="text-sm text-muted-foreground">{strings.total}<span className="ml-2 text-lg font-semibold text-foreground">{formatCurrency(totals.total, language)}</span></p>
               <p className="text-sm text-muted-foreground">{strings.unpaidTotal}<span className="ml-2 font-medium text-foreground">{formatCurrency(totals.unpaid, language)}</span></p>

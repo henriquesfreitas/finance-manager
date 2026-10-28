@@ -2,10 +2,12 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   createBudget,
   createBudgetItem,
+  deleteBudget,
   deleteBudgetItem,
   fetchBudget,
   fetchBudgetUsers,
   fetchBudgets,
+  updateBudgetName,
   updateBudgetItem,
 } from '../services/budget-api-client';
 import type { CreateBudgetItemData } from '../types/budget';
@@ -32,6 +34,22 @@ export function useCreateBudget() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (name: string) => createBudget(name),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: BUDGETS_QUERY_KEY }),
+  });
+}
+
+export function useUpdateBudgetName() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ budgetId, name }: { budgetId: string; name: string }) => updateBudgetName(budgetId, name),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: BUDGETS_QUERY_KEY }),
+  });
+}
+
+export function useDeleteBudget() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (budgetId: string) => deleteBudget(budgetId),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: BUDGETS_QUERY_KEY }),
   });
 }

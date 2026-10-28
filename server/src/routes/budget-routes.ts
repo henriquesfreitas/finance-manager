@@ -80,6 +80,52 @@ export function createBudgetRouter(): Router {
     res.status(201).json(budget);
   });
 
+  router.put('/budgets/:budgetId', async (req: Request, res: Response) => {
+    const ownerId = adminIdFromRequest(req, res);
+    if (!ownerId) return;
+    const result = createBudgetSchema.safeParse(req.body);
+    if (!result.success) {
+      validationError(res, result.error);
+      return;
+    }
+    const budgetId = req.params['budgetId'] as string;
+    const existing = await prisma.budget.findFirst({
+      where: { id: budgetId, ...(hasAdminPermission(req) ? {} : { ownerId }) },
+      select: { id: true },
+    });
+    if (!existing) {
+      res.status(404).json({ error: 'Budget not found' });
+      return;
+    }
+    const budget = await prisma.budget.update({ where: { id: budgetId }, data: result.data });
+    res.json(budget);
+  });
+
+  router.delete('/budgets/:budgetId', async (req: Request, res: Response) => {
+    const ownerId = adminIdFromRequest(req, res);
+    if (!ownerId) return;
+    const budgetId = req.params['budgetId'] as string;
+    const where = { id: budgetId, ...(hasAdminPermission(req) ? {} : { ownerId }) };
+    const existing = await prisma.budget.findFirst({
+      where,
+      select: { id: true, _count: { select: { items: true } } },
+    });
+    if (!existing) {
+      res.status(404).json({ error: 'Budget not found' });
+      return;
+    }
+    if (existing._count.items > 0) {
+      res.status(409).json({ error: 'Budget must be empty before it can be deleted' });
+      return;
+    }
+    const deleted = await prisma.budget.deleteMany({ where: { ...where, items: { none: {} } } });
+    if (deleted.count === 0) {
+      res.status(409).json({ error: 'Budget must be empty before it can be deleted' });
+      return;
+    }
+    res.status(204).end();
+  });
+
   router.get('/budgets/:budgetId', async (req: Request, res: Response) => {
     const ownerId = adminIdFromRequest(req, res);
     if (!ownerId) return;

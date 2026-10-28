@@ -16,6 +16,17 @@ export function createBudget(name: string): Promise<Budget> {
   });
 }
 
+export function updateBudgetName(budgetId: string, name: string): Promise<Budget> {
+  return request<Budget>(`/api/budgets/${encodeURIComponent(budgetId)}`, {
+    method: 'PUT',
+    body: JSON.stringify({ name }),
+  });
+}
+
+export function deleteBudget(budgetId: string): Promise<void> {
+  return request<void>(`/api/budgets/${encodeURIComponent(budgetId)}`, { method: 'DELETE' });
+}
+
 export function fetchBudget(id: string): Promise<BudgetWithItems> {
   return request<BudgetWithItems>(`/api/budgets/${encodeURIComponent(id)}`);
 }
