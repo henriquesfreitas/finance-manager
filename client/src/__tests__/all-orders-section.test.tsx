@@ -53,7 +53,7 @@ describe('AllOrdersSection', () => {
     const saleDetails = screen.getByRole('tooltip', { hidden: true });
     expect(within(saleDetails).getByText('TIJOLO11')).toBeInTheDocument();
     expect(within(saleDetails).getByText(/Loss:/)).toBeInTheDocument();
-    expect(within(saleDetails).getByText(/Date:/)).toBeInTheDocument();
+    expect(within(saleDetails).getAllByText(/Date:/)).toHaveLength(4);
 
     await user.selectOptions(filter, 'all');
     expect(within(screen.getByRole('table')).getByText('BUY')).toBeInTheDocument();

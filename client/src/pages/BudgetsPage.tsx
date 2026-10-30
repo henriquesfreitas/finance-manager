@@ -86,14 +86,14 @@ function ItemForm({
   const [itemDate, setItemDate] = useState(item?.itemDate.slice(0, 10) ?? localToday());
   const [description, setDescription] = useState(item?.description ?? '');
   const [additionalInfo, setAdditionalInfo] = useState(item?.additionalInfo ?? '');
-  const [isPaid, setIsPaid] = useState(item?.isPaid ?? true);
+  const [isPaid, setIsPaid] = useState(item?.isPaid ?? false);
 
   useEffect(() => {
     setValue(item?.value ?? '');
     setItemDate(item?.itemDate.slice(0, 10) ?? localToday());
     setDescription(item?.description ?? '');
     setAdditionalInfo(item?.additionalInfo ?? '');
-    setIsPaid(item?.isPaid ?? true);
+    setIsPaid(item?.isPaid ?? false);
   }, [item]);
 
   async function submit(event: FormEvent<HTMLFormElement>): Promise<void> {
@@ -112,7 +112,7 @@ function ItemForm({
       setItemDate(localToday());
       setDescription('');
       setAdditionalInfo('');
-      setIsPaid(true);
+      setIsPaid(false);
     }
   }
 

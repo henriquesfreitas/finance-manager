@@ -7,6 +7,8 @@ import { ThemeProvider } from '../contexts/theme-context';
 
 const mocks = vi.hoisted(() => ({
   createBudget: vi.fn(),
+  updateBudgetName: vi.fn(),
+  deleteBudget: vi.fn(),
   createItem: vi.fn(),
   updateItem: vi.fn(),
   deleteItem: vi.fn(),
@@ -38,6 +40,8 @@ vi.mock('../hooks/useBudgets', () => ({
     isError: false,
   }),
   useCreateBudget: () => ({ mutateAsync: mocks.createBudget, isPending: false }),
+  useUpdateBudgetName: () => ({ mutateAsync: mocks.updateBudgetName, isPending: false }),
+  useDeleteBudget: () => ({ mutateAsync: mocks.deleteBudget, isPending: false }),
   useCreateBudgetItem: () => ({ mutateAsync: mocks.createItem, isPending: false }),
   useUpdateBudgetItem: () => ({ mutateAsync: mocks.updateItem, isPending: false }),
   useDeleteBudgetItem: () => ({ mutateAsync: mocks.deleteItem, isPending: false }),
@@ -59,6 +63,8 @@ beforeEach(() => {
   mocks.admin = { id: 'admin-1', username: 'admin_finance', permissions: ['BUDGET'] };
   mocks.budgetUsers = [];
   mocks.createBudget.mockResolvedValue({ id: 'budget-2', name: 'Trip' });
+  mocks.updateBudgetName.mockResolvedValue({ id: 'budget-1', name: 'Renamed' });
+  mocks.deleteBudget.mockResolvedValue(undefined);
   mocks.createItem.mockResolvedValue({ id: 'item-new' });
   mocks.updateItem.mockResolvedValue({ id: 'item-1' });
   mocks.deleteItem.mockResolvedValue(undefined);

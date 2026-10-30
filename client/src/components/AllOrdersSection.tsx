@@ -240,7 +240,7 @@ export function AllOrdersSection(): React.JSX.Element {
                               Lucro:{' '}
                               <span className={`font-semibold ${profitColor}`}>
                                 {profit !== null
-                                  ? `${profit >= 0 ? '+' : ''}R$ ${profit.toFixed(2)}`
+                                  ? `${profit >= 0 ? '+' : '-'}R$ ${Math.abs(profit).toFixed(2)}`
                                   : '—'}
                               </span>
                             </span>
@@ -337,7 +337,7 @@ export function AllOrdersSection(): React.JSX.Element {
             <div>
               <dt className="text-muted-foreground">{copy.fiiProfit}</dt>
               <dd className={`font-semibold ${fiiProfit === null ? 'text-muted-foreground' : fiiProfit >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                {fiiProfit === null ? '—' : `${fiiProfit >= 0 ? '+' : ''}R$ ${fiiProfit.toFixed(2)}`}
+                {fiiProfit === null ? '—' : `${fiiProfit >= 0 ? '+' : '-'}R$ ${Math.abs(fiiProfit).toFixed(2)}`}
               </dd>
             </div>
           </dl>
