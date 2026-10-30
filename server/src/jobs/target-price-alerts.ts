@@ -3,6 +3,7 @@ import { createPrismaClient } from '../lib/create-prisma-client.js';
 import { resolve } from 'node:path';
 import { fetchQuotes } from '../services/yahoo-finance-quote-service.js';
 import { findReachedTargetAlerts } from '../services/target-price-alert-service.js';
+import { deliverTargetPriceAlerts } from '../services/target-price-alert-delivery-service.js';
 import { sendJobErrorEmail } from './job-error-email.js';
 
 const prisma = createPrismaClient();
@@ -20,7 +21,10 @@ function formatCurrency(value: number): string {
   return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 }
 
-async function sendTargetAlertEmail(alerts: ReturnType<typeof findReachedTargetAlerts>): Promise<void> {
+async function sendTargetAlertEmail(
+  alerts: ReturnType<typeof findReachedTargetAlerts>,
+  telegramError: unknown,
+): Promise<void> {
   const recipient = process.env['BACKUP_NOTIFY_EMAIL'];
   const sender = process.env['BACKUP_FROM_EMAIL'];
   const apiKey = process.env['RESEND_API_KEY'];
@@ -47,9 +51,11 @@ async function sendTargetAlertEmail(alerts: ReturnType<typeof findReachedTargetA
     dateStyle: 'short',
     timeStyle: 'short',
   });
+  const telegramErrorMessage = telegramError instanceof Error ? telegramError.message : String(telegramError);
   const html = `<!doctype html><html><body style="font-family:Arial,sans-serif;color:#222">
     <h2>Finance Manager — price target alert</h2>
     <p>Checked ${escapeHtml(checkedAt)} (Brasília time). These active investments reached a target:</p>
+    <p>Telegram could not deliver this alert, so it is being sent by email instead. Error: ${escapeHtml(telegramErrorMessage)}</p>
     <table style="border-collapse:collapse;width:100%;text-align:left">
       <thead><tr style="background:#f3f4f6">
         <th style="padding:10px">Ticker</th><th style="padding:10px">Price now</th><th style="padding:10px">Target</th>
@@ -68,7 +74,7 @@ async function sendTargetAlertEmail(alerts: ReturnType<typeof findReachedTargetA
     body: JSON.stringify({
       from: `Finance Manager <${sender}>`,
       to: [recipient],
-      subject: `[Finance Manager] ${alerts.length} price target${alerts.length === 1 ? '' : 's'} reached`,
+      subject: '[Finance Manager] Price target alert (Telegram delivery failed)',
       html,
     }),
   });
@@ -92,8 +98,7 @@ async function sendTargetAlertTelegram(alerts: ReturnType<typeof findReachedTarg
   const botToken = process.env['TELEGRAM_BOT_TOKEN'];
   const chatId = process.env['TELEGRAM_CHAT_ID'];
   if (!botToken && !chatId) {
-    console.log('[target-alerts] Telegram is not configured; skipping Telegram notification.');
-    return;
+    throw new Error('Telegram is not configured');
   }
   if (!botToken || !chatId) {
     throw new Error('TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID must both be configured');
@@ -137,6 +142,7 @@ async function sendTargetAlertTelegram(alerts: ReturnType<typeof findReachedTarg
 
 async function run(): Promise<void> {
   const startedAt = new Date();
+  let failureEmailAttempted = false;
   console.log(`[target-alerts] Started at ${startedAt.toISOString()}`);
 
   try {
@@ -176,7 +182,7 @@ async function run(): Promise<void> {
     );
 
     if (alerts.length === 0) {
-      console.log('[target-alerts] No active buy or sell targets were reached; no email sent.');
+      console.log('[target-alerts] No active buy or sell targets were reached; no notification sent.');
       return;
     }
 
@@ -184,25 +190,27 @@ async function run(): Promise<void> {
       console.log(`[target-alerts] ${alert.ticker}: price ${formatCurrency(alert.currentPrice)}; reached ${alert.reached.map((action) => `${action} ${formatCurrency(action === 'SELL' ? alert.sellTarget! : alert.buyTarget!)}`).join(', ')}.`);
     }
 
-    const deliveries = await Promise.allSettled([
-      sendTargetAlertEmail(alerts),
-      sendTargetAlertTelegram(alerts),
-    ]);
-    const failures = deliveries.flatMap((delivery) =>
-      delivery.status === 'rejected' ? [delivery.reason] : [],
+    const delivery = await deliverTargetPriceAlerts(
+      () => sendTargetAlertTelegram(alerts),
+      async (telegramError) => {
+        failureEmailAttempted = true;
+        await sendTargetAlertEmail(alerts, telegramError);
+      },
     );
-    if (failures.length > 0) {
-      throw new AggregateError(failures, 'One or more target alert notifications failed');
+    if (delivery === 'email-fallback') {
+      console.log('[target-alerts] Telegram failed; Resend accepted the email fallback.');
     }
   } catch (error: unknown) {
     const message = error instanceof Error ? error.stack ?? error.message : String(error);
     console.error(`[target-alerts] Failed at ${new Date().toISOString()}: ${message}`);
-    try {
-      await sendJobErrorEmail('price target alerts', error);
-      console.log('[target-alerts] Failure email accepted by Resend.');
-    } catch (emailError: unknown) {
-      const emailMessage = emailError instanceof Error ? emailError.message : String(emailError);
-      console.error(`[target-alerts] Could not send failure email: ${emailMessage}`);
+    if (!failureEmailAttempted) {
+      try {
+        await sendJobErrorEmail('price target alerts', error);
+        console.log('[target-alerts] Failure email accepted by Resend.');
+      } catch (emailError: unknown) {
+        const emailMessage = emailError instanceof Error ? emailError.message : String(emailError);
+        console.error(`[target-alerts] Could not send failure email: ${emailMessage}`);
+      }
     }
     throw error;
   } finally {

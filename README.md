@@ -198,7 +198,7 @@ The script `scripts/backup-db.sh` runs a PostgreSQL dump, uploads it to Cloudfla
 - Queries the latest change across `investments`, `orders`, `comments`, `portfolio_comments`, `treasury_products`, `admin_users`, `budgets`, `budget_items`, `bills`, and `bill_month_settlements`
 - Compares per-table fingerprints against the last successful backup marker, so inserts, updates, and deletions identify the affected tables
 - If nothing changed, exits silently — no dump, no email
-- On change: runs `pg_dump | gzip`, uploads via `rclone`, and sends success notifications with a summary of the backup
+- On change: runs `pg_dump | gzip`, uploads via `rclone`, and sends a success summary to Telegram
 - The success Telegram report lists changed tables and counts rows added or updated in the last 6 hours; it does not include row contents, and long reports are split into sequential messages
 - On any failure (DB down, rclone error, etc): sends failure alert notifications instead
 - If Telegram rejects the post-upload success report, the script also emails an error alert through Resend
@@ -248,9 +248,9 @@ crontab -e
 0 */6 * * * /opt/finance-manager/scripts/backup-db.sh >> /var/log/finance-backup.log 2>&1
 ```
 
-### Price Target Email Alerts (Production)
+### Price Target Alerts (Production)
 
-The script `scripts/check-price-targets.sh` checks active investments using Yahoo Finance quotes for stocks and the saved current value for Treasury products. It emails `BACKUP_NOTIFY_EMAIL` through Resend and sends an optional Telegram message whenever a sell target is met (`price now >= sell target`) or a buy target is met (`price now <= buy target`). A digest is sent only when at least one target is reached; it repeats on each scheduled run while a target remains reached.
+The script `scripts/check-price-targets.sh` checks active investments using Yahoo Finance quotes for stocks and the saved current value for Treasury products. It sends a Telegram message whenever a sell target is met (`price now >= sell target`) or a buy target is met (`price now <= buy target`). If Telegram delivery fails, it sends the alert by email through Resend instead. Other job errors also trigger a failure email. A digest is sent only when at least one target is reached; it repeats on each scheduled run while a target remains reached.
 
 Ubuntu's standard cron uses the VPS's system timezone to schedule jobs; setting `TZ` in a user's crontab does not change when the job runs ([Ubuntu crontab manual](https://manpages.ubuntu.com/manpages/jammy/man5/crontab.5.html)). Check the VPS timezone with `timedatectl`. On the common UTC-configured VPS, Brasília is currently UTC-3, so add this entry for 11:00 Brasília time. Replace the project path as needed:
 
@@ -277,9 +277,9 @@ The selected environment file must contain the existing `BACKUP_NOTIFY_EMAIL`, `
 
 ### Email and Telegram notifications
 
-- **Success email**: subject `✅ Backup YYYYMMDD_HHMMSS — <size>` with investments and orders tables from the last 7 days
 - **Success Telegram message**: run time, backup file, size, R2 destination, and changed tables with recent added/updated row counts
-- **Failure email and Telegram message**: the error reason and a pointer to the server log
+- **Failure email**: sent if backup processing fails or Telegram rejects the success report
+- **Failure Telegram message**: sent if backup processing fails
 
 The `RESEND_API_KEY` is send-only scoped — it cannot read email or access your Google account. Safe to store in `.env`.
 
