@@ -8,12 +8,12 @@ set -uo pipefail
 #
 # - Only backs up when data has changed since the last run
 # - Uploads the dump to Cloudflare R2 via rclone
-# - Always sends an HTML email: success report or failure alert
+# - Sends a Telegram success summary when data changes, and failure alerts
+#   through Resend and Telegram
 #
 # Dependencies: rclone (with R2 remote named "r2"), curl, python3
 #
-# Crontab suggestion (runs every 6 hours):
-#   0 */6 * * * /opt/finance-manager/scripts/backup-db.sh >> /var/log/finance-backup.log 2>&1
+# The managed cron entry is installed by scripts/install-prod-test-schedule.sh.
 #
 # Required env vars (in .env):
 #   POSTGRES_USER, POSTGRES_DB
@@ -210,7 +210,7 @@ Check the backup log on the server for details." || true
       <td style="padding:4px 0;font-weight:bold;color:#b91c1c;">${reason}</td>
     </tr>
   </table>
-  <p style="color:#555;">The backup did not complete. Please check <code>/var/log/finance-backup.log</code> on the server for details.</p>
+  <p style="color:#555;">The backup did not complete. Please check <code>${PROJECT_DIR}/backup.log</code> on the server for details.</p>
   <p style="margin-top:24px;font-size:12px;color:#aaa;">Sent automatically by Finance Manager backup script.</p>
 </body>
 </html>

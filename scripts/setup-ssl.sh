@@ -65,7 +65,10 @@ sleep 3
 
 # Step 2: Request certificate
 echo "→ Requesting SSL certificate..."
-docker compose -f docker-compose.prod.yml run --rm certbot certonly \
+docker run --rm \
+  -v "$PROJECT_DIR/certbot/www:/var/www/certbot" \
+  -v "$PROJECT_DIR/certbot/conf:/etc/letsencrypt" \
+  certbot/certbot certonly \
   --webroot \
   --webroot-path=/var/www/certbot \
   --email "$EMAIL" \
@@ -76,10 +79,12 @@ docker compose -f docker-compose.prod.yml run --rm certbot certonly \
 # Step 3: Restore full HTTPS nginx config
 echo "→ Restoring HTTPS nginx config..."
 cat > nginx/conf.d/default.conf << 'NGINXEOF'
+resolver 127.0.0.11 valid=10s;
+
 # Redirect HTTP to HTTPS
 server {
     listen 80;
-    server_name DOMAIN_PLACEHOLDER;
+    server_name _;
 
     location /.well-known/acme-challenge/ {
         root /var/www/certbot;
@@ -94,36 +99,30 @@ server {
 server {
     listen 443 ssl;
     http2 on;
-    server_name DOMAIN_PLACEHOLDER;
+    server_name _;
 
     ssl_certificate /etc/letsencrypt/live/DOMAIN_PLACEHOLDER/fullchain.pem;
     ssl_certificate_key /etc/letsencrypt/live/DOMAIN_PLACEHOLDER/privkey.pem;
 
     ssl_protocols TLSv1.2 TLSv1.3;
-    ssl_ciphers ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384;
-    ssl_prefer_server_ciphers off;
-    ssl_session_cache shared:SSL:10m;
-    ssl_session_timeout 1d;
-
-    add_header Strict-Transport-Security "max-age=63072000; includeSubDomains; preload" always;
     add_header X-Frame-Options "SAMEORIGIN" always;
     add_header X-Content-Type-Options "nosniff" always;
-    add_header X-XSS-Protection "1; mode=block" always;
-    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+    add_header Strict-Transport-Security "max-age=63072000" always;
 
-    location /api/ {
-        limit_req zone=api burst=50 nodelay;
-        proxy_pass http://server:3000;
+    location /api/auth/login {
+        limit_req zone=login burst=3 nodelay;
+        set $backend server:3000;
+        proxy_pass http://$backend;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_read_timeout 30s;
     }
 
-    location /api/auth/login {
-        limit_req zone=login burst=3 nodelay;
-        proxy_pass http://server:3000;
+    location /api/ {
+        limit_req zone=api burst=50 nodelay;
+        set $backend server:3000;
+        proxy_pass http://$backend;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -131,12 +130,14 @@ server {
     }
 
     location /health {
-        proxy_pass http://server:3000;
+        set $backend server:3000;
+        proxy_pass http://$backend;
         proxy_set_header Host $host;
     }
 
     location / {
-        proxy_pass http://client:80;
+        set $backend client:80;
+        proxy_pass http://$backend;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -148,14 +149,15 @@ NGINXEOF
 # Replace placeholder with actual domain
 sed -i "s/DOMAIN_PLACEHOLDER/$DOMAIN/g" nginx/conf.d/default.conf
 
-# Step 4: Restart everything
-echo "→ Restarting all services with HTTPS..."
-docker compose -f docker-compose.prod.yml down
-docker compose -f docker-compose.prod.yml up -d
+# Step 4: Reload Nginx without stopping the database or app containers
+echo "→ Restarting Nginx with HTTPS..."
+docker compose -f docker-compose.prod.yml up -d nginx
+docker compose -f docker-compose.prod.yml exec -T nginx nginx -t
+docker compose -f docker-compose.prod.yml exec -T nginx nginx -s reload
 
 echo ""
 echo "══════════════════════════════════════════════════════════════"
 echo "  ✓ SSL setup complete!"
 echo "  → https://$DOMAIN"
-echo "  → Certificate auto-renews via certbot container"
+echo "  → Run bash scripts/setup-prod-config.sh to install the app schedules and daily renewal"
 echo "══════════════════════════════════════════════════════════════"

@@ -121,13 +121,17 @@ server {
 }
 EOF
 
+docker compose -f docker-compose.prod.yml up -d nginx
+docker compose -f docker-compose.prod.yml exec -T nginx nginx -t
+docker compose -f docker-compose.prod.yml exec -T nginx nginx -s reload
+
 echo ""
 echo "══════════════════════════════════════════════════════════════"
 echo "  ✓ Self-signed SSL ready!"
 echo "  → Certificate: $SSL_DIR/fullchain.pem"
 echo "  → Key: $SSL_DIR/privkey.pem"
 echo ""
-echo "  Next: run 'bash scripts/deploy.sh'"
+echo "  Nginx has been reloaded without stopping the database or app containers."
 echo "  Access: https://$IP"
 echo "  (Browser will warn about self-signed cert — accept once)"
 echo "══════════════════════════════════════════════════════════════"

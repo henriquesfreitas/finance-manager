@@ -51,9 +51,9 @@ docker compose -f docker-compose.prod.yml exec server npx prisma migrate deploy
 
 # Seed admin user (idempotent — skips if exists)
 echo "→ Seeding admin user..."
-docker compose -f docker-compose.prod.yml exec server npx tsx prisma/seed.ts || true
+docker compose -f docker-compose.prod.yml exec server npx tsx prisma/seed.ts
 
-echo "→ Installing the daily production test schedule..."
+echo "→ Installing production cron schedules..."
 bash "$SCRIPT_DIR/install-prod-test-schedule.sh"
 
 echo ""

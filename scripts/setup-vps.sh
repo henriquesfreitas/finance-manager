@@ -51,12 +51,14 @@ systemctl restart fail2ban
 
 # ── SSH hardening ─────────────────────────────────────────────────────────────
 echo "→ Hardening SSH..."
-# Disable password auth (key-only)
-sed -i 's/#PasswordAuthentication yes/PasswordAuthentication no/' /etc/ssh/sshd_config
-sed -i 's/PasswordAuthentication yes/PasswordAuthentication no/' /etc/ssh/sshd_config
-# Disable root login
-sed -i 's/#PermitRootLogin yes/PermitRootLogin no/' /etc/ssh/sshd_config
-sed -i 's/PermitRootLogin yes/PermitRootLogin no/' /etc/ssh/sshd_config
+# Ubuntu cloud images may define SSH settings in an included cloud-init file;
+# an early drop-in reliably overrides those defaults on a fresh VPS.
+install -d -m 0755 /etc/ssh/sshd_config.d
+cat > /etc/ssh/sshd_config.d/00-finance-manager.conf <<'EOF'
+PasswordAuthentication no
+PermitRootLogin no
+EOF
+sshd -t
 
 # Ubuntu 24.04 uses ssh.service (not sshd.service)
 systemctl reload ssh
