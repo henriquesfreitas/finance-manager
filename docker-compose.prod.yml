@@ -51,6 +51,8 @@ services:
       dockerfile: Dockerfile.test
     environment:
       NODE_ENV: test
+      # Prisma requires a URL during client generation; the unit suite does not connect to a database.
+      DATABASE_URL: "postgresql://test:test@localhost:5432/test"
 
   client:
     build:

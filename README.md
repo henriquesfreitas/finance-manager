@@ -268,14 +268,14 @@ It verifies that the `r2` remote can access `r2:general`, installs or updates th
 
 On an existing VPS, pull this version of the repository and run the command once to replace the old project cron rows and add certificate renewal. It keeps unrelated crontab entries.
 
-The backup runs in the VPS host timezone; the other jobs use `America/Sao_Paulo`. The managed entries are safe to reinstall:
+The current VPS runs Ubuntu cron in UTC and its cron package does not apply per-job `CRON_TZ` settings. The installer therefore uses UTC schedule times for jobs intended to run on `America/Sao_Paulo` time (UTC-3), and requires the host timezone to remain UTC. The managed entries are safe to reinstall:
 
 | Job | Schedule |
 |---|---|
 | Database backup | Every 6 hours (host timezone, UTC on the current VPS) |
-| Price target alerts | 11:00 Monday and Thursday |
-| Isolated production tests | 03:00 daily |
-| Let's Encrypt renewal and Nginx reload | 04:00 daily, only when a certificate renewal config exists |
+| Price target alerts | 14:00 UTC Monday and Thursday (11:00 São Paulo time) |
+| Isolated production tests | 06:00 UTC daily (03:00 São Paulo time) |
+| Let's Encrypt renewal and Nginx reload | 07:00 UTC daily (04:00 São Paulo time), only when a certificate renewal config exists |
 
 The installer preserves unrelated crontab entries and writes job logs in the project directory. `deploy.sh` also reapplies the cron schedule entries, so they remain present after a full deployment.
 
@@ -354,7 +354,7 @@ Run `bash scripts/install-prod-test-schedule.sh` to install or refresh all manag
 
 The script `scripts/check-price-targets.sh` checks active investments using Yahoo Finance quotes for stocks and the saved current value for Treasury products. It sends a Telegram message whenever a sell target is met (`price now >= sell target`) or a buy target is met (`price now <= buy target`). If Telegram delivery fails, it sends the alert by email through Resend instead. Other job errors also trigger a failure email. A digest is sent only when at least one target is reached; it repeats on each scheduled run while a target remains reached.
 
-The managed schedule runs the check at 11:00 Monday and Thursday in `America/Sao_Paulo`, independent of the VPS system timezone. The installer writes logs under the project directory, which is writable by the `ubuntu` crontab owner. The script defaults to the root `.env` file.
+The managed schedule runs the check at 11:00 Monday and Thursday in `America/Sao_Paulo` (14:00 UTC on the current VPS). The installer writes logs under the project directory, which is writable by the `ubuntu` crontab owner. The script defaults to the root `.env` file.
 
 The job logs its start, quote lookup results, reached targets, Resend acceptance, and failures. To diagnose a missed run on the VPS, check:
 
@@ -381,7 +381,7 @@ The `RESEND_API_KEY` is send-only scoped — it cannot read email or access your
 
 ### Production test runs
 
-`scripts/deploy.sh` installs the managed schedules, including an idempotent daily production-test schedule for 03:00 America/Sao_Paulo. It runs the client and server unit test suites in an isolated Docker container; the production database is not connected. Test failures include the last output from the run in Telegram, whether the run was scheduled or started manually. Set both `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID` in the production `.env`.
+`scripts/deploy.sh` installs the managed schedules, including an idempotent daily production-test schedule for 03:00 America/Sao_Paulo. It runs the client and server unit test suites in an isolated Docker container; the production database is not connected. The test container gets a placeholder `DATABASE_URL` because Prisma requires one during client generation. Test failures include the last output from the run in Telegram, whether the run was scheduled or started manually. Set both `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID` in the production `.env`.
 
 ### Routine production updates
 
