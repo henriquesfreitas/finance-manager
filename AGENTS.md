@@ -14,6 +14,7 @@
 - Validate untrusted input at the server boundary. Keep business rules enforced on the server even when the client also validates for usability.
 - Use `unknown` and narrow values instead of `any`. Add explicit types at public boundaries when they improve clarity; avoid annotations that only restate obvious inference.
 - Keep non-obvious business decisions and invariants documented in `PROJECT_RULES.md`. Add code comments when they explain why a choice exists, not merely what the next line does.
+- Keep local and VPS setup paths reproducible and in sync. When setup requirements or runtime configuration change, inspect and update the applicable local setup flow (`README.md`, `docker-compose.dev.yml`, and `scripts/dev.mjs`) and VPS setup/deploy scripts (such as `scripts/setup-vps.sh`, `scripts/setup-prod-config.sh`, `scripts/deploy.sh`, and the SSL installers). Preserve environment-specific settings and never put secrets in repository setup files.
 - When a database schema or migration changes tables, columns, relationships, indexes, or enums, update [`DATABASE_SCHEMA.md`](DATABASE_SCHEMA.md) in the same change.
 - When adding or changing a persistent data module, make sure `scripts/backup-db.sh` detects changes to its tables, including updates and deletions, and update the backup inventory in `README.md`. The backup dump covers the full database; the change detector must also cover the module so its data triggers a backup.
 - Preserve the existing English and Portuguese UI support when changing user-facing copy.
