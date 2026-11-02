@@ -79,7 +79,7 @@ bash scripts/setup-prod-config.sh
 
 It verifies that the `r2` remote can access `r2:general`, installs or updates the project cron entries, and installs the restricted systemd Telegram update service. Telegram long polling must be available; the installer stops with an error if the bot has a webhook configured, so remove or migrate that webhook deliberately first.
 
-On an existing VPS, pull this version of the repository and run the command once to replace the old project cron rows and add certificate renewal. It keeps unrelated crontab entries. If certificate renewal has stopped, first pull the updated installer and run `bash scripts/install-prod-test-schedule.sh`; then run `bash scripts/renew-ssl.sh` to attempt renewal immediately. The installer invokes the non-executable renewal script through Bash so cron can run it.
+On an existing VPS, pull this version of the repository and run the command once to replace the old project cron rows and add certificate renewal. It keeps unrelated crontab entries. If certificate renewal has stopped, update Nginx from the current Compose configuration with `docker compose --env-file .env -f docker-compose.prod.yml up -d nginx`, then run `bash scripts/install-prod-test-schedule.sh` and `bash scripts/renew-ssl.sh`. This refreshes Nginx's Certbot webroot mount, repairs the cron entry, and attempts renewal immediately.
 
 The current VPS runs Ubuntu cron in UTC and its cron package does not apply per-job `CRON_TZ` settings. The installer therefore uses UTC schedule times for jobs intended to run on `America/Sao_Paulo` time (UTC-3), and requires the host timezone to remain UTC. The managed entries are safe to reinstall:
 
