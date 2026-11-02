@@ -46,7 +46,8 @@ fi
     "$PROJECT_DIR" "$SCRIPT_DIR" "$PROJECT_DIR"
   if compgen -G "$PROJECT_DIR/certbot/conf/renewal/*.conf" >/dev/null; then
     # America/Sao_Paulo 04:00 becomes 07:00 UTC.
-    printf "0 7 * * * cd '%s' && '%s/renew-ssl.sh' >> '%s/ssl-renewal.log' 2>&1 # finance-manager-ssl-renewal\n" \
+    # Run through Bash because the tracked renewal script is not executable.
+    printf "0 7 * * * cd '%s' && /bin/bash '%s/renew-ssl.sh' >> '%s/ssl-renewal.log' 2>&1 # finance-manager-ssl-renewal\n" \
       "$PROJECT_DIR" "$SCRIPT_DIR" "$PROJECT_DIR"
   fi
 } | crontab -
