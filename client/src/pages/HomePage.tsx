@@ -174,7 +174,7 @@ export function HomePage(): React.JSX.Element {
                   <nav
                     id="investment-menu"
                     aria-label="Investment"
-                    className="absolute right-0 top-full z-50 mt-2 grid min-w-44 gap-1 rounded-lg border bg-popover p-2 text-popover-foreground shadow-xl"
+                    className="absolute left-0 right-auto top-full z-50 mt-2 grid min-w-44 gap-1 rounded-lg border bg-popover p-2 text-popover-foreground shadow-xl sm:left-auto sm:right-0"
                   >
                     <PortfolioAllocationDialog
                       investments={investments}
