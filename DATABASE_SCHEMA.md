@@ -108,6 +108,20 @@ erDiagram
         datetime createdAt
         datetime updatedAt
     }
+    NEWS_ITEMS {
+        string id PK
+        string sourceId UK
+        string title
+        string link
+        datetime publishedAt
+        string categories "array"
+        string description
+        boolean isIncluded
+        string summary "nullable"
+        NewsSummaryStatus summaryStatus
+        datetime createdAt
+        datetime updatedAt
+    }
 ```
 
 `UK` marks a unique column, `PK` a primary key, and `FK` a foreign key. `nullable` marks optional columns. Prisma model names are mapped to the lowercase table names shown in the diagram.
@@ -250,6 +264,23 @@ The table has an index on (`ownerId`, `createdAt`) for owner-scoped budget listi
 
 The table has an index on (`budgetId`, `itemDate`, `createdAt`) for listing a budget's items.
 
+### `news_items` (`NewsItem`)
+
+| Column | PostgreSQL type | Constraints and behavior |
+|---|---|---|
+| `id` | TEXT | Primary key |
+| `sourceId` | TEXT | Unique RSS GUID, falling back to the article URL |
+| `title` | TEXT | Required article title |
+| `link` | TEXT | Required InfoMoney article URL |
+| `publishedAt` | TIMESTAMP | Required publication time |
+| `categories` | TEXT[] | RSS categories; empty when the item has none |
+| `description` | TEXT | RSS description used if article text extraction fails |
+| `isIncluded` | BOOLEAN | Whether the fixed RSS-category rule includes the story in the main list |
+| `summary` | TEXT | Nullable; Gemini summary for included stories |
+| `summaryStatus` | `NewsSummaryStatus` | `PENDING`, `PROCESSING`, `READY`, or `FAILED` |
+| `createdAt` | TIMESTAMP | Required import time |
+| `updatedAt` | TIMESTAMP | Required; updated when summary processing changes |
+
 ## Enums
 
 | Enum | Values |
@@ -258,7 +289,8 @@ The table has an index on (`budgetId`, `itemDate`, `createdAt`) for listing a bu
 | `OrderType` | `BUY`, `SELL`, `BONUS`, `SPLIT` |
 | `BillPayer` | `HENRIQUE`, `AMANDA` |
 | `BillType` | `INTERNET`, `CLEANING`, `CONDOMINIO`, `ENERGY`, `CARD`, `OTHER`, `RECEIVED` |
-| `AppPermission` | `INVESTMENTS`, `BILLS_CONTROL`, `BUDGET`, `ADMIN` |
+| `NewsSummaryStatus` | `PENDING`, `PROCESSING`, `READY`, `FAILED` |
+| `AppPermission` | `INVESTMENTS`, `BILLS_CONTROL`, `BUDGET`, `ADMIN`, `NEWS` |
 
 ## Updating this reference
 

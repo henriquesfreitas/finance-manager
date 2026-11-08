@@ -32,6 +32,7 @@ npm install
 cd ..
 copy .env.example server\.env
 :: Edit server\.env if you need non-default DB credentials
+:: To enable News page summaries, set GEMINI_API_KEY in server\.env
 ```
 
 ### 3. Start PostgreSQL

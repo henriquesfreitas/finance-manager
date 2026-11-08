@@ -265,6 +265,7 @@ export function BillsControlPage(): React.JSX.Element {
               {admin?.permissions.includes('INVESTMENTS') && <a href="/" className="shrink-0 text-white/90 hover:text-white hover:underline">{copy.investments}</a>}
               <span aria-current="page" className="shrink-0 text-sm underline underline-offset-4 text-white/90 sm:text-base lg:text-lg">{copy.billsControl}</span>
               {admin?.permissions.includes('BUDGET') && <a href="/budgets" className="shrink-0 text-white/90 hover:text-white hover:underline">{copy.budgets}</a>}
+              {admin?.permissions.includes('NEWS') && <a href="/news" className="shrink-0 text-white/90 hover:text-white hover:underline">{copy.news}</a>}
             </nav>
             <div className="flex shrink-0 items-center gap-1 sm:gap-2">
               <ThemeToggle onHeader />

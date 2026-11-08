@@ -22,7 +22,7 @@ type BudgetLanguage = 'en' | 'pt';
 
 const copy = {
   en: {
-    budgets: 'Budgets', investments: 'Investments', bills: 'Bills Control', signOut: 'Sign out', language: 'Language',
+    budgets: 'Budgets', investments: 'Investments', bills: 'Bills Control', news: 'News', signOut: 'Sign out', language: 'Language',
     newBudget: 'New budget', budgetName: 'Budget name', createBudget: 'Create budget', creating: 'Creating...',
     yourBudgets: 'Your budgets', noBudgets: 'No budgets yet. Create one to get started.', open: 'Open', usersWithBudgets: 'Users with budgets', noUsersWithBudgets: 'No users have budgets yet.',
     addItem: 'Add an item', editItem: 'Edit item', value: 'Value (R$)', date: 'Date', description: 'Description (optional)',
@@ -33,7 +33,7 @@ const copy = {
     dateLabel: (date: string) => new Intl.DateTimeFormat('en-US', { dateStyle: 'medium' }).format(new Date(`${date}T12:00:00`)),
   },
   pt: {
-    budgets: 'Orçamentos', investments: 'Investimentos', bills: 'Controle de contas', signOut: 'Sair', language: 'Idioma',
+    budgets: 'Orçamentos', investments: 'Investimentos', bills: 'Controle de contas', news: 'Notícias', signOut: 'Sair', language: 'Idioma',
     newBudget: 'Novo orçamento', budgetName: 'Nome do orçamento', createBudget: 'Criar orçamento', creating: 'Criando...',
     yourBudgets: 'Seus orçamentos', noBudgets: 'Nenhum orçamento ainda. Crie um para começar.', open: 'Abrir', usersWithBudgets: 'Usuários com orçamentos', noUsersWithBudgets: 'Nenhum usuário tem orçamentos ainda.',
     addItem: 'Adicionar item', editItem: 'Editar item', value: 'Valor (R$)', date: 'Data', description: 'Descrição (opcional)',
@@ -285,6 +285,7 @@ export function BudgetsPage(): React.JSX.Element {
             <nav aria-label={language === 'pt' ? 'Menu principal' : 'Main menu'} className="flex items-center gap-3 text-sm sm:gap-4 sm:text-base lg:text-lg">
             {admin?.permissions.includes('INVESTMENTS') && <a href="/" className="text-white/90 hover:text-white hover:underline">{strings.investments}</a>}
             {admin?.permissions.includes('BILLS_CONTROL') && <a href="/bills-control" className="text-white/90 hover:text-white hover:underline">{strings.bills}</a>}
+            {admin?.permissions.includes('NEWS') && <a href="/news" className="text-white/90 hover:text-white hover:underline">{strings.news}</a>}
             <span aria-current="page" className="underline underline-offset-4">{strings.budgets}</span>
           </nav>
           <div className="flex items-center gap-2">

@@ -35,6 +35,8 @@ services:
       ADMIN_PASSWORD: ${ADMIN_PASSWORD}
       SESSION_COOKIE_NAME: ${SESSION_COOKIE_NAME:-finance_session}
       SESSION_EXPIRY_DAYS: ${SESSION_EXPIRY_DAYS:-7}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-3.5-flash-lite}
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/health"]
       interval: 30s

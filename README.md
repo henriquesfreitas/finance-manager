@@ -100,6 +100,9 @@ Base URL: `http://localhost:3000`
 | `POST` | `/api/investments` | Create investment |
 | `PUT` | `/api/investments/:id` | Update investment |
 | `DELETE` | `/api/investments/:id` | Delete investment |
+| `GET` | `/api/news` | List saved InfoMoney stories and summary processing status (`NEWS` permission) |
+| `GET` | `/api/news/:id/original-text` | Fetch readable article text on demand in memory, with RSS description fallback (`NEWS` permission) |
+| `POST` | `/api/news/sync` | Import new feed stories and start missing summaries (`NEWS` permission) |
 
 ### Request body for POST/PUT
 
@@ -135,6 +138,10 @@ Base URL: `http://localhost:3000`
 ## Data Model
 
 See [`DATABASE_SCHEMA.md`](DATABASE_SCHEMA.md) for the PostgreSQL tables, columns, relationships, indexes, and enums. It is maintained alongside Prisma schema and migration changes.
+
+The backup change detector covers `investments`, `orders`, `comments`, `portfolio_comments`, `treasury_products`, `admin_users`, `budgets`, `budget_items`, `bills`, `bill_month_settlements`, and `news_items`. The database dump includes the full schema and data.
+
+To enable news summaries, set `GEMINI_API_KEY` in the server environment (`server/.env` locally or the project `.env` on the VPS). The key is used only by the server and is not exposed to the browser.
 
 ## Troubleshooting
 

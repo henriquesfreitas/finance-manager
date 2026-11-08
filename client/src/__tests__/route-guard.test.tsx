@@ -200,6 +200,23 @@ describe('RouteGuard — authenticated user', () => {
 
     expect(loc.replace).toHaveBeenCalledWith('/');
   });
+
+  it('allows NEWS users to open the news page and redirects users without NEWS access', () => {
+    mockUseAuth.mockImplementation(() => ({
+      ...authState({ isAuthenticated: true }),
+      admin: { id: 'admin-1', username: 'admin_finance', permissions: ['NEWS'] },
+    }));
+    const newsLocation = makeLocationService('/news');
+    render(React.createElement(RouteGuard, { locationService: newsLocation }, React.createElement('div', null, 'News page')));
+    expect(screen.getByText('News page')).toBeInTheDocument();
+    expect(newsLocation.replace).not.toHaveBeenCalled();
+
+    cleanup();
+    mockUseAuth.mockImplementation(() => authState({ isAuthenticated: true }));
+    const deniedLocation = makeLocationService('/news');
+    render(React.createElement(RouteGuard, { locationService: deniedLocation }, React.createElement('div', null, 'Protected content')));
+    expect(deniedLocation.replace).toHaveBeenCalledWith('/');
+  });
 });
 
 describe('RouteGuard — spinner accessibility', () => {

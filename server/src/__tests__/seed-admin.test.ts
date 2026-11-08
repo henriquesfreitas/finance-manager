@@ -123,9 +123,10 @@ describe('seedAdmin — successful seeding', () => {
     expect(call.update).toHaveProperty('passwordHash');
     expect(call.create).toHaveProperty('passwordHash');
     expect(call.create.permissions).not.toContain('BUDGET');
+    expect(call.create.permissions).not.toContain('NEWS');
   });
 
-  it('grants BUDGET only when the seeded username is admin_finance', async () => {
+  it('grants admin-only permissions only when the seeded username is admin_finance', async () => {
     process.env['ADMIN_USERNAME'] = 'admin_finance';
     const upsert = vi.fn().mockResolvedValue({ id: 'admin-1', username: 'admin_finance' });
     const seedAdmin = await importSeedAdmin();
@@ -135,6 +136,8 @@ describe('seedAdmin — successful seeding', () => {
     const call = upsert.mock.calls[0]?.[0];
     expect(call.create.permissions).toContain('BUDGET');
     expect(call.update.permissions).toContain('BUDGET');
+    expect(call.create.permissions).toContain('NEWS');
+    expect(call.update.permissions).toContain('NEWS');
   });
 
   it('stores a bcrypt hash, not the plaintext password', async () => {

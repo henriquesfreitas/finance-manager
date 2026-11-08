@@ -9,6 +9,7 @@ import { createTreasuryProductRouter } from './routes/treasury-product-routes.js
 import { createAuthRouter } from './routes/auth-routes.js';
 import { createBillRouter } from './routes/bill-routes.js';
 import { createBudgetRouter } from './routes/budget-routes.js';
+import { createNewsRouter } from './routes/news-routes.js';
 import { createAuthService } from './services/auth-service.js';
 import { createAuthMiddleware } from './middleware/auth-middleware.js';
 import { createCsrfMiddleware } from './middleware/csrf-middleware.js';
@@ -54,6 +55,7 @@ export function createApp(): Application {
   if (process.env['NODE_ENV'] !== 'production') {
     app.post('/api/test/reset', async (_req: Request, res: Response) => {
       // Comments and orders must be deleted before investments (ON DELETE RESTRICT)
+      await prisma.newsItem.deleteMany({});
       await prisma.budgetItem.deleteMany({});
       await prisma.budget.deleteMany({});
       await prisma.bill.deleteMany({});
@@ -75,6 +77,7 @@ export function createApp(): Application {
   app.use('/api/treasury-products', requirePermission('INVESTMENTS'));
   app.use('/api/bills', requirePermission('BILLS_CONTROL'));
   app.use('/api/budgets', requirePermission('BUDGET'));
+  app.use('/api/news', requirePermission('NEWS'));
   app.use('/api', createInvestmentRouter());
   app.use('/api', createOrderRouter());
   app.use('/api', createCommentRouter());
@@ -82,6 +85,7 @@ export function createApp(): Application {
   app.use('/api', createTreasuryProductRouter());
   app.use('/api', createBillRouter());
   app.use('/api', createBudgetRouter());
+  app.use('/api', createNewsRouter());
 
   // ── Error handler (must be last) ─────────────────────────────────────────
   // eslint-disable-next-line @typescript-eslint/no-unused-vars

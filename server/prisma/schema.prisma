@@ -122,6 +122,32 @@ model BillMonthSettlement {
   @@map("bill_month_settlements")
 }
 
+model NewsItem {
+  id             String            @id @default(uuid())
+  sourceId       String            @unique @db.Text
+  title          String            @db.Text
+  link           String            @db.Text
+  publishedAt    DateTime
+  categories     String[]          @default([])
+  description    String            @default("") @db.Text
+  isIncluded     Boolean           @default(true)
+  summary        String?           @db.Text
+  summaryStatus  NewsSummaryStatus @default(PENDING)
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @default(now()) @updatedAt
+
+  @@index([isIncluded, publishedAt])
+  @@index([summaryStatus, isIncluded])
+  @@map("news_items")
+}
+
+enum NewsSummaryStatus {
+  PENDING
+  PROCESSING
+  READY
+  FAILED
+}
+
 enum OrderType {
   BUY
   SELL
@@ -167,6 +193,7 @@ enum AppPermission {
   BILLS_CONTROL
   BUDGET
   ADMIN
+  NEWS
 }
 
 model Budget {

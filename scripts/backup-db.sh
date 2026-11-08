@@ -66,7 +66,7 @@ psql_query_csv() {
     psql -v ON_ERROR_STOP=1 -U "${POSTGRES_USER}" -d "${POSTGRES_DB}" -t -A -F '|'
 }
 
-backup_tables=(investments orders comments portfolio_comments treasury_products admin_users budgets budget_items bills bill_month_settlements)
+backup_tables=(investments orders comments portfolio_comments treasury_products admin_users budgets budget_items bills bill_month_settlements news_items)
 
 # ── send_email <subject> <html_body> ─────────────────────────────────────────
 send_email() {
@@ -232,8 +232,9 @@ trap 'handle_unexpected_error "$LINENO"' ERR
 
 # ── Check if any user data changed since last backup ─────────────────────────
 # Queries are passed via stdin to avoid bash mangling double-quoted column names.
+# The `news_items` table is included in fingerprints and activity counts below.
 LATEST_CHANGE=$(psql_query '
-  SELECT COALESCE(MAX(latest)::text, '"'"'epoch'"'"') || '"'"'|v2|'"'"'
+  SELECT COALESCE(MAX(latest)::text, '"'"'epoch'"'"') || '"'"'|v3|'"'"'
     || (SELECT md5(COALESCE(string_agg(to_jsonb(i)::text, '"'"''"'"' ORDER BY i.id), '"'"''"'"')) FROM investments AS i) || '"'"'|'"'"'
     || (SELECT md5(COALESCE(string_agg(to_jsonb(o)::text, '"'"''"'"' ORDER BY o.id), '"'"''"'"')) FROM orders AS o) || '"'"'|'"'"'
     || (SELECT md5(COALESCE(string_agg(to_jsonb(c)::text, '"'"''"'"' ORDER BY c.id), '"'"''"'"')) FROM comments AS c) || '"'"'|'"'"'
@@ -243,7 +244,8 @@ LATEST_CHANGE=$(psql_query '
     || (SELECT md5(COALESCE(string_agg(to_jsonb(b)::text, '"'"''"'"' ORDER BY b.id), '"'"''"'"')) FROM budgets AS b) || '"'"'|'"'"'
     || (SELECT md5(COALESCE(string_agg(to_jsonb(bi)::text, '"'"''"'"' ORDER BY bi.id), '"'"''"'"')) FROM budget_items AS bi) || '"'"'|'"'"'
     || (SELECT md5(COALESCE(string_agg(to_jsonb(b)::text, '"'"''"'"' ORDER BY b.id), '"'"''"'"')) FROM bills AS b) || '"'"'|'"'"'
-    || (SELECT md5(COALESCE(string_agg(to_jsonb(s)::text, '"'"''"'"' ORDER BY s.month), '"'"''"'"')) FROM bill_month_settlements AS s)
+    || (SELECT md5(COALESCE(string_agg(to_jsonb(s)::text, '"'"''"'"' ORDER BY s.month), '"'"''"'"')) FROM bill_month_settlements AS s) || '"'"'|'"'"'
+    || (SELECT md5(COALESCE(string_agg(to_jsonb(n)::text, '"'"''"'"' ORDER BY n.id), '"'"''"'"')) FROM news_items AS n)
   FROM (
     SELECT MAX("updatedAt") AS latest FROM investments
     UNION ALL
@@ -264,6 +266,8 @@ LATEST_CHANGE=$(psql_query '
     SELECT MAX("updatedAt") AS latest FROM budget_items
     UNION ALL
     SELECT MAX("updatedAt") AS latest FROM bill_month_settlements
+    UNION ALL
+    SELECT MAX("updatedAt") AS latest FROM news_items
   ) sub;
 ' 2>&1) || { send_failure_email "Could not query database: ${LATEST_CHANGE}"; exit 1; }
 
@@ -290,7 +294,7 @@ CHANGED_TABLES=()
 if [[ -f "$LAST_BACKUP_MARKER" ]]; then
   IFS='|' read -r -a previous_snapshot <<< "$LAST_BACKUP_TS"
 fi
-if [[ ! -f "$LAST_BACKUP_MARKER" || "${current_snapshot[1]:-}" != "v2" || "${previous_snapshot[1]:-}" != "v2" ]]; then
+if [[ ! -f "$LAST_BACKUP_MARKER" || "${current_snapshot[1]:-}" != "v3" || "${previous_snapshot[1]:-}" != "v3" ]]; then
   CHANGED_TABLES=("${backup_tables[@]}")
 else
   for index in "${!backup_tables[@]}"; do
@@ -341,6 +345,7 @@ ACTIVITY_COUNTS=$(psql_query_csv '
     UNION ALL SELECT '"'"'budget_items'"'"', COUNT(*) FILTER (WHERE "createdAt" >= NOW() - INTERVAL '"'"'6 hours'"'"'), COUNT(*) FILTER (WHERE "updatedAt" >= NOW() - INTERVAL '"'"'6 hours'"'"' AND "createdAt" < NOW() - INTERVAL '"'"'6 hours'"'"') FROM budget_items
     UNION ALL SELECT '"'"'bills'"'"', COUNT(*) FILTER (WHERE "createdAt" >= NOW() - INTERVAL '"'"'6 hours'"'"'), COUNT(*) FILTER (WHERE "updatedAt" >= NOW() - INTERVAL '"'"'6 hours'"'"' AND "createdAt" < NOW() - INTERVAL '"'"'6 hours'"'"') FROM bills
     UNION ALL SELECT '"'"'bill_month_settlements'"'"', 0, COUNT(*) FILTER (WHERE "updatedAt" >= NOW() - INTERVAL '"'"'6 hours'"'"') FROM bill_month_settlements
+    UNION ALL SELECT '"'"'news_items'"'"', COUNT(*) FILTER (WHERE "createdAt" >= NOW() - INTERVAL '"'"'6 hours'"'"'), COUNT(*) FILTER (WHERE "updatedAt" >= NOW() - INTERVAL '"'"'6 hours'"'"' AND "createdAt" < NOW() - INTERVAL '"'"'6 hours'"'"') FROM news_items
   ) counts
   ORDER BY table_name;
 ' 2>/dev/null || echo "")

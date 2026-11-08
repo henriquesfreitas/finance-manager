@@ -12,7 +12,7 @@ interface AdminIdentity {
   permissions: AppPermission[];
 }
 
-export type AppPermission = 'INVESTMENTS' | 'BILLS_CONTROL' | 'BUDGET' | 'ADMIN';
+export type AppPermission = 'INVESTMENTS' | 'BILLS_CONTROL' | 'BUDGET' | 'ADMIN' | 'NEWS';
 
 interface AuthResponse {
   admin: AdminIdentity;

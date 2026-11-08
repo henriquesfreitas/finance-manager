@@ -76,7 +76,7 @@ export interface LocationService {
 export const windowLocationService: LocationService = {
   getPathname: () => window.location.pathname,
   getSearch: () => window.location.search,
-  replace: (url: string) => window.location.replace(url),
+  replace: (url: string) => { window.location.replace(url); },
 };
 
 // ---------------------------------------------------------------------------
@@ -109,7 +109,8 @@ export function RouteGuard({
   const canAccessInvestments = admin?.permissions.includes('INVESTMENTS') ?? false;
   const canAccessBills = admin?.permissions.includes('BILLS_CONTROL') ?? false;
   const canAccessBudgets = admin?.permissions.includes('BUDGET') ?? false;
-  const defaultPath = canAccessInvestments ? '/' : canAccessBills ? '/bills-control' : canAccessBudgets ? '/budgets' : '/login';
+  const canAccessNews = admin?.permissions.includes('NEWS') ?? false;
+  const defaultPath = canAccessInvestments ? '/' : canAccessBills ? '/bills-control' : canAccessBudgets ? '/budgets' : canAccessNews ? '/news' : '/login';
 
   // Not authenticated and not already on login → redirect preserving path
   // so it can be restored after login (Req 4.1).
@@ -129,7 +130,7 @@ export function RouteGuard({
     const safeReturnTo = getSafeReturnTo(returnTo, window.location.origin);
     const returnPath = safeReturnTo?.split(/[?#]/, 1)[0];
     const target = safeReturnTo && returnPath !== LOGIN_PATH
-      && (returnPath === '/bills-control' ? canAccessBills : returnPath === '/budgets' ? canAccessBudgets : canAccessInvestments)
+      && (returnPath === '/bills-control' ? canAccessBills : returnPath === '/budgets' ? canAccessBudgets : returnPath === '/news' ? canAccessNews : canAccessInvestments)
       ? safeReturnTo
       : defaultPath;
     locationService.replace(target);
@@ -146,7 +147,12 @@ export function RouteGuard({
     return <FullPageSpinner />;
   }
 
-  if (isAuthenticated && currentPath !== '/bills-control' && currentPath !== '/budgets' && !isOnLoginPage && !canAccessInvestments) {
+  if (isAuthenticated && currentPath === '/news' && !canAccessNews) {
+    locationService.replace(defaultPath);
+    return <FullPageSpinner />;
+  }
+
+  if (isAuthenticated && currentPath !== '/bills-control' && currentPath !== '/budgets' && currentPath !== '/news' && !isOnLoginPage && !canAccessInvestments) {
     locationService.replace(defaultPath);
     return <FullPageSpinner />;
   }

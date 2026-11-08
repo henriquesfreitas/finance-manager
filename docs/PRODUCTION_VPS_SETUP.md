@@ -157,6 +157,8 @@ RESEND_API_KEY=re_xxxxxxxxxxxxxxxxxxxx    # send-only key from resend.com
 TELEGRAM_BOT_TOKEN=                       # optional; create with @BotFather
 TELEGRAM_CHAT_ID=                         # optional; both Telegram values are required together
 TELEGRAM_ALLOWED_USER_ID=                 # numeric Telegram account ID allowed to run production updates
+GEMINI_API_KEY=                           # optional; enables News page story summaries
+GEMINI_MODEL=gemini-3.5-flash-lite        # optional; defaults to this model
 ```
 
 ### Cron job
