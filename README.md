@@ -100,9 +100,10 @@ Base URL: `http://localhost:3000`
 | `POST` | `/api/investments` | Create investment |
 | `PUT` | `/api/investments/:id` | Update investment |
 | `DELETE` | `/api/investments/:id` | Delete investment |
-| `GET` | `/api/news` | List saved InfoMoney stories and summary processing status (`NEWS` permission) |
-| `GET` | `/api/news/:id/original-text` | Fetch readable article text on demand in memory, with RSS description fallback (`NEWS` permission) |
-| `POST` | `/api/news/sync` | Import new feed stories and start missing summaries (`NEWS` permission) |
+| `GET` | `/api/news` | List saved InfoMoney stories and article-text status (`NEWS` permission) |
+| `GET` | `/api/news/:id/original-text` | Return the saved readable article text with its paragraph structure (`NEWS` permission) |
+| `POST` | `/api/news/:id/summary` | Generate and save a summary for one story on demand (`NEWS` permission) |
+| `POST` | `/api/news/sync` | Import new feed stories and save missing original article texts (`NEWS` permission) |
 
 ### Request body for POST/PUT
 

@@ -11,9 +11,14 @@ interface StoredNewsItem {
   categories: string[];
   description: string;
   isIncluded: boolean;
+  content: string | null;
+  contentStatus: 'PENDING' | 'PROCESSING' | 'READY' | 'FAILED';
+  contentSource: 'FULL_ARTICLE' | 'RSS_ONLY' | null;
   summary: string | null;
   summaryStatus: 'PENDING' | 'PROCESSING' | 'READY' | 'FAILED';
 }
+
+type NewNewsItem = Pick<StoredNewsItem, 'sourceId' | 'title' | 'link' | 'publishedAt' | 'categories' | 'description' | 'isIncluded'>;
 
 const xmlItem = (id: number, category: string | null = 'Economia'): string => `<item>
   <guid>story-${id}</guid><title>Story ${id}</title><link>https://www.infomoney.com.br/story-${id}/</link>
@@ -22,7 +27,7 @@ const xmlItem = (id: number, category: string | null = 'Economia'): string => `<
 </item>`;
 
 const rss = (items: string[]): string => `<rss><channel>${items.join('')}</channel></rss>`;
-const longArticleHtml = `<html><body><article><h1>Article</h1><p>${'A detailed report describes the relevant economic event and its wider effects. '.repeat(30)}</p></article></body></html>`;
+const longArticleHtml = `<html><body><article><h1>Article</h1><p>${'First paragraph describes the relevant economic event and its wider effects. '.repeat(10)}</p><p>${'Second paragraph adds context and reported consequences for readers. '.repeat(10)}</p></article></body></html>`;
 const geminiResponse = (summary = 'A concise summary of the article.') => new Response(JSON.stringify({
   candidates: [{ content: { parts: [{ text: JSON.stringify({ summary }) }] } }],
 }), { status: 200, headers: { 'Content-Type': 'application/json' } });
@@ -30,6 +35,16 @@ const geminiResponse = (summary = 'A concise summary of the article.') => new Re
 function makeService(fetchImpl: typeof fetch) {
   const items: StoredNewsItem[] = [];
   let nextId = 1;
+
+  const matchesStatus = (
+    item: StoredNewsItem,
+    field: 'contentStatus' | 'summaryStatus',
+    expected: string | { in: string[] } | undefined,
+  ): boolean => {
+    if (expected === undefined) return true;
+    return typeof expected === 'string' ? item[field] === expected : expected.in.includes(item[field]);
+  };
+
   const findMany = vi.fn(async (args: {
     where?: { OR?: Array<{ link?: { in: string[] }; sourceId?: { in: string[] } }> };
     select?: { sourceId?: boolean; link?: boolean };
@@ -40,36 +55,59 @@ function makeService(fetchImpl: typeof fetch) {
       : [...items].sort((left, right) => right.publishedAt.getTime() - left.publishedAt.getTime());
     return args.select ? matches.map(({ sourceId, link }) => ({ sourceId, link })) : matches;
   });
-  const createMany = vi.fn(async ({ data }: { data: Array<Omit<StoredNewsItem, 'id' | 'summary' | 'summaryStatus'>> }) => {
+
+  const createMany = vi.fn(async ({ data }: { data: NewNewsItem[] }) => {
     let count = 0;
     for (const row of data) {
       if (items.some((item) => item.sourceId === row.sourceId || item.link === row.link)) continue;
-      items.push({ ...row, id: `news-${nextId++}`, summary: null, summaryStatus: 'PENDING' });
+      items.push({
+        ...row,
+        id: `news-${nextId++}`,
+        content: null,
+        contentStatus: 'PENDING',
+        contentSource: null,
+        summary: null,
+        summaryStatus: 'PENDING',
+      });
       count += 1;
     }
     return { count };
   });
+
   const updateMany = vi.fn(async ({ where, data }: {
-    where: { id?: string; summaryStatus: 'PENDING' | 'PROCESSING' | 'FAILED' | { in: Array<'PROCESSING' | 'FAILED'> } };
-    data: { summaryStatus: StoredNewsItem['summaryStatus'] };
+    where: {
+      id?: string;
+      contentStatus?: string | { in: string[] };
+      summaryStatus?: string | { in: string[] };
+    };
+    data: Partial<Pick<StoredNewsItem, 'contentStatus' | 'summaryStatus'>>;
   }) => {
-    const statuses = typeof where.summaryStatus === 'string' ? [where.summaryStatus] : where.summaryStatus.in;
-    const matching = items.filter((item) => (!where.id || item.id === where.id) && statuses.includes(item.summaryStatus));
-    for (const item of matching) item.summaryStatus = data.summaryStatus;
+    const matching = items.filter((item) =>
+      (!where.id || item.id === where.id)
+      && matchesStatus(item, 'contentStatus', where.contentStatus)
+      && matchesStatus(item, 'summaryStatus', where.summaryStatus));
+    for (const item of matching) Object.assign(item, data);
     return { count: matching.length };
   });
-  const findFirst = vi.fn(async () => items.find((item) => item.isIncluded && item.summaryStatus === 'PENDING') ?? null);
+
+  const findFirst = vi.fn(async () => [...items]
+    .filter((item) => item.isIncluded && item.contentStatus === 'PENDING')
+    .sort((left, right) => right.publishedAt.getTime() - left.publishedAt.getTime())[0] ?? null);
+
+  const findUnique = vi.fn(async ({ where }: { where: { id: string } }) =>
+    items.find(({ id }) => id === where.id) ?? null);
+
   const update = vi.fn(async ({ where, data }: {
     where: { id: string };
-    data: { summary?: string; summaryStatus: StoredNewsItem['summaryStatus'] };
+    data: Partial<Pick<StoredNewsItem, 'content' | 'contentSource' | 'contentStatus' | 'summary' | 'summaryStatus'>>;
   }) => {
     const item = items.find(({ id }) => id === where.id);
     if (!item) throw new Error('missing test row');
-    item.summary = data.summary ?? item.summary;
-    item.summaryStatus = data.summaryStatus;
+    Object.assign(item, data);
     return item;
   });
-  const db = { newsItem: { findMany, createMany, updateMany, findFirst, update } } as unknown as PrismaClient;
+
+  const db = { newsItem: { findMany, createMany, updateMany, findFirst, findUnique, update } } as unknown as PrismaClient;
   const service = createNewsService({ db, fetchImpl, apiKey: 'test-key', retryDelayMs: 0 });
   return { service, items, findMany, createMany };
 }
@@ -108,69 +146,96 @@ describe('news service', () => {
     expect(items).toHaveLength(106);
   });
 
-  it('summarizes only included stories, falls back to RSS text, and saves the summary', async () => {
+  it('saves the original article text without generating a summary automatically', async () => {
     const fetchImpl = vi.fn<typeof fetch>()
-      .mockResolvedValueOnce(new Response(rss([xmlItem(1, null), xmlItem(2, 'Esportes'), xmlItem(3, 'Loterias'), xmlItem(4, 'CONSUMO')]), { status: 200 }))
-      .mockResolvedValueOnce(new Response('', { status: 403 }))
-      .mockResolvedValueOnce(geminiResponse());
+      .mockResolvedValueOnce(new Response(rss([xmlItem(1), xmlItem(2, 'Esportes'), xmlItem(3, 'Loterias'), xmlItem(4, 'CONSUMO')]), { status: 200 }))
+      .mockResolvedValueOnce(new Response(longArticleHtml, { status: 200, headers: { 'Content-Type': 'text/html' } }));
     const { service, items } = makeService(fetchImpl);
 
     await expect(service.sync()).resolves.toMatchObject({ feedCount: 4, includedCount: 1, excludedCount: 3 });
     await waitForWorker(service);
 
-    expect(items.find(({ sourceId }) => sourceId === 'story-1')).toMatchObject({
-      isIncluded: true,
-      summaryStatus: 'READY',
-      summary: 'A concise summary of the article.',
+    const saved = items.find(({ sourceId }) => sourceId === 'story-1');
+    expect(saved).toMatchObject({
+      contentStatus: 'READY',
+      contentSource: 'FULL_ARTICLE',
+      summary: null,
+      summaryStatus: 'PENDING',
     });
+    expect(saved?.content).toContain('First paragraph describes');
+    expect(saved?.content).toContain('\n\n');
+    expect(saved?.content).toContain('Second paragraph adds');
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+
     const page = await service.getNews();
-    expect(page.included[0]?.summarySource).toBe('RSS_ONLY');
-    expect(page.excluded.every(({ summarySource }) => summarySource === 'NOT_FETCHED')).toBe(true);
-    expect(fetchImpl).toHaveBeenCalledTimes(3);
-    const requestBody = JSON.parse(String(fetchImpl.mock.calls[2]?.[1]?.body)) as {
-      contents: Array<{ parts: Array<{ text: string }> }>;
-    };
-    expect(requestBody.contents[0]?.parts[0]?.text).toContain('RSS excerpt for story 1');
+    expect(page.included[0]).toMatchObject({
+      contentStatus: 'READY',
+      contentSource: 'FULL_ARTICLE',
+      summary: null,
+      summaryStatus: 'PENDING',
+    });
+    expect(page.excluded.every(({ contentSource }) => contentSource === 'NOT_FETCHED')).toBe(true);
+    expect(page.progress).toEqual({ total: 1, ready: 1, pending: 0, processing: 0, failed: 0 });
   });
 
-  it('extracts article text for the summary and does not generate a second summary on later visits', async () => {
+  it('falls back to the RSS text when the article page cannot be fetched', async () => {
     const fetchImpl = vi.fn<typeof fetch>()
       .mockResolvedValueOnce(new Response(rss([xmlItem(1)]), { status: 200 }))
-      .mockResolvedValueOnce(new Response(longArticleHtml, { status: 200, headers: { 'Content-Type': 'text/html' } }))
-      .mockResolvedValueOnce(geminiResponse('Summary based on the full article.'));
-    const { service } = makeService(fetchImpl);
-
-    await service.sync();
-    await waitForWorker(service);
-    await expect(service.getNews()).resolves.toMatchObject({ included: [{ summarySource: 'FULL_ARTICLE' }] });
-    const firstGeminiBody = String(fetchImpl.mock.calls[2]?.[1]?.body);
-    expect(firstGeminiBody).toContain('detailed report describes the relevant economic event');
-    expect(firstGeminiBody).not.toContain('RSS excerpt for story 1');
-
-    fetchImpl.mockResolvedValueOnce(new Response(rss([xmlItem(1)]), { status: 200 }));
-    await expect(service.sync()).resolves.toMatchObject({ addedCount: 0 });
-    await waitForWorker(service);
-    expect(fetchImpl).toHaveBeenCalledTimes(4);
-  });
-
-  it('marks failed summaries for retry on the next visit without losing imported stories', async () => {
-    const fetchImpl = vi.fn<typeof fetch>()
-      .mockResolvedValueOnce(new Response(rss([xmlItem(1)]), { status: 200 }))
-      .mockResolvedValueOnce(new Response('', { status: 403 }))
-      .mockResolvedValueOnce(new Response(JSON.stringify({ error: { status: 'QUOTA_EXCEEDED' } }), { status: 429 }))
-      .mockResolvedValueOnce(new Response(rss([xmlItem(1)]), { status: 200 }))
-      .mockResolvedValueOnce(new Response('', { status: 403 }))
-      .mockResolvedValueOnce(geminiResponse('Retry succeeded.'));
+      .mockResolvedValueOnce(new Response('', { status: 403 }));
     const { service, items } = makeService(fetchImpl);
 
     await service.sync();
     await waitForWorker(service);
-    expect((await service.getNews()).included).toHaveLength(1);
-    expect(items[0]?.summaryStatus).toBe('FAILED');
+
+    const saved = items[0];
+    expect(saved).toMatchObject({ contentStatus: 'READY', contentSource: 'RSS_ONLY' });
+    expect(saved?.content).toContain('RSS excerpt for story 1');
+    await expect(service.getOriginalText(saved!.id)).resolves.toEqual({
+      text: saved?.content,
+      source: 'RSS_ONLY',
+    });
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+  });
+
+  it('generates and saves a summary only when explicitly requested', async () => {
+    const fetchImpl = vi.fn<typeof fetch>()
+      .mockResolvedValueOnce(new Response(rss([xmlItem(1)]), { status: 200 }))
+      .mockResolvedValueOnce(new Response(longArticleHtml, { status: 200, headers: { 'Content-Type': 'text/html' } }));
+    const { service, items } = makeService(fetchImpl);
 
     await service.sync();
     await waitForWorker(service);
-    expect(items).toHaveLength(1);
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+    expect(items[0]?.summary).toBeNull();
+
+    fetchImpl.mockResolvedValueOnce(geminiResponse('Summary generated on demand.'));
+    await expect(service.summarize(items[0]!.id)).resolves.toEqual({ summary: 'Summary generated on demand.' });
+    expect(items[0]).toMatchObject({ summary: 'Summary generated on demand.', summaryStatus: 'READY' });
+
+    const requestBody = JSON.parse(String(fetchImpl.mock.calls[2]?.[1]?.body)) as {
+      contents: Array<{ parts: Array<{ text: string }> }>;
+    };
+    expect(requestBody.contents[0]?.parts[0]?.text).toContain('First paragraph describes');
+    expect(requestBody.contents[0]?.parts[0]?.text).toContain('Second paragraph adds');
+
+    await expect(service.summarize(items[0]!.id)).resolves.toEqual({ summary: 'Summary generated on demand.' });
+    expect(fetchImpl).toHaveBeenCalledTimes(3);
+  });
+
+  it('marks a failed on-demand summary and allows retrying it', async () => {
+    const fetchImpl = vi.fn<typeof fetch>()
+      .mockResolvedValueOnce(new Response(rss([xmlItem(1)]), { status: 200 }))
+      .mockResolvedValueOnce(new Response(longArticleHtml, { status: 200, headers: { 'Content-Type': 'text/html' } }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ error: { status: 'QUOTA_EXCEEDED' } }), { status: 429 }));
+    const { service, items } = makeService(fetchImpl);
+
+    await service.sync();
+    await waitForWorker(service);
+    await expect(service.summarize(items[0]!.id)).rejects.toThrow('GEMINI_HTTP_429');
+    expect(items[0]?.summaryStatus).toBe('FAILED');
+
+    fetchImpl.mockResolvedValueOnce(geminiResponse('Retry succeeded.'));
+    await expect(service.summarize(items[0]!.id)).resolves.toEqual({ summary: 'Retry succeeded.' });
     expect(items[0]).toMatchObject({ summaryStatus: 'READY', summary: 'Retry succeeded.' });
   });
 });

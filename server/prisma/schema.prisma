@@ -123,22 +123,38 @@ model BillMonthSettlement {
 }
 
 model NewsItem {
-  id             String            @id @default(uuid())
-  sourceId       String            @unique @db.Text
-  title          String            @db.Text
-  link           String            @db.Text
+  id             String             @id @default(uuid())
+  sourceId       String             @unique @db.Text
+  title          String             @db.Text
+  link           String             @db.Text
   publishedAt    DateTime
-  categories     String[]          @default([])
-  description    String            @default("") @db.Text
-  isIncluded     Boolean           @default(true)
-  summary        String?           @db.Text
-  summaryStatus  NewsSummaryStatus @default(PENDING)
-  createdAt      DateTime          @default(now())
-  updatedAt      DateTime          @default(now()) @updatedAt
+  categories     String[]           @default([])
+  description    String             @default("") @db.Text
+  isIncluded     Boolean            @default(true)
+  content        String?            @db.Text
+  contentStatus  NewsContentStatus  @default(PENDING)
+  contentSource  NewsContentSource?
+  summary        String?            @db.Text
+  summaryStatus  NewsSummaryStatus  @default(PENDING)
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @default(now()) @updatedAt
 
   @@index([isIncluded, publishedAt])
+  @@index([contentStatus, isIncluded])
   @@index([summaryStatus, isIncluded])
   @@map("news_items")
+}
+
+enum NewsContentStatus {
+  PENDING
+  PROCESSING
+  READY
+  FAILED
+}
+
+enum NewsContentSource {
+  FULL_ARTICLE
+  RSS_ONLY
 }
 
 enum NewsSummaryStatus {

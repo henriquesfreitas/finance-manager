@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient, type UseMutationResult, type UseQueryResult } from '@tanstack/react-query';
-import { fetchNews, fetchNewsOriginalText, syncNews } from '../services/news-api-client';
-import type { NewsOriginalText, NewsPageData, NewsSyncStats } from '../types/news';
+import { fetchNews, fetchNewsOriginalText, summarizeNews, syncNews } from '../services/news-api-client';
+import type { NewsOriginalText, NewsPageData, NewsSummary, NewsSyncStats } from '../types/news';
 
 export const NEWS_QUERY_KEY = ['news'] as const;
 
@@ -29,5 +29,13 @@ export function useNewsOriginalText(itemId: string, enabled: boolean): UseQueryR
     queryFn: () => fetchNewsOriginalText(itemId),
     enabled,
     staleTime: Infinity,
+  });
+}
+
+export function useSummarizeNews(itemId: string): UseMutationResult<NewsSummary, Error, void> {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => summarizeNews(itemId),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: NEWS_QUERY_KEY }),
   });
 }

@@ -28,22 +28,25 @@ const generatedPayloadSchema = z.object({
   })),
 });
 
+export type NewsContentStatus = 'PENDING' | 'PROCESSING' | 'READY' | 'FAILED';
+export type NewsContentSource = 'FULL_ARTICLE' | 'RSS_ONLY';
+export type NewsSource = NewsContentSource | 'NOT_FETCHED';
 export type NewsSummaryStatus = 'PENDING' | 'PROCESSING' | 'READY' | 'FAILED';
-export type NewsSummarySource = 'FULL_ARTICLE' | 'RSS_ONLY' | 'NOT_FETCHED' | 'UNKNOWN';
 
 export interface NewsArticle {
   id: string;
   title: string;
   link: string;
   publishedAt: string;
+  contentStatus: NewsContentStatus;
+  contentSource: NewsSource | null;
   summary: string | null;
   summaryStatus: NewsSummaryStatus;
-  summarySource: NewsSummarySource | null;
 }
 
 export interface NewsPageData {
   included: NewsArticle[];
-  excluded: Array<Pick<NewsArticle, 'id' | 'title' | 'link' | 'publishedAt' | 'summarySource'>>;
+  excluded: Array<Pick<NewsArticle, 'id' | 'title' | 'link' | 'publishedAt' | 'contentSource'>>;
   progress: { total: number; ready: number; pending: number; processing: number; failed: number };
 }
 
@@ -114,11 +117,28 @@ function parseRss(xml: string): z.infer<typeof feedResultSchema> {
   return feedResultSchema.parse({ items });
 }
 
+function plainTextWithParagraphs(html: string): string {
+  const withBreaks = html
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/(?:p|div|section|article|h[1-6]|li|blockquote|pre|tr)>/gi, '\n\n');
+  const dom = new JSDOM(withBreaks);
+  try {
+    return dom.window.document.body.textContent
+      .split(/\n+/)
+      .map((line) => line.replace(/\s+/g, ' ').trim())
+      .filter(Boolean)
+      .join('\n\n');
+  } finally {
+    dom.window.close();
+  }
+}
+
 function articleTextFromHtml(html: string, url: string): string | null {
   const dom = new JSDOM(html, { url });
   try {
     const article = new Readability(dom.window.document).parse();
-    const text = article?.textContent?.replace(/\s+/g, ' ').trim();
+    if (!article?.content) return null;
+    const text = plainTextWithParagraphs(article.content);
     return text && text.length >= 200 ? text : null;
   } finally {
     dom.window.close();
@@ -181,7 +201,8 @@ export interface NewsServiceDeps {
 
 export interface NewsService {
   getNews(): Promise<NewsPageData>;
-  getOriginalText(id: string): Promise<{ text: string; source: 'FULL_ARTICLE' | 'RSS_ONLY' } | null>;
+  getOriginalText(id: string): Promise<{ text: string; source: NewsContentSource } | null>;
+  summarize(id: string): Promise<{ summary: string } | null>;
   sync(): Promise<NewsSyncStats>;
 }
 
@@ -193,7 +214,6 @@ export function createNewsService({
 }: NewsServiceDeps): NewsService {
   let syncPromise: Promise<NewsSyncStats> | null = null;
   let workerPromise: Promise<void> | null = null;
-  const summarySourceById = new Map<string, NewsSummarySource>();
 
   async function getNews(): Promise<NewsPageData> {
     const items = await db.newsItem.findMany({ orderBy: [{ publishedAt: 'desc' }, { id: 'asc' }] });
@@ -203,32 +223,57 @@ export function createNewsService({
     for (const item of items) {
       if (item.isIncluded) {
         progress.total += 1;
-        if (item.summaryStatus === 'READY') progress.ready += 1;
-        if (item.summaryStatus === 'PENDING') progress.pending += 1;
-        if (item.summaryStatus === 'PROCESSING') progress.processing += 1;
-        if (item.summaryStatus === 'FAILED') progress.failed += 1;
+        if (item.contentStatus === 'READY') progress.ready += 1;
+        if (item.contentStatus === 'PENDING') progress.pending += 1;
+        if (item.contentStatus === 'PROCESSING') progress.processing += 1;
+        if (item.contentStatus === 'FAILED') progress.failed += 1;
         included.push({
           id: item.id,
           title: item.title,
           link: item.link,
           publishedAt: item.publishedAt.toISOString(),
+          contentStatus: item.contentStatus,
+          contentSource: item.contentSource,
           summary: item.summary,
           summaryStatus: item.summaryStatus,
-          summarySource: item.summaryStatus === 'PENDING' || item.summaryStatus === 'PROCESSING'
-            ? summarySourceById.get(item.id) ?? null
-            : summarySourceById.get(item.id) ?? 'UNKNOWN',
         });
       } else {
-        excluded.push({ id: item.id, title: item.title, link: item.link, publishedAt: item.publishedAt.toISOString(), summarySource: 'NOT_FETCHED' });
+        excluded.push({ id: item.id, title: item.title, link: item.link, publishedAt: item.publishedAt.toISOString(), contentSource: 'NOT_FETCHED' });
       }
     }
     return { included, excluded, progress };
   }
 
-  async function getOriginalText(id: string): Promise<{ text: string; source: 'FULL_ARTICLE' | 'RSS_ONLY' } | null> {
-    const item = await db.newsItem.findUnique({ where: { id }, select: { link: true, description: true, isIncluded: true } });
+  async function getOriginalText(id: string): Promise<{ text: string; source: NewsContentSource } | null> {
+    const item = await db.newsItem.findUnique({
+      where: { id },
+      select: { content: true, contentSource: true, isIncluded: true },
+    });
+    if (!item?.isIncluded || !item.content) return null;
+    return { text: item.content, source: item.contentSource ?? 'FULL_ARTICLE' };
+  }
+
+  async function summarizeItem(id: string): Promise<{ summary: string } | null> {
+    const item = await db.newsItem.findUnique({
+      where: { id },
+      select: { content: true, isIncluded: true, summary: true, summaryStatus: true },
+    });
     if (!item?.isIncluded) return null;
-    return extractArticleText(item, fetchImpl);
+    if (item.summaryStatus === 'READY' && item.summary) return { summary: item.summary };
+    if (!item.content?.trim()) throw new Error('ARTICLE_CONTENT_UNAVAILABLE');
+    const claimed = await db.newsItem.updateMany({
+      where: { id, summaryStatus: { in: ['PENDING', 'FAILED', 'READY'] } },
+      data: { summaryStatus: 'PROCESSING' },
+    });
+    if (claimed.count === 0) throw new Error('SUMMARY_IN_PROGRESS');
+    try {
+      const summary = await summarize(item.content);
+      await db.newsItem.update({ where: { id }, data: { summary, summaryStatus: 'READY' } });
+      return { summary };
+    } catch (error) {
+      await db.newsItem.update({ where: { id }, data: { summaryStatus: 'FAILED' } });
+      throw error;
+    }
   }
 
   async function fetchRss(): Promise<z.infer<typeof feedResultSchema>> {
@@ -308,42 +353,42 @@ export function createNewsService({
     throw new Error('GEMINI_RETRIES_EXHAUSTED');
   }
 
-  async function processPendingSummaries(): Promise<void> {
+  async function processPendingContent(): Promise<void> {
     for (let item = await db.newsItem.findFirst({
-        where: { isIncluded: true, summaryStatus: 'PENDING' },
+        where: { isIncluded: true, contentStatus: 'PENDING' },
         orderBy: [{ publishedAt: 'desc' }, { id: 'asc' }],
       }); item; item = await db.newsItem.findFirst({
-        where: { isIncluded: true, summaryStatus: 'PENDING' },
+        where: { isIncluded: true, contentStatus: 'PENDING' },
         orderBy: [{ publishedAt: 'desc' }, { id: 'asc' }],
       })) {
       const claimed = await db.newsItem.updateMany({
-        where: { id: item.id, summaryStatus: 'PENDING' },
-        data: { summaryStatus: 'PROCESSING' },
+        where: { id: item.id, contentStatus: 'PENDING' },
+        data: { contentStatus: 'PROCESSING' },
       });
       if (claimed.count === 0) continue;
       try {
         const extracted = await extractArticleText(item, fetchImpl);
-        summarySourceById.set(item.id, extracted.source);
-        const summary = await summarize(extracted.text);
-        await db.newsItem.update({ where: { id: item.id }, data: { summary, summaryStatus: 'READY' } });
+        if (!extracted.text) throw new Error('ARTICLE_TEXT_EMPTY');
+        await db.newsItem.update({
+          where: { id: item.id },
+          data: { content: extracted.text, contentSource: extracted.source, contentStatus: 'READY' },
+        });
       } catch (error) {
-        await db.newsItem.update({ where: { id: item.id }, data: { summaryStatus: 'FAILED' } });
-        const reason = error instanceof Error && /^(MISSING_API_KEY|ARTICLE_TEXT_TOO_SHORT|GEMINI_NETWORK_FAILED|GEMINI_HTTP_\d+|GEMINI_RETRIES_EXHAUSTED)$/.test(error.message)
-          ? error.message
-          : 'SUMMARY_FAILED';
-        console.warn(JSON.stringify({ event: 'news.summary.failure', articleId: item.id, reason }));
+        await db.newsItem.update({ where: { id: item.id }, data: { contentStatus: 'FAILED' } });
+        const reason = error instanceof Error && error.message === 'ARTICLE_TEXT_EMPTY' ? error.message : 'CONTENT_FAILED';
+        console.warn(JSON.stringify({ event: 'news.content.failure', articleId: item.id, reason }));
       }
     }
   }
 
-  function startSummaryWorker(): void {
+  function startContentWorker(): void {
     if (workerPromise) return;
     workerPromise = db.newsItem.updateMany({
-      where: { summaryStatus: { in: ['PROCESSING', 'FAILED'] } },
-      data: { summaryStatus: 'PENDING' },
-    }).then(() => processPendingSummaries())
+      where: { contentStatus: { in: ['PROCESSING', 'FAILED'] } },
+      data: { contentStatus: 'PENDING' },
+    }).then(() => processPendingContent())
       .catch((error: unknown) => {
-        console.error(JSON.stringify({ event: 'news.summary.worker.failure', reason: error instanceof Error ? 'DATABASE_OR_WORKER_FAILURE' : 'UNKNOWN' }));
+        console.error(JSON.stringify({ event: 'news.content.worker.failure', reason: error instanceof Error ? 'DATABASE_OR_WORKER_FAILURE' : 'UNKNOWN' }));
       })
       .finally(() => { workerPromise = null; });
   }
@@ -353,7 +398,7 @@ export function createNewsService({
     try {
       feed = await fetchRss();
     } catch (error) {
-      startSummaryWorker();
+      startContentWorker();
       throw error;
     }
 
@@ -382,7 +427,7 @@ export function createNewsService({
         skipDuplicates: true,
       })
       : { count: 0 };
-    startSummaryWorker();
+    startContentWorker();
     const includedCount = feed.items.filter(({ isIncluded }) => isIncluded).length;
     return {
       feedCount: feed.items.length,
@@ -398,5 +443,5 @@ export function createNewsService({
     return syncPromise;
   }
 
-  return { getNews, getOriginalText, sync };
+  return { getNews, getOriginalText, summarize: summarizeItem, sync };
 }

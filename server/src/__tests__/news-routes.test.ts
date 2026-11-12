@@ -30,16 +30,25 @@ function buildApp(): express.Express {
   return app;
 }
 
+const geminiResponse = (summary = 'A concise summary of the saved article.') => new Response(JSON.stringify({
+  candidates: [{ content: { parts: [{ text: JSON.stringify({ summary }) }] } }],
+}), { status: 200, headers: { 'Content-Type': 'application/json' } });
+
 beforeEach(() => {
   vi.clearAllMocks();
+  vi.stubEnv('GEMINI_API_KEY', 'test-key');
   fakePrisma.newsItem.findMany.mockResolvedValue([]);
   fakePrisma.newsItem.findUnique.mockResolvedValue(null);
   fakePrisma.newsItem.createMany.mockResolvedValue({ count: 0 });
   fakePrisma.newsItem.updateMany.mockResolvedValue({ count: 0 });
   fakePrisma.newsItem.findFirst.mockResolvedValue(null);
+  fakePrisma.newsItem.update.mockResolvedValue({});
 });
 
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  vi.unstubAllEnvs();
+  vi.unstubAllGlobals();
+});
 
 describe('news routes', () => {
   it('denies requests without NEWS permission before reading persisted data', async () => {
@@ -48,22 +57,24 @@ describe('news routes', () => {
     expect(fakePrisma.newsItem.findMany).not.toHaveBeenCalled();
   });
 
-  it('returns the persisted story lists and summary status to NEWS users', async () => {
+  it('returns the persisted story lists and saved article status to NEWS users', async () => {
     fakePrisma.newsItem.findMany.mockResolvedValueOnce([{
       id: 'story-1',
       title: 'Saved story',
       link: 'https://www.infomoney.com.br/saved/',
       publishedAt: new Date('2026-11-08T12:00:00.000Z'),
       isIncluded: true,
+      contentStatus: 'READY',
+      contentSource: 'FULL_ARTICLE',
       summary: null,
       summaryStatus: 'PENDING',
     }]);
     const response = await request(buildApp()).get('/api/news').set('x-permissions', 'NEWS');
     expect(response.status).toBe(200);
     expect(response.body).toMatchObject({
-      included: [{ id: 'story-1', title: 'Saved story', summaryStatus: 'PENDING' }],
+      included: [{ id: 'story-1', title: 'Saved story', contentStatus: 'READY', contentSource: 'FULL_ARTICLE', summaryStatus: 'PENDING' }],
       excluded: [],
-      progress: { total: 1, pending: 1 },
+      progress: { total: 1, ready: 1 },
     });
   });
 
@@ -73,43 +84,62 @@ describe('news routes', () => {
     expect(fakePrisma.newsItem.createMany).not.toHaveBeenCalled();
   });
 
-  it('returns readable original article text only when requested by an authorized user', async () => {
-    const articleHtml = `<html><body><article><h1>Story</h1><p>${'The full story includes details, context, and reported consequences for readers. '.repeat(20)}</p></article></body></html>`;
-    vi.stubGlobal('fetch', vi.fn<typeof fetch>().mockResolvedValueOnce(new Response(articleHtml, {
-      status: 200,
-      headers: { 'Content-Type': 'text/html' },
-    })));
+  it('returns the saved original article text without fetching the article again', async () => {
+    const fetchMock = vi.fn<typeof fetch>();
+    vi.stubGlobal('fetch', fetchMock);
     fakePrisma.newsItem.findUnique.mockResolvedValueOnce({
-      link: 'https://www.infomoney.com.br/story-1/',
+      content: 'Saved original article text with paragraphs.',
+      contentSource: 'FULL_ARTICLE',
       isIncluded: true,
-      description: 'Original text from the RSS feed.',
     });
     const response = await request(buildApp()).get('/api/news/story-1/original-text').set('x-permissions', 'NEWS');
     expect(response.status).toBe(200);
-    expect(response.body.source).toBe('FULL_ARTICLE');
-    expect(response.body.text).toContain('full story includes details');
+    expect(response.body).toEqual({ text: 'Saved original article text with paragraphs.', source: 'FULL_ARTICLE' });
     expect(fakePrisma.newsItem.findUnique).toHaveBeenCalledWith({
       where: { id: 'story-1' },
-      select: { link: true, description: true, isIncluded: true },
+      select: { content: true, contentSource: true, isIncluded: true },
     });
-    expect(fakePrisma.newsItem.update).not.toHaveBeenCalled();
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it('falls back to saved RSS text when an article cannot be fetched', async () => {
-    vi.stubGlobal('fetch', vi.fn<typeof fetch>().mockResolvedValueOnce(new Response('', { status: 403 })));
+  it('does not return article text before it is saved or for excluded stories', async () => {
+    fakePrisma.newsItem.findUnique.mockResolvedValueOnce({ content: null, contentSource: null, isIncluded: true });
+    const pending = await request(buildApp()).get('/api/news/story-1/original-text').set('x-permissions', 'NEWS');
+    expect(pending.status).toBe(404);
+
+    fakePrisma.newsItem.findUnique.mockResolvedValueOnce({ content: 'Hidden text.', contentSource: 'RSS_ONLY', isIncluded: false });
+    const excluded = await request(buildApp()).get('/api/news/story-2/original-text').set('x-permissions', 'NEWS');
+    expect(excluded.status).toBe(404);
+  });
+
+  it('generates a summary only when requested by an authorized user', async () => {
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValueOnce(geminiResponse());
+    vi.stubGlobal('fetch', fetchMock);
     fakePrisma.newsItem.findUnique.mockResolvedValueOnce({
-      link: 'https://www.infomoney.com.br/story-1/',
+      content: 'Saved original article text used for the on-demand summary.',
       isIncluded: true,
-      description: 'RSS description fallback.',
+      summary: null,
+      summaryStatus: 'PENDING',
     });
-    const response = await request(buildApp()).get('/api/news/story-1/original-text').set('x-permissions', 'NEWS');
+    fakePrisma.newsItem.updateMany.mockResolvedValueOnce({ count: 1 });
+
+    const response = await request(buildApp()).post('/api/news/story-1/summary').set('x-permissions', 'NEWS');
     expect(response.status).toBe(200);
-    expect(response.body).toEqual({ text: 'RSS description fallback.', source: 'RSS_ONLY' });
+    expect(response.body).toEqual({ summary: 'A concise summary of the saved article.' });
+    expect(fakePrisma.newsItem.updateMany).toHaveBeenCalledWith({
+      where: { id: 'story-1', summaryStatus: { in: ['PENDING', 'FAILED', 'READY'] } },
+      data: { summaryStatus: 'PROCESSING' },
+    });
+    expect(fakePrisma.newsItem.update).toHaveBeenCalledWith({
+      where: { id: 'story-1' },
+      data: { summary: 'A concise summary of the saved article.', summaryStatus: 'READY' },
+    });
+    expect(fetchMock).toHaveBeenCalledOnce();
   });
 
-  it('does not return article text for excluded stories', async () => {
-    fakePrisma.newsItem.findUnique.mockResolvedValueOnce({ isIncluded: false, description: 'Hidden text.' });
-    const response = await request(buildApp()).get('/api/news/story-2/original-text').set('x-permissions', 'NEWS');
+  it('rejects summary requests for excluded or missing stories', async () => {
+    fakePrisma.newsItem.findUnique.mockResolvedValueOnce({ content: 'Hidden text.', isIncluded: false, summary: null, summaryStatus: 'PENDING' });
+    const response = await request(buildApp()).post('/api/news/story-2/summary').set('x-permissions', 'NEWS');
     expect(response.status).toBe(404);
   });
 });

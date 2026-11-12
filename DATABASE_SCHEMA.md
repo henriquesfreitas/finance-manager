@@ -276,10 +276,15 @@ The table has an index on (`budgetId`, `itemDate`, `createdAt`) for listing a bu
 | `categories` | TEXT[] | RSS categories; empty when the item has none |
 | `description` | TEXT | RSS description used if article text extraction fails |
 | `isIncluded` | BOOLEAN | Whether the fixed RSS-category rule includes the story in the main list |
-| `summary` | TEXT | Nullable; Gemini summary for included stories |
-| `summaryStatus` | `NewsSummaryStatus` | `PENDING`, `PROCESSING`, `READY`, or `FAILED` |
+| `content` | TEXT | Nullable; original article text with paragraphs separated by blank lines |
+| `contentStatus` | `NewsContentStatus` | `PENDING`, `PROCESSING`, `READY`, or `FAILED` |
+| `contentSource` | `NewsContentSource` | `FULL_ARTICLE` when extracted from the article page, `RSS_ONLY` when using the RSS description; nullable until saved |
+| `summary` | TEXT | Nullable; Gemini summary generated only when requested |
+| `summaryStatus` | `NewsSummaryStatus` | `PENDING` (not requested), `PROCESSING`, `READY`, or `FAILED` |
 | `createdAt` | TIMESTAMP | Required import time |
-| `updatedAt` | TIMESTAMP | Required; updated when summary processing changes |
+| `updatedAt` | TIMESTAMP | Required; updated when content or summary processing changes |
+
+The table has indexes on (`isIncluded`, `publishedAt`), (`contentStatus`, `isIncluded`), and (`summaryStatus`, `isIncluded`).
 
 ## Enums
 
@@ -289,6 +294,8 @@ The table has an index on (`budgetId`, `itemDate`, `createdAt`) for listing a bu
 | `OrderType` | `BUY`, `SELL`, `BONUS`, `SPLIT` |
 | `BillPayer` | `HENRIQUE`, `AMANDA` |
 | `BillType` | `INTERNET`, `CLEANING`, `CONDOMINIO`, `ENERGY`, `CARD`, `OTHER`, `RECEIVED` |
+| `NewsContentStatus` | `PENDING`, `PROCESSING`, `READY`, `FAILED` |
+| `NewsContentSource` | `FULL_ARTICLE`, `RSS_ONLY` |
 | `NewsSummaryStatus` | `PENDING`, `PROCESSING`, `READY`, `FAILED` |
 | `AppPermission` | `INVESTMENTS`, `BILLS_CONTROL`, `BUDGET`, `ADMIN`, `NEWS` |
 

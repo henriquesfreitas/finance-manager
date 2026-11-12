@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
-import { ExternalLink, Loader2, Newspaper } from 'lucide-react';
+import { ExternalLink, Loader2, Newspaper, Sparkles } from 'lucide-react';
 import { useAuth } from '../contexts/auth-context';
 import { ThemeToggle } from '../components/ThemeToggle';
-import { useNews, useNewsOriginalText, useSyncNews } from '../hooks/useNews';
+import { useNews, useNewsOriginalText, useSummarizeNews, useSyncNews } from '../hooks/useNews';
 import { getInitialNewsLanguage, newsCopy, saveNewsLanguage, type NewsLanguage } from '../i18n/news';
-import type { NewsArticle, NewsSummarySource } from '../types/news';
+import type { NewsArticle, NewsContentStatus, NewsSource } from '../types/news';
 
 type NewsCopy = (typeof newsCopy)[NewsLanguage];
 
@@ -12,20 +12,36 @@ interface IncludedNewsCardProps {
   article: NewsArticle;
   copy: NewsCopy;
   formatDate: (value: string) => string;
-  sourceLabel: (source: NewsSummarySource | null) => string;
+  sourceLabel: (source: NewsSource | null, status?: NewsContentStatus) => string;
+}
+
+function contentParagraphs(text: string): string[] {
+  return text.split(/\n{2,}/).map((paragraph) => paragraph.trim()).filter(Boolean);
 }
 
 function IncludedNewsCard({ article, copy, formatDate, sourceLabel }: IncludedNewsCardProps): React.JSX.Element {
   const [isExpanded, setIsExpanded] = useState(false);
-  const [isOriginalTextOpen, setIsOriginalTextOpen] = useState(false);
-  const originalText = useNewsOriginalText(article.id, isExpanded && isOriginalTextOpen);
+  const [isSummaryVisible, setIsSummaryVisible] = useState(false);
+  const originalText = useNewsOriginalText(article.id, isExpanded && article.contentStatus === 'READY');
+  const summarize = useSummarizeNews(article.id);
+  const generateSummary = summarize.mutate;
+  const isGenerating = summarize.isPending || article.summaryStatus === 'PROCESSING';
+  const summaryText = summarize.data?.summary ?? (article.summaryStatus === 'READY' ? article.summary : null);
+  const canSummarize = article.contentStatus === 'READY';
+  const summaryFailed = article.summaryStatus === 'FAILED' || summarize.isError;
+  const shouldLoadSummary = canSummarize && !summaryText && !isGenerating && !summarize.isError;
+
+  useEffect(() => {
+    if (!shouldLoadSummary || (!isExpanded && !isSummaryVisible)) return;
+    generateSummary();
+  }, [generateSummary, isExpanded, isSummaryVisible, shouldLoadSummary]);
 
   return (
     <li className="rounded-xl border bg-card p-5 shadow-sm">
       <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap items-center gap-2">
           <time className="text-xs text-muted-foreground" dateTime={article.publishedAt}>{formatDate(article.publishedAt)}</time>
-          <span className="rounded-full border px-2 py-0.5 text-xs text-muted-foreground">{sourceLabel(article.summarySource)}</span>
+          <span className="rounded-full border px-2 py-0.5 text-xs text-muted-foreground">{sourceLabel(article.contentSource, article.contentStatus)}</span>
         </div>
         <a className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline" href={article.link} target="_blank" rel="noopener noreferrer">
           {copy.openStory}<ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
@@ -41,41 +57,67 @@ function IncludedNewsCard({ article, copy, formatDate, sourceLabel }: IncludedNe
           {article.title}
         </button>
       </h3>
+      <div className="mt-2">
+        <button
+          type="button"
+          className="text-sm font-medium text-primary hover:underline"
+          aria-expanded={isSummaryVisible}
+          onClick={() => { setIsSummaryVisible((current) => !current); }}
+        >
+          {isSummaryVisible ? copy.hideSummary : copy.showSummary}
+        </button>
+      </div>
+      {isSummaryVisible && (
+        <div className="mt-3 rounded-md border bg-muted/30 p-4">
+          {isGenerating
+            ? <p role="status" className="text-sm text-muted-foreground">{copy.summaryPending}</p>
+            : summaryText
+              ? (
+                <>
+                  <h4 className="mb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">{copy.summary}</h4>
+                  <p className="whitespace-pre-wrap text-base leading-7 text-muted-foreground">{summaryText}</p>
+                </>
+              )
+              : canSummarize
+                ? (
+                  <>
+                    {summaryFailed && <p role="alert" className="mb-2 text-sm text-destructive">{copy.summaryFailed}</p>}
+                    <button
+                      type="button"
+                      className="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline disabled:opacity-60"
+                      onClick={() => { generateSummary(); }}
+                      disabled={summarize.isPending}
+                    >
+                      <Sparkles className="h-4 w-4" aria-hidden="true" />
+                      {copy.summarize}
+                    </button>
+                  </>
+                )
+                : article.contentStatus === 'FAILED'
+                  ? <p className="text-sm text-muted-foreground">{copy.articleTextFailed}</p>
+                  : <p className="text-sm text-muted-foreground">{copy.articleTextPending}</p>}
+        </div>
+      )}
       {isExpanded && (
         <div className="mt-4 border-t pt-3">
-          <h4 className="mb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">{copy.summary}</h4>
-          {article.summaryStatus === 'READY' && article.summary
-            ? <p className="whitespace-pre-wrap text-base leading-7 text-muted-foreground">{article.summary}</p>
-            : article.summaryStatus === 'FAILED'
-              ? <p className="text-sm text-muted-foreground">{copy.summaryFailed}</p>
-              : <p className="text-sm text-muted-foreground">{copy.summaryPending}</p>}
-          <button
-            type="button"
-            className="mt-3 text-sm font-medium text-primary hover:underline"
-            aria-expanded={isOriginalTextOpen}
-            onClick={() => { setIsOriginalTextOpen((current) => !current); }}
-          >
-            {isOriginalTextOpen ? copy.hideOriginalText : copy.showOriginalText}
-          </button>
-          {isOriginalTextOpen && (
-            <div className="mt-3 rounded-md bg-muted/50 p-4" aria-label={copy.originalArticleText}>
-              <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-                <h5 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{copy.originalArticleText}</h5>
-                {originalText.data && (
-                  <span className="rounded-full border px-2 py-0.5 text-xs text-muted-foreground">
-                    {originalText.data.source === 'FULL_ARTICLE' ? copy.sourceFullArticle : copy.sourceRssOnly}
-                  </span>
-                )}
-              </div>
-              {originalText.isLoading
-                ? <p className="text-sm text-muted-foreground">{copy.originalTextLoading}</p>
-                : originalText.isError
-                  ? <p role="alert" className="text-sm text-destructive">{copy.originalTextError}</p>
-                  : originalText.data?.text
-                    ? <p className="whitespace-pre-wrap text-sm leading-6 text-muted-foreground">{originalText.data.text}</p>
-                    : <p className="text-sm text-muted-foreground">{copy.originalTextEmpty}</p>}
-            </div>
-          )}
+          <h4 className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">{copy.articleText}</h4>
+          {article.contentStatus === 'READY'
+            ? originalText.isLoading
+              ? <p className="text-sm text-muted-foreground">{copy.articleTextLoading}</p>
+              : originalText.isError
+                ? <p role="alert" className="text-sm text-destructive">{copy.articleTextError}</p>
+                : originalText.data?.text
+                  ? (
+                    <div className="space-y-3 text-base leading-7 text-muted-foreground">
+                      {contentParagraphs(originalText.data.text).map((paragraph, index) => (
+                        <p key={index} className="whitespace-pre-line">{paragraph}</p>
+                      ))}
+                    </div>
+                  )
+                  : <p className="text-sm text-muted-foreground">{copy.articleTextEmpty}</p>
+            : article.contentStatus === 'FAILED'
+              ? <p className="text-sm text-muted-foreground">{copy.articleTextFailed}</p>
+              : <p className="text-sm text-muted-foreground">{copy.articleTextPending}</p>}
         </div>
       )}
     </li>
@@ -108,11 +150,12 @@ export function NewsPage(): React.JSX.Element {
     window.location.assign('/login');
   }
 
-  function sourceLabel(source: NewsSummarySource | null): string {
+  function sourceLabel(source: NewsSource | null, status?: NewsContentStatus): string {
+    if (status === 'PENDING' || status === 'PROCESSING') return copy.sourceChecking;
+    if (status === 'FAILED') return copy.sourceFailed;
     if (source === 'FULL_ARTICLE') return copy.sourceFullArticle;
     if (source === 'RSS_ONLY') return copy.sourceRssOnly;
     if (source === 'NOT_FETCHED') return copy.sourceNotFetched;
-    if (source === 'UNKNOWN') return copy.sourceUnknown;
     return copy.sourceChecking;
   }
 
@@ -171,7 +214,7 @@ export function NewsPage(): React.JSX.Element {
         )}
         {data && (
           <div className="mb-5 space-y-1 text-sm text-muted-foreground" aria-live="polite">
-            <p>{copy.summaryProgress(data.progress.ready, data.progress.total, data.progress.processing, data.progress.pending)}</p>
+            <p>{copy.contentProgress(data.progress.ready, data.progress.total, data.progress.processing, data.progress.pending)}</p>
           </div>
         )}
 
@@ -207,7 +250,7 @@ export function NewsPage(): React.JSX.Element {
                     <a className="text-sm text-primary hover:underline" href={article.link} target="_blank" rel="noopener noreferrer">
                       {article.title}<ExternalLink className="ml-1 inline h-3.5 w-3.5" aria-hidden="true" />
                     </a>
-                    <span className="rounded-full border px-2 py-0.5 text-xs text-muted-foreground">{sourceLabel(article.summarySource)}</span>
+                    <span className="rounded-full border px-2 py-0.5 text-xs text-muted-foreground">{sourceLabel(article.contentSource)}</span>
                   </div>
                 </li>
               ))}
