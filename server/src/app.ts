@@ -24,6 +24,10 @@ import { prisma } from './lib/prisma-client.js';
 export function createApp(): Application {
   const app = express();
   app.disable('x-powered-by');
+  // Single nginx reverse proxy in front of the server: trusting it makes
+  // req.protocol reflect X-Forwarded-Proto, which /api/news/feed relies on
+  // to build its canonical https self link for feed readers.
+  app.set('trust proxy', 1);
   const corsOrigin = process.env['CORS_ORIGIN'] ?? 'http://localhost:5173';
 
   // ── Middleware ──────────────────────────────────────────────────────────────

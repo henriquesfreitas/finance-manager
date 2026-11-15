@@ -22,6 +22,7 @@ export const EXCLUDED_CATEGORIES: readonly string[] = [
 ];
 
 const ITEM_PATTERN = /<item\b[^>]*>[\s\S]*?<\/item>/gi;
+const SELF_LINK_PATTERN = /<atom:link\b[^>]*\brel="self"[^>]*>/i;
 const ITEM_START_PATTERN = /<item\b/i;
 const CATEGORY_PATTERN = /<category\b[^>]*>([\s\S]*?)<\/category>/gi;
 const DESCRIPTION_BLOCK_PATTERN = /<description\b[^>]*>[\s\S]*?<\/description>/i;
@@ -102,6 +103,25 @@ function safeHttpLink(value: string | null): string | null {
   } catch {
     return null;
   }
+}
+
+/** XML-escapes a value used inside a double-quoted attribute. */
+function escapeXmlAttribute(value: string): string {
+  return value.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+}
+
+/**
+ * Points the channel's `atom:link rel="self"` at this server's feed URL.
+ *
+ * Feed readers such as Feedly use that link as the feed's canonical identity:
+ * leaving the upstream InfoMoney URL there makes them treat the proxy as the
+ * original feed instead of accepting the filtered one.
+ */
+export function rewriteChannelSelfLink(xml: string, selfUrl: string): string {
+  if (!SELF_LINK_PATTERN.test(xml)) return xml;
+  return xml.replace(SELF_LINK_PATTERN, (tag) =>
+    tag.replace(/\bhref="[^"]*"/i, `href="${escapeXmlAttribute(selfUrl)}"`),
+  );
 }
 
 /** Feed categories with their original display text (metadata only). */

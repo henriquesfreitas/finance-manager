@@ -5,6 +5,7 @@ import {
   getClassifiedNewsFeed,
   getFilteredNewsFeed,
   normalizeCategory,
+  rewriteChannelSelfLink,
 } from '../services/news-feed-service.js';
 
 function item(
@@ -36,6 +37,32 @@ describe('normalizeCategory', () => {
 
   it('decodes XML entities before comparing', () => {
     expect(normalizeCategory('Consumo &amp; Cia')).toBe('consumo & cia');
+  });
+});
+
+describe('rewriteChannelSelfLink', () => {
+  const xmlWithSelfLink =
+    '<rss version="2.0"><channel><atom:link href="https://www.infomoney.com.br/feed/" rel="self" type="application/rss+xml" /><title>InfoMoney</title></channel></rss>';
+
+  it('replaces the href of the channel atom:link rel="self"', () => {
+    const rewritten = rewriteChannelSelfLink(xmlWithSelfLink, 'https://example.com/api/news/feed');
+
+    expect(rewritten).toContain('href="https://example.com/api/news/feed"');
+    expect(rewritten).toContain('rel="self"');
+    expect(rewritten).toContain('type="application/rss+xml"');
+    expect(rewritten).not.toContain('infomoney.com.br');
+  });
+
+  it('escapes XML-sensitive characters in the self URL', () => {
+    const rewritten = rewriteChannelSelfLink(xmlWithSelfLink, 'https://example.com/feed?a=1&b=2');
+
+    expect(rewritten).toContain('href="https://example.com/feed?a=1&amp;b=2"');
+  });
+
+  it('leaves the document untouched when there is no self link', () => {
+    const xml = '<rss version="2.0"><channel><title>InfoMoney</title></channel></rss>';
+
+    expect(rewriteChannelSelfLink(xml, 'https://example.com/api/news/feed')).toBe(xml);
   });
 });
 

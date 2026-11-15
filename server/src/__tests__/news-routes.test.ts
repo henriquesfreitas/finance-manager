@@ -9,7 +9,7 @@ function buildApp(): Application {
   return app;
 }
 
-const FEED = `<?xml version="1.0" encoding="UTF-8"?><rss version="2.0"><channel><title>InfoMoney</title><lastBuildDate>Thu, 12 Nov 2026 01:00:52 +0000</lastBuildDate><item><title>Removed</title><link>https://example.com/removed</link><category><![CDATA[Loterias]]></category></item><item><title>Kept</title><link>https://example.com/kept</link><category><![CDATA[Mercados]]></category></item></channel></rss>`;
+const FEED = `<?xml version="1.0" encoding="UTF-8"?><rss version="2.0"><channel><title>InfoMoney</title><atom:link href="https://www.infomoney.com.br/feed/" rel="self" type="application/rss+xml" /><lastBuildDate>Thu, 12 Nov 2026 01:00:52 +0000</lastBuildDate><item><title>Removed</title><link>https://example.com/removed</link><category><![CDATA[Loterias]]></category></item><item><title>Kept</title><link>https://example.com/kept</link><category><![CDATA[Mercados]]></category></item></channel></rss>`;
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -28,6 +28,18 @@ describe('GET /api/news/feed', () => {
     expect(response.headers['cache-control']).toBe('no-store');
     expect(response.text).toContain('Kept');
     expect(response.text).not.toContain('Removed');
+  });
+
+  it('points the atom:link rel="self" at this server instead of the upstream feed', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(FEED, { status: 200 })));
+    const app = buildApp();
+
+    const response = await request(app)
+      .get('/api/news/feed')
+      .set('Host', 'myfinancemanager.duckdns.org');
+
+    expect(response.text).toContain('href="http://myfinancemanager.duckdns.org/api/news/feed"');
+    expect(response.text).not.toContain('infomoney.com.br/feed/');
   });
 });
 

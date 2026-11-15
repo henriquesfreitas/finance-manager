@@ -1,5 +1,9 @@
 import { Router, type Request, type Response } from 'express';
-import { getClassifiedNewsFeed, getFilteredNewsFeed } from '../services/news-feed-service.js';
+import {
+  getClassifiedNewsFeed,
+  getFilteredNewsFeed,
+  rewriteChannelSelfLink,
+} from '../services/news-feed-service.js';
 
 /**
  * Public news routes. Registered before the global /api auth middleware
@@ -7,6 +11,12 @@ import { getClassifiedNewsFeed, getFilteredNewsFeed } from '../services/news-fee
  */
 export function createNewsRouter(): Router {
   const router = Router();
+
+  /** Absolute URL of this server's feed endpoint, used as the canonical self link. */
+  function feedSelfUrl(req: Request): string {
+    const origin = `${req.protocol}://${req.get('host') ?? 'localhost'}`;
+    return new URL(req.originalUrl, origin).href;
+  }
 
   function sendFeedError(error: unknown, res: Response): void {
     console.error(
@@ -28,9 +38,9 @@ export function createNewsRouter(): Router {
     }
   });
 
-  router.get('/news/feed', async (_req: Request, res: Response) => {
+  router.get('/news/feed', async (req: Request, res: Response) => {
     try {
-      const xml = await getFilteredNewsFeed();
+      const xml = rewriteChannelSelfLink(await getFilteredNewsFeed(), feedSelfUrl(req));
       res.set('Content-Type', 'application/rss+xml; charset=utf-8');
       res.set('Cache-Control', 'no-store');
       res.send(xml);
