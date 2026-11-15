@@ -20,7 +20,7 @@ type NewsLanguage = 'en' | 'pt';
 type NewsView = 'included' | 'excluded' | 'xml';
 
 const LANGUAGE_STORAGE_KEY = 'finance-manager:news-language';
-const FEED_XML_URL = `${BASE_URL}/api/news/feed`;
+const FEED_XML_URL = `${BASE_URL}/news/feed`;
 
 const copy = {
   en: {

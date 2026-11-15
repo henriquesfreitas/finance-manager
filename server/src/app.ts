@@ -25,7 +25,7 @@ export function createApp(): Application {
   const app = express();
   app.disable('x-powered-by');
   // Single nginx reverse proxy in front of the server: trusting it makes
-  // req.protocol reflect X-Forwarded-Proto, which /api/news/feed relies on
+  // req.protocol reflect X-Forwarded-Proto, which /news/feed relies on
   // to build its canonical https self link for feed readers.
   app.set('trust proxy', 1);
   const corsOrigin = process.env['CORS_ORIGIN'] ?? 'http://localhost:5173';
@@ -54,9 +54,11 @@ export function createApp(): Application {
   // is reachable without a session token (Req 3.4)
   app.use('/api/auth', createAuthRouter(authService));
 
-  // Public news feed — /news is an open page, so this must stay before the
-  // global auth middleware below.
-  app.use('/api', createNewsRouter());
+  // Public news routes — the RSS feed lives at /news/feed and the JSON at
+  // /api/news. Both are open (the /news page needs no session), so this must
+  // stay before the global auth middleware below. Mounted at the root because
+  // /news/feed must not live under /api.
+  app.use(createNewsRouter());
 
   // Test-only reset route registered BEFORE global auth middleware so E2E tests
   // can reset DB state without needing a valid session (non-production only)

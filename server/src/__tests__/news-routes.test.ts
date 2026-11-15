@@ -5,23 +5,25 @@ import { createNewsRouter } from '../routes/news-routes.js';
 
 function buildApp(): Application {
   const app = express();
-  app.use('/api', createNewsRouter());
+  app.use(createNewsRouter());
   return app;
 }
 
-const FEED = `<?xml version="1.0" encoding="UTF-8"?><rss version="2.0"><channel><title>InfoMoney</title><atom:link href="https://www.infomoney.com.br/feed/" rel="self" type="application/rss+xml" /><lastBuildDate>Thu, 12 Nov 2026 01:00:52 +0000</lastBuildDate><item><title>Removed</title><link>https://example.com/removed</link><category><![CDATA[Loterias]]></category></item><item><title>Kept</title><link>https://example.com/kept</link><category><![CDATA[Mercados]]></category></item></channel></rss>`;
+const FEED = `<?xml version="1.0" encoding="UTF-8"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>InfoMoney</title><link>https://www.infomoney.com.br/</link><description>Notícias do InfoMoney.</description><atom:link href="https://www.infomoney.com.br/feed/" rel="self" type="application/rss+xml" /><lastBuildDate>Thu, 12 Nov 2026 01:00:52 +0000</lastBuildDate><generator>https://wordpress.org/?v=6.9.11</generator><image><url>https://www.infomoney.com.br/favicon.png</url><title>InfoMoney</title></image><site xmlns="com-wordpress:feed-additions:1">161989173</site><item><title>Removed</title><link>https://example.com/removed</link><category><![CDATA[Loterias]]></category></item><item><title>Kept</title><link>https://example.com/kept</link><category><![CDATA[Mercados]]></category></item></channel></rss>`;
 
 afterEach(() => {
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
 });
 
-describe('GET /api/news/feed', () => {
-  it('returns the filtered feed as RSS without requiring authentication', async () => {
+describe('GET /news/feed', () => {
+  it('returns the filtered, rebranded feed as RSS without requiring authentication', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(FEED, { status: 200 })));
     const app = buildApp();
 
-    const response = await request(app).get('/api/news/feed');
+    const response = await request(app)
+      .get('/news/feed')
+      .set('Host', 'myfinancemanager.duckdns.org');
 
     expect(response.status).toBe(200);
     expect(response.headers['content-type']).toContain('application/rss+xml');
@@ -30,16 +32,23 @@ describe('GET /api/news/feed', () => {
     expect(response.text).not.toContain('Removed');
   });
 
-  it('points the atom:link rel="self" at this server instead of the upstream feed', async () => {
+  it('rebrands the channel head so it no longer identifies as the upstream feed', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(FEED, { status: 200 })));
     const app = buildApp();
 
     const response = await request(app)
-      .get('/api/news/feed')
+      .get('/news/feed')
       .set('Host', 'myfinancemanager.duckdns.org');
 
-    expect(response.text).toContain('href="http://myfinancemanager.duckdns.org/api/news/feed"');
-    expect(response.text).not.toContain('infomoney.com.br/feed/');
+    expect(response.text).toContain('<title>Finance Manager News</title>');
+    expect(response.text).toContain('<link>http://myfinancemanager.duckdns.org/</link>');
+    expect(response.text).toContain(
+      'href="http://myfinancemanager.duckdns.org/news/feed" rel="self"',
+    );
+    expect(response.text).not.toContain('infomoney');
+    expect(response.text).not.toContain('<generator>');
+    expect(response.text).not.toContain('<image>');
+    expect(response.text).not.toContain('com-wordpress');
   });
 });
 
@@ -53,13 +62,15 @@ describe('GET /api/news', () => {
     expect(response.status).toBe(200);
     expect(response.headers['cache-control']).toBe('no-store');
     expect(response.body).toMatchObject({
-      title: 'InfoMoney',
+      title: 'Finance Manager News',
       filter: ['Esportes', 'Loterias', 'Consumo', 'Comsumo', 'Day Trade'],
       included: [{ title: 'Kept', categories: ['Mercados'] }],
       excluded: [{ title: 'Removed', matchedCategories: ['Loterias'] }],
     });
     expect(response.body.xml).toContain('Kept');
     expect(response.body.xml).not.toContain('Removed');
+    expect(response.body.xml).toContain('<title>Finance Manager News</title>');
+    expect(response.body.xml).not.toContain('infomoney');
   });
 
   it('returns 502 when the upstream feed cannot be loaded', async () => {

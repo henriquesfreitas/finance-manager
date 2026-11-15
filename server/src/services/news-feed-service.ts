@@ -1,7 +1,8 @@
 /**
  * Fetches the public InfoMoney RSS feed, classifies every story against the
  * active category filter, and can return either structured data for the /news
- * page or the same feed XML with the excluded items removed.
+ * page or the same feed XML with the excluded items removed and the channel
+ * head rebranded to this server (see rebrandFeedChannel).
  *
  * Nothing is persisted: every request reads the feed as it currently exists.
  */
@@ -23,6 +24,11 @@ export const EXCLUDED_CATEGORIES: readonly string[] = [
 
 const ITEM_PATTERN = /<item\b[^>]*>[\s\S]*?<\/item>/gi;
 const SELF_LINK_PATTERN = /<atom:link\b[^>]*\brel="self"[^>]*>/i;
+const CHANNEL_TITLE_PATTERN = /<title\b[^>]*>[\s\S]*?<\/title>/i;
+const CHANNEL_LINK_PATTERN = /<link\b[^>]*>[\s\S]*?<\/link>/i;
+const IMAGE_BLOCK_PATTERN = /<image\b[^>]*>[\s\S]*?<\/image>/i;
+const GENERATOR_PATTERN = /<generator\b[^>]*>[\s\S]*?<\/generator>/i;
+const WORDPRESS_SITE_PATTERN = /<site\b[^>]*>[\s\S]*?<\/site>/i;
 const ITEM_START_PATTERN = /<item\b/i;
 const CATEGORY_PATTERN = /<category\b[^>]*>([\s\S]*?)<\/category>/gi;
 const DESCRIPTION_BLOCK_PATTERN = /<description\b[^>]*>[\s\S]*?<\/description>/i;
@@ -60,8 +66,19 @@ export interface ClassifiedNewsFeed {
 }
 
 export interface NewsFeedResponse extends ClassifiedNewsFeed {
-  /** The filtered RSS document served by /api/news/feed. */
+  /** The filtered RSS document served by /news/feed. */
   xml: string;
+}
+
+/** Channel title and description advertised to feed readers. */
+export const FEED_TITLE = 'Finance Manager News';
+export const FEED_DESCRIPTION = 'Notícias de mercados e investimentos, filtradas automaticamente.';
+
+export interface FeedChannelIdentity {
+  /** Canonical URL of this server's feed endpoint (atom:link rel="self"). */
+  selfUrl: string;
+  /** Public site URL used as the channel link shown by feed readers. */
+  siteUrl: string;
 }
 
 function decodeXmlEntities(value: string): string {
@@ -110,6 +127,11 @@ function escapeXmlAttribute(value: string): string {
   return value.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
 }
 
+/** XML-escapes a value used as element text. */
+function escapeXmlText(value: string): string {
+  return value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
 /**
  * Points the channel's `atom:link rel="self"` at this server's feed URL.
  *
@@ -122,6 +144,35 @@ export function rewriteChannelSelfLink(xml: string, selfUrl: string): string {
   return xml.replace(SELF_LINK_PATTERN, (tag) =>
     tag.replace(/\bhref="[^"]*"/i, `href="${escapeXmlAttribute(selfUrl)}"`),
   );
+}
+
+/**
+ * Replaces the channel metadata that identifies the upstream InfoMoney feed —
+ * title, link, description, favicon, generator, WordPress site marker, and the
+ * atom:link self URL — with this server's own identity.
+ *
+ * Only the channel head (everything before the first `<item>`) is rewritten;
+ * item titles, links, and dates stay untouched so readers keep the real
+ * article data. Feedly requires the channel title, link, and description plus
+ * item title/link/guid/pubDate — all of which remain valid after the rewrite.
+ */
+export function rebrandFeedChannel(xml: string, identity: FeedChannelIdentity): string {
+  const firstItemIndex = xml.search(ITEM_START_PATTERN);
+  const head = firstItemIndex >= 0 ? xml.slice(0, firstItemIndex) : xml;
+  const rest = firstItemIndex >= 0 ? xml.slice(firstItemIndex) : '';
+
+  const headWithoutBranding = head
+    .replace(IMAGE_BLOCK_PATTERN, '')
+    .replace(GENERATOR_PATTERN, '')
+    .replace(WORDPRESS_SITE_PATTERN, '')
+    .replace(CHANNEL_TITLE_PATTERN, `<title>${escapeXmlText(FEED_TITLE)}</title>`)
+    .replace(CHANNEL_LINK_PATTERN, `<link>${escapeXmlText(identity.siteUrl)}</link>`)
+    .replace(
+      DESCRIPTION_BLOCK_PATTERN,
+      `<description>${escapeXmlText(FEED_DESCRIPTION)}</description>`,
+    );
+
+  return rewriteChannelSelfLink(headWithoutBranding + rest, identity.selfUrl);
 }
 
 /** Feed categories with their original display text (metadata only). */
@@ -237,18 +288,23 @@ async function fetchOriginalNewsFeed(fetchImpl: typeof fetch = fetch): Promise<s
   return xml;
 }
 
-/** Returns the filtered RSS document without caching. */
-export async function getFilteredNewsFeed(options: GetNewsFeedOptions = {}): Promise<string> {
-  return filterFeedXml(await fetchOriginalNewsFeed(options.fetchImpl));
+/** Returns the filtered, rebranded RSS document without caching. */
+export async function getFilteredNewsFeed(
+  options: GetNewsFeedOptions = {},
+  identity: FeedChannelIdentity,
+): Promise<string> {
+  const xml = await fetchOriginalNewsFeed(options.fetchImpl);
+  return rebrandFeedChannel(filterFeedXml(xml), identity);
 }
 
 /** Returns included/excluded stories, the active filter, and the filtered XML. */
 export async function getClassifiedNewsFeed(
   options: GetNewsFeedOptions = {},
+  identity: FeedChannelIdentity,
 ): Promise<NewsFeedResponse> {
-  const xml = await fetchOriginalNewsFeed(options.fetchImpl);
+  const rebranded = rebrandFeedChannel(await fetchOriginalNewsFeed(options.fetchImpl), identity);
   return {
-    ...classifyNewsFeed(xml),
-    xml: filterFeedXml(xml),
+    ...classifyNewsFeed(rebranded),
+    xml: filterFeedXml(rebranded),
   };
 }

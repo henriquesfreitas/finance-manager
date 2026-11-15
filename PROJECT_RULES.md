@@ -51,6 +51,12 @@ For the database tables, columns, relationships, indexes, and enums, see [`DATAB
 - Changing, deleting, or changing the paid status of a bill resets that month's recorded settlement-paid status. Moving a bill between months resets both the old and new month's settlement status.
 - The UI asks for confirmation before adding a second or later `INTERNET`, `CONDOMINIO`, or `ENERGY` bill in the same month. This is a warning and may be confirmed; it does not prohibit duplicates.
 
+## News feed
+
+- The public news feed proxies and filters the InfoMoney RSS feed. It is served at `/news/feed` (outside `/api`) so feed readers subscribe to a clean public URL; the JSON for the `/news` page stays at `/api/news`.
+- The feed's channel head is rebranded to this server (title `Finance Manager News`, this server's link and description, no upstream favicon/generator) and its `atom:link rel="self"` points at this server's feed URL. Feed readers use the self link as the feed's canonical identity, so leaving the upstream URL there makes them dedupe the proxy back to the original feed. Item titles, links, and dates keep the original article data.
+- Stories with any excluded category (see `EXCLUDED_CATEGORIES` in `news-feed-service.ts`) are removed from the served RSS and reported as excluded by the JSON endpoint.
+
 ## Access permissions
 
 - `INVESTMENTS` grants access to investment, order, comment, and treasury-product features. `BILLS_CONTROL` grants access to Bills Control.

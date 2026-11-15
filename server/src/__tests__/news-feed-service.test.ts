@@ -1,12 +1,20 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   classifyNewsFeed,
+  FEED_DESCRIPTION,
+  FEED_TITLE,
   filterFeedXml,
   getClassifiedNewsFeed,
   getFilteredNewsFeed,
   normalizeCategory,
+  rebrandFeedChannel,
   rewriteChannelSelfLink,
 } from '../services/news-feed-service.js';
+
+const IDENTITY = {
+  selfUrl: 'https://example.com/news/feed',
+  siteUrl: 'https://example.com/',
+};
 
 function item(
   title: string,
@@ -63,6 +71,46 @@ describe('rewriteChannelSelfLink', () => {
     const xml = '<rss version="2.0"><channel><title>InfoMoney</title></channel></rss>';
 
     expect(rewriteChannelSelfLink(xml, 'https://example.com/api/news/feed')).toBe(xml);
+  });
+});
+
+describe('rebrandFeedChannel', () => {
+  const xml = `<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>InfoMoney</title><link>https://www.infomoney.com.br/</link><description>Notícias, ações e muito mais.</description><atom:link href="https://www.infomoney.com.br/feed/" rel="self" type="application/rss+xml" /><lastBuildDate>Thu, 12 Nov 2026 01:00:52 +0000</lastBuildDate><language>pt-BR</language><generator>https://wordpress.org/?v=6.9.11</generator><image><url>https://www.infomoney.com.br/favicon.png</url><title>InfoMoney</title><link>https://www.infomoney.com.br/</link></image><site xmlns="com-wordpress:feed-additions:1">161989173</site><item><title>Kept</title><link>https://www.infomoney.com.br/article/</link><guid isPermaLink="false">guid-1</guid><pubDate>Thu, 12 Nov 2026 00:37:24 +0000</pubDate></item></channel></rss>`;
+
+  it('replaces the channel identity and removes upstream-only metadata', () => {
+    const rebranded = rebrandFeedChannel(xml, IDENTITY);
+
+    expect(rebranded).toContain(`<title>${FEED_TITLE}</title>`);
+    expect(rebranded).toContain(`<description>${FEED_DESCRIPTION}</description>`);
+    expect(rebranded).toContain('<link>https://example.com/</link>');
+    expect(rebranded).toContain('href="https://example.com/news/feed"');
+    expect(rebranded).toContain('<language>pt-BR</language>');
+    expect(rebranded).toContain('<lastBuildDate>Thu, 12 Nov 2026 01:00:52 +0000</lastBuildDate>');
+    // Item article links keep pointing at the upstream site by design; only
+    // the channel head must stop referencing it.
+    const channelHead = rebranded.slice(0, rebranded.search(/<item\b/i));
+    expect(channelHead).not.toContain('infomoney');
+    expect(channelHead).not.toContain('<generator>');
+    expect(channelHead).not.toContain('<image>');
+    expect(channelHead).not.toContain('com-wordpress');
+  });
+
+  it('keeps item titles, links, and dates untouched', () => {
+    const rebranded = rebrandFeedChannel(xml, IDENTITY);
+
+    expect(rebranded).toContain('<item><title>Kept</title><link>https://www.infomoney.com.br/article/</link>');
+    expect(rebranded).toContain('<pubDate>Thu, 12 Nov 2026 00:37:24 +0000</pubDate>');
+  });
+
+  it('escapes XML-sensitive characters in the replacement values', () => {
+    const plain =
+      '<rss version="2.0"><channel><title>InfoMoney</title><link>https://www.infomoney.com.br/</link><description>Old description</description></channel></rss>';
+    const rebranded = rebrandFeedChannel(plain, {
+      selfUrl: 'https://example.com/feed?a=1&b=2',
+      siteUrl: 'https://example.com/?a=1&b=2',
+    });
+
+    expect(rebranded).toContain('<link>https://example.com/?a=1&amp;b=2</link>');
   });
 });
 
@@ -136,14 +184,14 @@ describe('getClassifiedNewsFeed', () => {
       .fn()
       .mockImplementation(() => Promise.resolve(new Response(xml, { status: 200 })));
 
-    const first = await getClassifiedNewsFeed({ fetchImpl: fetchMock });
+    const first = await getClassifiedNewsFeed({ fetchImpl: fetchMock }, IDENTITY);
 
     expect(first.included.map((entry) => entry.title)).toEqual(['Kept']);
     expect(first.excluded.map((entry) => entry.title)).toEqual(['Removed']);
     expect(first.xml).toContain('Kept');
     expect(first.xml).not.toContain('Removed');
 
-    await getClassifiedNewsFeed({ fetchImpl: fetchMock });
+    await getClassifiedNewsFeed({ fetchImpl: fetchMock }, IDENTITY);
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
@@ -153,8 +201,8 @@ describe('getClassifiedNewsFeed', () => {
       vi.fn().mockImplementation(() => Promise.resolve(new Response('nope', { status: 503 }))),
     );
 
-    await expect(getFilteredNewsFeed()).rejects.toThrow('status 503');
-    await expect(getClassifiedNewsFeed()).rejects.toThrow('status 503');
+    await expect(getFilteredNewsFeed({}, IDENTITY)).rejects.toThrow('status 503');
+    await expect(getClassifiedNewsFeed({}, IDENTITY)).rejects.toThrow('status 503');
   });
 
   it('rejects when the upstream payload is not an RSS document', async () => {
@@ -165,7 +213,7 @@ describe('getClassifiedNewsFeed', () => {
         .mockImplementation(() => Promise.resolve(new Response('<html></html>', { status: 200 }))),
     );
 
-    await expect(getFilteredNewsFeed()).rejects.toThrow('unexpected payload');
-    await expect(getClassifiedNewsFeed()).rejects.toThrow('unexpected payload');
+    await expect(getFilteredNewsFeed({}, IDENTITY)).rejects.toThrow('unexpected payload');
+    await expect(getClassifiedNewsFeed({}, IDENTITY)).rejects.toThrow('unexpected payload');
   });
 });

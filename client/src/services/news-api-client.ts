@@ -28,7 +28,7 @@ export interface NewsFeedResponse {
   filter: string[];
   included: NewsFeedItem[];
   excluded: ExcludedNewsFeedItem[];
-  /** The filtered RSS document served by /api/news/feed. */
+  /** The filtered RSS document served by /news/feed. */
   xml: string;
 }
 
