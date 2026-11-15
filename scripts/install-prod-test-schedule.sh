@@ -38,7 +38,8 @@ fi
   printf "0 */6 * * * cd '%s' && '%s/backup-db.sh' >> '%s/backup.log' 2>&1 # finance-manager-backup\n" \
     "$PROJECT_DIR" "$SCRIPT_DIR" "$PROJECT_DIR"
   # America/Sao_Paulo is UTC-3: 11:00 becomes 14:00 UTC.
-  printf "0 14 * * 1,4 cd '%s' && '%s/check-price-targets.sh' >> '%s/finance-target-alerts.log' 2>&1 # finance-manager-price-targets\n" \
+  # Run through Bash because the tracked script is not executable (mode 100644).
+  printf "0 14 * * 1,4 cd '%s' && /bin/bash '%s/check-price-targets.sh' >> '%s/finance-target-alerts.log' 2>&1 # finance-manager-price-targets\n" \
     "$PROJECT_DIR" "$SCRIPT_DIR" "$PROJECT_DIR"
   # Run through Bash because the tracked script is not executable (mode 100644).
   # America/Sao_Paulo 03:00 becomes 06:00 UTC.
