@@ -236,6 +236,7 @@ Send one of these commands in the private chat:
 
 ```text
 /help
+/show price
 /update pull
 /update restart
 /update telegram
@@ -246,7 +247,7 @@ Send one of these commands in the private chat:
 /update both-migrate
 ```
 
-`/update pull` only pulls `origin/master` with fast-forward-only behavior; it does not build or restart containers. `/update restart` restarts all production Compose services, including Postgres, without pulling or building. `/update telegram` restarts the Telegram bot systemd service and reports its status after it comes back up. `/update test` builds and runs the isolated production test profile against the current checkout; it does not pull code or touch live service containers. The bot reports the test image build and test run, then sends a final result. A failure includes the failed step and a short output tail; complete command output remains in the systemd journal. Only one operation can run at a time. If another is active, the bot replies that it is busy.
+`/show price` checks the current prices against your saved buy and sell targets and replies with the same report the scheduled alert would send. Unlike the scheduled alert, it sends the report to this chat only; it does not email, and it does not depend on the Monday/Thursday schedule. If no target is reached, it says so. Like the other commands, it works only from the authorized private chat and is refused while another operation is running. `/update pull` only pulls `origin/master` with fast-forward-only behavior; it does not build or restart containers. `/update restart` restarts all production Compose services, including Postgres, without pulling or building. `/update telegram` restarts the Telegram bot systemd service and reports its status after it comes back up. `/update test` builds and runs the isolated production test profile against the current checkout; it does not pull code or touch live service containers. The bot reports the test image build and test run, then sends a final result. A failure includes the failed step and a short output tail; complete command output remains in the systemd journal. Only one operation can run at a time. If another is active, the bot replies that it is busy.
 
 To run the same tests manually on the VPS, use:
 

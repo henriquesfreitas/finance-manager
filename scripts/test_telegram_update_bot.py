@@ -43,6 +43,21 @@ print("synthetic update complete", flush=True)
 """
 
 
+FAKE_PRICE_PROCESS = """
+import sys
+
+mode = sys.argv[1]
+if mode == "fail":
+    print("synthetic price failure", file=sys.stderr)
+    raise SystemExit(9)
+if mode == "empty":
+    raise SystemExit(0)
+print("Finance Manager — price target alert (15/11/2026 11:00 Brasília time)")
+print("PETR4: price now R$ 40,00")
+print("Sell target reached: R$ 38,00")
+"""
+
+
 class FakeTelegramApi:
     def __init__(self) -> None:
         self.messages: list[str] = []
@@ -92,7 +107,7 @@ class TelegramUpdateBotTests(unittest.TestCase):
     def tearDown(self) -> None:
         self.offset_path.unlink(missing_ok=True)
 
-    def make_bot(self, failure: str = "none") -> TelegramUpdateBot:
+    def make_bot(self, failure: str = "none", price_mode: str = "ok") -> TelegramUpdateBot:
         return TelegramUpdateBot(
             self.config,
             self.api,
@@ -102,6 +117,13 @@ class TelegramUpdateBotTests(unittest.TestCase):
                 "-c",
                 FAKE_UPDATE_PROCESS,
                 failure,
+            ],
+            price_command_prefix=[
+                sys.executable,
+                "-u",
+                "-c",
+                FAKE_PRICE_PROCESS,
+                price_mode,
             ],
         )
 
@@ -182,6 +204,45 @@ class TelegramUpdateBotTests(unittest.TestCase):
                 failure = next(message for message in self.message_snapshot() if "failed during" in message)
                 self.assertIn(f"Production tests failed during {expected_label}", failure)
                 self.assertIn(f"synthetic failure during {step}", failure)
+
+    def test_show_price_sends_the_target_report(self) -> None:
+        self.bot.handle_message(self.message("/show price"))
+        self.wait_for_idle()
+        messages = self.message_snapshot()
+        self.assertTrue(any("Checking current prices" in message for message in messages))
+        report = next(message for message in messages if "price target alert" in message)
+        self.assertIn("PETR4: price now R$ 40,00", report)
+        self.assertIn("Sell target reached: R$ 38,00", report)
+
+    def test_show_price_reports_when_no_target_is_reached(self) -> None:
+        self.bot = self.make_bot(price_mode="empty")
+        self.bot.handle_message(self.message("/show price"))
+        self.wait_for_idle()
+        self.assertTrue(any("No price target data was returned" in message for message in self.message_snapshot()))
+
+    def test_show_price_failure_includes_output_tail(self) -> None:
+        self.bot = self.make_bot(price_mode="fail")
+        self.bot.handle_message(self.message("/show price"))
+        self.wait_for_idle()
+        failure = next(message for message in self.message_snapshot() if "Price target check failed" in message)
+        self.assertIn("exit code 9", failure)
+        self.assertIn("synthetic price failure", failure)
+
+    def test_show_price_rejects_unknown_arguments(self) -> None:
+        self.bot.handle_message(self.message("/show"))
+        self.bot.handle_message(self.message("/show balance"))
+        self.assertEqual(self.message_snapshot(), ["Usage: /show price", "Usage: /show price"])
+
+    def test_show_price_is_refused_while_an_update_runs(self) -> None:
+        self.bot.handle_message(self.message("/update frontend"))
+        self.assertTrue(self.api.message_event.wait(2))
+        self.bot.handle_message(self.message("/show price"))
+        self.wait_for_idle()
+        self.assertTrue(any("already running" in message for message in self.message_snapshot()))
+
+    def test_show_price_is_ignored_for_unauthorized_senders(self) -> None:
+        self.bot.handle_message(self.message("/show price", sender=999))
+        self.assertEqual(self.message_snapshot(), [])
 
     def test_commands_for_another_bot_are_ignored(self) -> None:
         self.bot.bot_username = "finance_manager_bot"

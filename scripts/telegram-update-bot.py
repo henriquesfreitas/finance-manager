@@ -39,6 +39,7 @@ STEP_LABELS = {
 }
 HELP_TEXT = (
     "Available commands:\n"
+    "/show price\n"
     "/update pull\n"
     "/update restart\n"
     "/update telegram\n"
@@ -169,10 +170,16 @@ class TelegramUpdateBot:
         config: BotConfig,
         api: Any,
         command_prefix: list[str] | None = None,
+        price_command_prefix: list[str] | None = None,
     ) -> None:
         self.config = config
         self.api = api
         self.command_prefix = command_prefix or ["/bin/bash", str(config.update_script)]
+        self.price_command_prefix = price_command_prefix or [
+            "/bin/bash",
+            str(config.project_dir / "scripts" / "check-price-targets.sh"),
+            "--stdout",
+        ]
         self.bot_username: str | None = None
         self._state_lock = threading.Lock()
         self._busy = False
@@ -232,6 +239,12 @@ class TelegramUpdateBot:
         if command == "/help":
             self.notify(HELP_TEXT if len(parts) == 1 else f"Usage: /help\n\n{HELP_TEXT}")
             return
+        if command == "/show":
+            if len(parts) == 2 and parts[1].lower() == "price":
+                self.start_price_report()
+            else:
+                self.notify("Usage: /show price")
+            return
         if command != "/update":
             self.notify(HELP_TEXT)
             return
@@ -277,6 +290,48 @@ class TelegramUpdateBot:
             if not restart_requested:
                 with self._state_lock:
                     self._busy = False
+
+    def start_price_report(self) -> None:
+        with self._state_lock:
+            already_running = self._busy
+            if not already_running:
+                self._busy = True
+        if already_running:
+            self.notify("A production operation is already running. Please wait for it to finish.")
+            return
+        self.notify("⏳ Checking current prices against your targets.")
+        threading.Thread(target=self._run_price_report, daemon=True).start()
+
+    def _run_price_report(self) -> None:
+        try:
+            result = subprocess.run(
+                list(self.price_command_prefix),
+                cwd=self.config.project_dir,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                timeout=120,
+            )
+            output = (result.stdout or "").strip()
+            if result.returncode != 0:
+                details = self._redact((result.stderr or output).strip(), self.config.token)
+                if len(details) > 1800:
+                    details = "…\n" + details[-1800:]
+                suffix = f"\n\nLast output:\n{details}" if details else ""
+                self.notify(f"❌ Price target check failed (exit code {result.returncode}).{suffix}")
+            elif not output:
+                self.notify("No price target data was returned.")
+            else:
+                self.notify(output)
+        except subprocess.TimeoutExpired:
+            self.notify("❌ Price target check timed out.")
+        except Exception as error:
+            LOG.exception("Price target report failed")
+            detail = self._redact(str(error), self.config.token)[:800]
+            self.notify(f"❌ Price target check failed.\n{detail}")
+        finally:
+            with self._state_lock:
+                self._busy = False
 
     def _step_label(self, mode: str, step: str) -> str:
         if mode == "pull":

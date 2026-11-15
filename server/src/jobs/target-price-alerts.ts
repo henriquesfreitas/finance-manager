@@ -7,6 +7,15 @@ import { deliverTargetPriceAlerts } from '../services/target-price-alert-deliver
 import { sendJobErrorEmail } from './job-error-email.js';
 
 const prisma = createPrismaClient();
+const printOnly = process.argv.includes('--stdout');
+
+function log(message: string): void {
+  if (printOnly) {
+    console.error(message);
+  } else {
+    console.log(message);
+  }
+}
 
 function escapeHtml(value: string): string {
   return value
@@ -94,22 +103,13 @@ async function sendTargetAlertEmail(
   console.log(`[target-alerts] Resend accepted the email (HTTP ${response.status}${result.id ? `, id ${result.id}` : ''}).`);
 }
 
-async function sendTargetAlertTelegram(alerts: ReturnType<typeof findReachedTargetAlerts>): Promise<void> {
-  const botToken = process.env['TELEGRAM_BOT_TOKEN'];
-  const chatId = process.env['TELEGRAM_CHAT_ID'];
-  if (!botToken && !chatId) {
-    throw new Error('Telegram is not configured');
-  }
-  if (!botToken || !chatId) {
-    throw new Error('TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID must both be configured');
-  }
-
+function buildTargetAlertText(alerts: ReturnType<typeof findReachedTargetAlerts>): string {
   const checkedAt = new Date().toLocaleString('pt-BR', {
     timeZone: 'America/Sao_Paulo',
     dateStyle: 'short',
     timeStyle: 'short',
   });
-  const lines = [
+  return [
     `Finance Manager — price target alert (${checkedAt} Brasília time)`,
     ...alerts.flatMap((alert) => [
       '',
@@ -120,14 +120,27 @@ async function sendTargetAlertTelegram(alerts: ReturnType<typeof findReachedTarg
         return `${label}: ${formatCurrency(target!)}`;
       }),
     ]),
-  ];
+  ].join('\n');
+}
+
+async function sendTargetAlertTelegram(alerts: ReturnType<typeof findReachedTargetAlerts>): Promise<void> {
+  const botToken = process.env['TELEGRAM_BOT_TOKEN'];
+  const chatId = process.env['TELEGRAM_CHAT_ID'];
+  if (!botToken && !chatId) {
+    throw new Error('Telegram is not configured');
+  }
+  if (!botToken || !chatId) {
+    throw new Error('TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID must both be configured');
+  }
+
+  const text = buildTargetAlertText(alerts);
 
   let response: Response;
   try {
     response = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ chat_id: chatId, text: lines.join('\n') }),
+      body: JSON.stringify({ chat_id: chatId, text }),
     });
   } catch {
     // Never include fetch errors here: they can contain the token-bearing request URL.
@@ -143,7 +156,7 @@ async function sendTargetAlertTelegram(alerts: ReturnType<typeof findReachedTarg
 async function run(): Promise<void> {
   const startedAt = new Date();
   let failureEmailAttempted = false;
-  console.log(`[target-alerts] Started at ${startedAt.toISOString()}`);
+  log(`[target-alerts] Started at ${startedAt.toISOString()}`);
 
   try {
     const rows = await prisma.investment.findMany({
@@ -164,7 +177,7 @@ async function run(): Promise<void> {
     const stockTickers = rows.filter((row) => row.type === 'STOCK').map((row) => row.ticker);
     const quotes = stockTickers.length > 0 ? await fetchQuotes(stockTickers) : new Map();
     const missingQuotes = stockTickers.filter((ticker) => quotes.get(ticker) === null || quotes.get(ticker) === undefined);
-    console.log(`[target-alerts] Found ${rows.length} active investment(s) with targets; fetched ${stockTickers.length} stock quote(s).`);
+    log(`[target-alerts] Found ${rows.length} active investment(s) with targets; fetched ${stockTickers.length} stock quote(s).`);
     if (missingQuotes.length > 0) {
       console.warn(`[target-alerts] No quote available for: ${missingQuotes.join(', ')}`);
     }
@@ -181,13 +194,22 @@ async function run(): Promise<void> {
       quotes,
     );
 
+    if (printOnly) {
+      console.log(
+        alerts.length === 0
+          ? 'No price targets are currently reached.'
+          : buildTargetAlertText(alerts),
+      );
+      return;
+    }
+
     if (alerts.length === 0) {
-      console.log('[target-alerts] No active buy or sell targets were reached; no notification sent.');
+      log('[target-alerts] No active buy or sell targets were reached; no notification sent.');
       return;
     }
 
     for (const alert of alerts) {
-      console.log(`[target-alerts] ${alert.ticker}: price ${formatCurrency(alert.currentPrice)}; reached ${alert.reached.map((action) => `${action} ${formatCurrency(action === 'SELL' ? alert.sellTarget! : alert.buyTarget!)}`).join(', ')}.`);
+      log(`[target-alerts] ${alert.ticker}: price ${formatCurrency(alert.currentPrice)}; reached ${alert.reached.map((action) => `${action} ${formatCurrency(action === 'SELL' ? alert.sellTarget! : alert.buyTarget!)}`).join(', ')}.`);
     }
 
     const delivery = await deliverTargetPriceAlerts(
@@ -203,7 +225,7 @@ async function run(): Promise<void> {
   } catch (error: unknown) {
     const message = error instanceof Error ? error.stack ?? error.message : String(error);
     console.error(`[target-alerts] Failed at ${new Date().toISOString()}: ${message}`);
-    if (!failureEmailAttempted) {
+    if (!failureEmailAttempted && !printOnly) {
       try {
         await sendJobErrorEmail('price target alerts', error);
         console.log('[target-alerts] Failure email accepted by Resend.');
