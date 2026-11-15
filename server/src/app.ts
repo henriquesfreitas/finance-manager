@@ -9,6 +9,7 @@ import { createTreasuryProductRouter } from './routes/treasury-product-routes.js
 import { createAuthRouter } from './routes/auth-routes.js';
 import { createBillRouter } from './routes/bill-routes.js';
 import { createBudgetRouter } from './routes/budget-routes.js';
+import { createNewsRouter } from './routes/news-routes.js';
 import { createAuthService } from './services/auth-service.js';
 import { createAuthMiddleware } from './middleware/auth-middleware.js';
 import { createCsrfMiddleware } from './middleware/csrf-middleware.js';
@@ -48,6 +49,10 @@ export function createApp(): Application {
   // Auth routes registered BEFORE the global auth middleware so /api/auth/login
   // is reachable without a session token (Req 3.4)
   app.use('/api/auth', createAuthRouter(authService));
+
+  // Public news feed — /news is an open page, so this must stay before the
+  // global auth middleware below.
+  app.use('/api', createNewsRouter());
 
   // Test-only reset route registered BEFORE global auth middleware so E2E tests
   // can reset DB state without needing a valid session (non-production only)

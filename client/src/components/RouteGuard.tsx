@@ -24,6 +24,7 @@ import { useAuth } from '../contexts/auth-context';
 // ---------------------------------------------------------------------------
 
 const LOGIN_PATH = '/login';
+const NEWS_PATH = '/news';
 
 function getSafeReturnTo(value: string | null, origin: string): string | null {
   if (!value?.startsWith('/') || value.startsWith('//')) return null;
@@ -97,6 +98,13 @@ export function RouteGuard({
   locationService = windowLocationService,
 }: RouteGuardProps): React.JSX.Element {
   const { isAuthenticated, isLoading, admin } = useAuth();
+  const currentPath = locationService.getPathname();
+
+  // /news is public: render it immediately, without waiting for auth state or
+  // redirecting unauthenticated visitors to the login page.
+  if (currentPath === NEWS_PATH) {
+    return <>{children}</>;
+  }
 
   // Auth state is still being determined on initial load — show spinner so
   // we never flash the wrong page (Req 4.4).
@@ -104,7 +112,6 @@ export function RouteGuard({
     return <FullPageSpinner />;
   }
 
-  const currentPath = locationService.getPathname();
   const isOnLoginPage = currentPath === LOGIN_PATH;
   const canAccessInvestments = admin?.permissions.includes('INVESTMENTS') ?? false;
   const canAccessBills = admin?.permissions.includes('BILLS_CONTROL') ?? false;

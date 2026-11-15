@@ -141,6 +141,19 @@ describe('RouteGuard — unauthenticated user', () => {
     expect(loc.replace).not.toHaveBeenCalled();
     expect(screen.getByText('Login form')).toBeInTheDocument();
   });
+
+  it('renders the public /news page immediately without redirecting or waiting for auth', () => {
+    mockUseAuth.mockImplementation(() => authState({ isLoading: true, isAuthenticated: false }));
+    const loc = makeLocationService('/news');
+
+    render(React.createElement(RouteGuard, { locationService: loc },
+      React.createElement('div', null, 'News page')
+    ));
+
+    expect(screen.getByText('News page')).toBeInTheDocument();
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    expect(loc.replace).not.toHaveBeenCalled();
+  });
 });
 
 describe('RouteGuard — authenticated user', () => {

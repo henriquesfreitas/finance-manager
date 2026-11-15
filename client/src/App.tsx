@@ -7,6 +7,7 @@ import { LoginPage } from './pages/LoginPage';
 import { HomePage } from './pages/HomePage';
 import { BillsControlPage } from './pages/BillsControlPage';
 import { BudgetsPage } from './pages/BudgetsPage';
+import { NewsPage } from './pages/NewsPage';
 import { ThemeProvider, useTheme } from './contexts/theme-context';
 
 // QueryClient is created outside the component so it isn't re-created on re-renders
@@ -28,6 +29,11 @@ function AppContent(): React.JSX.Element {
   const isLoginPage = window.location.pathname === '/login';
   const isBillsControlPage = window.location.pathname === '/bills-control';
   const isBudgetsPage = window.location.pathname === '/budgets';
+  const isNewsPage = window.location.pathname === '/news';
+
+  if (isNewsPage) {
+    return <NewsPage />;
+  }
 
   if (isLoginPage) {
     return <LoginPage />;
