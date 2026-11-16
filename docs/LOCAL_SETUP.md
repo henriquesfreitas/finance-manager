@@ -36,7 +36,7 @@ copy .env.example server\.env
 
 ### 3. Start PostgreSQL
 
-This Compose file starts PostgreSQL for local development. Production uses a separate guide and Compose file.
+This Compose file starts PostgreSQL for local development. Production uses a separate guide and Compose file. The port is published on `127.0.0.1` only, so the database is reachable from this machine (the API, Prisma, and tests) but not from other devices on the network.
 
 ```cmd
 :: From the project root
