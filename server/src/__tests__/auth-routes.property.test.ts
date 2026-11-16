@@ -66,7 +66,7 @@ describe('Property 6: Cookie contains required security attributes', () => {
           expect(cookie).toContain('HttpOnly');
           expect(cookie).toContain('Secure');
           expect(cookie).toContain('SameSite=Strict');
-          expect(cookie).toContain('Max-Age=604800');
+          expect(cookie).toContain('Max-Age=7776000');
         }),
         { numRuns: 100 },
       );

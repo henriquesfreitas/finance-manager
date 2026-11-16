@@ -39,7 +39,7 @@ function makeSession(overrides: Partial<{
     id: overrides.id ?? 'session-1',
     token: overrides.token ?? 'a'.repeat(64),
     adminId: overrides.adminId ?? 'admin-1',
-    expiresAt: overrides.expiresAt ?? new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+    expiresAt: overrides.expiresAt ?? new Date(Date.now() + 90 * 24 * 60 * 60 * 1000),
     createdAt: overrides.createdAt ?? new Date(),
     admin: overrides.admin ?? { id: 'admin-1' },
   };
@@ -103,7 +103,7 @@ describe('authenticate', () => {
     expect(callArg.data.expiresAt).toBeInstanceOf(Date);
   });
 
-  it('sets session expiry ~7 days in the future', async () => {
+  it('sets session expiry ~90 days in the future', async () => {
     const user = makeAdminUser();
     const sessionCreate = vi.fn().mockResolvedValue({});
     const db = makeFakePrisma({
@@ -118,10 +118,10 @@ describe('authenticate', () => {
 
     const callArg = sessionCreate.mock.calls[0]?.[0] as { data: { expiresAt: Date } };
     const expiresMs = callArg.data.expiresAt.getTime();
-    const sevenDaysMs = 7 * 24 * 60 * 60 * 1000;
+    const ninetyDaysMs = 90 * 24 * 60 * 60 * 1000;
 
-    expect(expiresMs).toBeGreaterThanOrEqual(before + sevenDaysMs - 1000);
-    expect(expiresMs).toBeLessThanOrEqual(after + sevenDaysMs + 1000);
+    expect(expiresMs).toBeGreaterThanOrEqual(before + ninetyDaysMs - 1000);
+    expect(expiresMs).toBeLessThanOrEqual(after + ninetyDaysMs + 1000);
   });
 
   it('throws "Invalid credentials" when user does not exist', async () => {
@@ -214,9 +214,9 @@ describe('validateSession', () => {
     const updateArg = sessionUpdate.mock.calls[0]?.[0] as { where: { token: string }; data: { expiresAt: Date } };
     expect(updateArg.where.token).toBe('tok');
     const newExpiry = updateArg.data.expiresAt.getTime();
-    const sevenDaysMs = 7 * 24 * 60 * 60 * 1000;
-    expect(newExpiry).toBeGreaterThanOrEqual(before + sevenDaysMs - 1000);
-    expect(newExpiry).toBeLessThanOrEqual(after + sevenDaysMs + 1000);
+    const ninetyDaysMs = 90 * 24 * 60 * 60 * 1000;
+    expect(newExpiry).toBeGreaterThanOrEqual(before + ninetyDaysMs - 1000);
+    expect(newExpiry).toBeLessThanOrEqual(after + ninetyDaysMs + 1000);
   });
 
   it('returns null when session is not found', async () => {

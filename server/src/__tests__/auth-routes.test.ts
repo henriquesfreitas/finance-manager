@@ -75,7 +75,7 @@ describe('POST /api/auth/login', () => {
     expect(cookie).toMatch(/Max-Age=\d+/);
   });
 
-  it('sets Max-Age to 7 days (604800 seconds) by default', async () => {
+  it('sets Max-Age to 90 days (7776000 seconds) by default', async () => {
     vi.mocked(authService.authenticate).mockResolvedValueOnce({
       token: VALID_TOKEN,
       adminId: ADMIN_ID,
@@ -85,7 +85,7 @@ describe('POST /api/auth/login', () => {
     const res = await request(app).post('/api/auth/login').send(VALID_BODY);
 
     const cookie: string = (res.headers['set-cookie'] as string[])[0] ?? '';
-    expect(cookie).toContain('Max-Age=604800');
+    expect(cookie).toContain('Max-Age=7776000');
   });
 
   it('uses SESSION_COOKIE_NAME env var when set', async () => {

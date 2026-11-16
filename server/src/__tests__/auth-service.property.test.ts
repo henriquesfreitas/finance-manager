@@ -52,7 +52,7 @@ const arbToken = fc.string({ minLength: 16, maxLength: 128, unit: fc.constantFro
 
 describe('Property 1: Token issuance produces secure tokens', () => {
   it(
-    'Feature: admin-login, Property 1: token is 64-char hex and session stored with ~7-day expiry',
+    'Feature: admin-login, Property 1: token is 64-char hex and session stored with ~90-day expiry',
     async () => {
       await fc.assert(
         fc.asyncProperty(arbUsername, arbIp, async (username, ip) => {
@@ -87,11 +87,11 @@ describe('Property 1: Token issuance produces secure tokens', () => {
           // Token in DB must match returned token
           expect(callArg.data.token).toBe(result.token);
 
-          // expiresAt must be approximately 7 days in the future (±2s tolerance)
-          const sevenDaysMs = 7 * 24 * 60 * 60 * 1000;
+          // expiresAt must be approximately 90 days in the future (±2s tolerance)
+          const ninetyDaysMs = 90 * 24 * 60 * 60 * 1000;
           const expiresMs = callArg.data.expiresAt.getTime();
-          expect(expiresMs).toBeGreaterThanOrEqual(before + sevenDaysMs - 2000);
-          expect(expiresMs).toBeLessThanOrEqual(after + sevenDaysMs + 2000);
+          expect(expiresMs).toBeGreaterThanOrEqual(before + ninetyDaysMs - 2000);
+          expect(expiresMs).toBeLessThanOrEqual(after + ninetyDaysMs + 2000);
         }),
         { numRuns: 50 },
       );
@@ -152,7 +152,7 @@ describe('Property 2: Invalid credentials produce identical error responses', ()
 
 describe('Property 5: Session validation refreshes expiration (sliding window)', () => {
   it(
-    'Feature: admin-login, Property 5: validateSession updates expiresAt to ~7 days from now',
+    'Feature: admin-login, Property 5: validateSession updates expiresAt to ~90 days from now',
     async () => {
       await fc.assert(
         fc.asyncProperty(arbToken, async (token) => {
@@ -188,11 +188,11 @@ describe('Property 5: Session validation refreshes expiration (sliding window)',
           // The update must target the correct token
           expect(updateArg.where.token).toBe(token);
 
-          // New expiresAt must be approximately 7 days in the future (±2s)
-          const sevenDaysMs = 7 * 24 * 60 * 60 * 1000;
+          // New expiresAt must be approximately 90 days in the future (±2s)
+          const ninetyDaysMs = 90 * 24 * 60 * 60 * 1000;
           const newExpiry = updateArg.data.expiresAt.getTime();
-          expect(newExpiry).toBeGreaterThanOrEqual(before + sevenDaysMs - 2000);
-          expect(newExpiry).toBeLessThanOrEqual(after + sevenDaysMs + 2000);
+          expect(newExpiry).toBeGreaterThanOrEqual(before + ninetyDaysMs - 2000);
+          expect(newExpiry).toBeLessThanOrEqual(after + ninetyDaysMs + 2000);
         }),
         { numRuns: 50 },
       );

@@ -3,7 +3,7 @@ import request from 'supertest';
 import express, { type Application } from 'express';
 import cookieParser from 'cookie-parser';
 import type { AuthService } from '../services/auth-service.js';
-import { createAuthMiddleware } from '../middleware/auth-middleware.js';
+import { createAuthMiddleware, type AuthMiddlewareDeps } from '../middleware/auth-middleware.js';
 
 // ─── Fake auth service ────────────────────────────────────────────────────────
 
@@ -26,7 +26,11 @@ function makeFakeAuthService(
  * Builds a minimal Express app with cookie-parser and the auth middleware,
  * followed by a protected sentinel route that returns the attached adminId.
  */
-function buildApp(authService: AuthService, cookieName?: string): Application {
+function buildApp(
+  authService: AuthService,
+  cookieName?: string,
+  options: Omit<AuthMiddlewareDeps, 'authService'> = {},
+): Application {
   if (cookieName) {
     process.env['SESSION_COOKIE_NAME'] = cookieName;
   } else {
@@ -35,7 +39,7 @@ function buildApp(authService: AuthService, cookieName?: string): Application {
 
   const app = express();
   app.use(cookieParser());
-  app.use('/protected', createAuthMiddleware({ authService }));
+  app.use('/protected', createAuthMiddleware({ authService, ...options }));
   app.get('/protected', (req, res) => {
     res.json({ adminId: req.adminId });
   });
@@ -206,6 +210,31 @@ describe('valid session', () => {
 
     expect(authService.validateSession).toHaveBeenCalledOnce();
     expect(authService.validateSession).toHaveBeenCalledWith(VALID_TOKEN);
+  });
+
+  it('refreshes the session cookie with a 90-day lifetime on each valid request', async () => {
+    const app = buildApp(authService);
+
+    const res = await request(app)
+      .get('/protected')
+      .set('Cookie', `finance_session=${VALID_TOKEN}`);
+
+    const cookie: string = (res.headers['set-cookie'] as string[])[0] ?? '';
+    expect(cookie).toContain(`finance_session=${VALID_TOKEN}`);
+    expect(cookie).toContain('Max-Age=7776000');
+    expect(cookie).toContain('HttpOnly');
+    expect(cookie).toContain('Secure');
+    expect(cookie).toContain('SameSite=Strict');
+  });
+
+  it('does not re-issue the cookie when refreshSessionCookie is false (logout)', async () => {
+    const app = buildApp(authService, undefined, { refreshSessionCookie: false });
+
+    const res = await request(app)
+      .get('/protected')
+      .set('Cookie', `finance_session=${VALID_TOKEN}`);
+
+    expect(res.headers['set-cookie']).toBeUndefined();
   });
 });
 

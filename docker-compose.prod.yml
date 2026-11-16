@@ -34,7 +34,7 @@ services:
       ADMIN_USERNAME: ${ADMIN_USERNAME}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD}
       SESSION_COOKIE_NAME: ${SESSION_COOKIE_NAME:-finance_session}
-      SESSION_EXPIRY_DAYS: ${SESSION_EXPIRY_DAYS:-7}
+      SESSION_EXPIRY_DAYS: ${SESSION_EXPIRY_DAYS:-90}
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/health"]
       interval: 30s

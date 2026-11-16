@@ -2,6 +2,7 @@ import { Router, type Request, type Response } from 'express';
 import type { AuthService } from '../services/auth-service.js';
 import { createAuthMiddleware } from '../middleware/auth-middleware.js';
 import { validateLoginInput } from '../validators/auth-validator.js';
+import { getSessionCookieName, getSessionCookieOptions } from '../lib/session.js';
 
 // ---------------------------------------------------------------------------
 // Factory
@@ -17,9 +18,9 @@ import { validateLoginInput } from '../validators/auth-validator.js';
 export function createAuthRouter(authService: AuthService): Router {
   const router = Router();
   const authMiddleware = createAuthMiddleware({ authService });
+  const logoutAuthMiddleware = createAuthMiddleware({ authService, refreshSessionCookie: false });
 
-  const cookieName = process.env['SESSION_COOKIE_NAME'] ?? 'finance_session';
-  const expiryDays = parseInt(process.env['SESSION_EXPIRY_DAYS'] ?? '7', 10);
+  const cookieName = getSessionCookieName();
 
   // ─── POST /login ────────────────────────────────────────────────────────────
 
@@ -44,13 +45,8 @@ export function createAuthRouter(authService: AuthService): Router {
     try {
       const { token, adminId, permissions } = await authService.authenticate(username, password, clientIp);
 
-      // Req 2.5 — httpOnly, Secure, SameSite=Strict, 7-day max-age
-      res.cookie(cookieName, token, {
-        httpOnly: true,
-        secure: true,
-        sameSite: 'strict',
-        maxAge: expiryDays * 24 * 60 * 60 * 1000,
-      });
+      // Req 2.5 — httpOnly, Secure, SameSite=Strict, 90-day max-age
+      res.cookie(cookieName, token, getSessionCookieOptions());
 
       res.status(200).json({ admin: { id: adminId, username, permissions } });
     } catch (err) {
@@ -81,7 +77,7 @@ export function createAuthRouter(authService: AuthService): Router {
    */
   router.post(
     '/logout',
-    authMiddleware,
+    logoutAuthMiddleware,
     async (req: Request, res: Response): Promise<void> => {
       const token: string | undefined = req.cookies[cookieName] as string | undefined;
 

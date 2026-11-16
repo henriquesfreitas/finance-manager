@@ -2,6 +2,7 @@ import { randomBytes } from 'crypto';
 import bcrypt from 'bcryptjs';
 import type { AppPermission, PrismaClient } from '../generated/prisma/client.js';
 import { createRateLimiter } from '../lib/rate-limiter.js';
+import { getSessionExpiryDays } from '../lib/session.js';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -31,8 +32,6 @@ export interface AuthService {
 // Constants
 // ---------------------------------------------------------------------------
 
-const SESSION_EXPIRY_DAYS = parseInt(process.env['SESSION_EXPIRY_DAYS'] ?? '7', 10);
-
 const rateLimiter = createRateLimiter({
   maxAttempts: 5,
   windowMs: 15 * 60 * 1000,
@@ -55,7 +54,7 @@ export function createAuthService(deps: AuthServiceDeps): AuthService {
   const { db } = deps;
 
   function buildExpiresAt(): Date {
-    return new Date(Date.now() + SESSION_EXPIRY_DAYS * 24 * 60 * 60 * 1000);
+    return new Date(Date.now() + getSessionExpiryDays() * 24 * 60 * 60 * 1000);
   }
 
   /**

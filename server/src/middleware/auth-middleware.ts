@@ -1,6 +1,7 @@
 import type { RequestHandler, Request, Response, NextFunction } from 'express';
 import type { AppPermission } from '../generated/prisma/client.js';
 import type { AuthService } from '../services/auth-service.js';
+import { getSessionCookieName, getSessionCookieOptions } from '../lib/session.js';
 
 // ---------------------------------------------------------------------------
 // Express type augmentation — attach adminId after successful auth
@@ -22,6 +23,11 @@ declare global {
 
 export interface AuthMiddlewareDeps {
   authService: AuthService;
+  /**
+   * Re-issues the session cookie with a fresh lifetime after each successful
+   * validation. Disable only on routes that clear the cookie (logout).
+   */
+  refreshSessionCookie?: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -43,8 +49,8 @@ const TOKEN_FORMAT = /^[0-9a-f]{64}$/;
  *   app.use('/api', createAuthMiddleware({ authService }));
  */
 export function createAuthMiddleware(deps: AuthMiddlewareDeps): RequestHandler {
-  const { authService } = deps;
-  const cookieName = process.env['SESSION_COOKIE_NAME'] ?? 'finance_session';
+  const { authService, refreshSessionCookie = true } = deps;
+  const cookieName = getSessionCookieName();
 
   return async function authMiddleware(
     req: Request,
@@ -77,6 +83,13 @@ export function createAuthMiddleware(deps: AuthMiddlewareDeps): RequestHandler {
     req.adminId = session.adminId;
     req.adminUsername = session.username;
     req.permissions = session.permissions;
+
+    // Sliding window — every authenticated request resets both the DB expiry
+    // (inside validateSession) and the browser cookie to the full lifetime.
+    if (refreshSessionCookie) {
+      res.cookie(cookieName, token, getSessionCookieOptions());
+    }
+
     next();
   };
 }
