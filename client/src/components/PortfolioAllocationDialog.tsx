@@ -146,7 +146,7 @@ function PieGraphic({
   allocation: AllocationGroup[];
   total: number;
   label: string;
-  selectedGroup?: AllocationGroupName;
+  selectedGroup?: AllocationGroupName | null | undefined;
   onSelectGroup?: (group: AllocationGroupName) => void;
 }): React.JSX.Element {
   let angle = 0;
@@ -211,7 +211,7 @@ function AllocationList({
   allocation: AllocationGroup[];
   total: number;
   label: string;
-  selectedGroup?: AllocationGroupName;
+  selectedGroup?: AllocationGroupName | null | undefined;
   onSelectGroup?: (group: AllocationGroupName) => void;
   changes?: Map<AllocationGroupName, AllocationChange>;
   selectedChangeGroup?: AllocationGroupName | null;
@@ -369,7 +369,7 @@ export function PortfolioAllocationDialog({ investments, inMenu = false }: Portf
                     allocation={allocation}
                     total={currentTotal}
                     label="Portfolio value"
-                    selectedGroup={selectedGroup ?? undefined}
+                    selectedGroup={selectedGroup}
                     onSelectGroup={handleGroupSelect}
                   />
                 </div>
@@ -377,7 +377,7 @@ export function PortfolioAllocationDialog({ investments, inMenu = false }: Portf
                   allocation={allocation}
                   total={currentTotal}
                   label="Current allocation by asset type"
-                  selectedGroup={selectedGroup ?? undefined}
+                  selectedGroup={selectedGroup}
                   onSelectGroup={handleGroupSelect}
                 />
               </div>

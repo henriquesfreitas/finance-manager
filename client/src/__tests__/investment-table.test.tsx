@@ -1,5 +1,6 @@
 import React from 'react';
 import { cleanup, render, screen, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { InvestmentListItem } from '@/types/investment';
 import { InvestmentTable } from '@/components/InvestmentTable';
@@ -170,7 +171,7 @@ describe('InvestmentTable planned buys', () => {
 
 describe('InvestmentTable mobile table view', () => {
   it('toggles to a compact table with held and watchlist investments and only the requested columns', async () => {
-    const user = (await import('@testing-library/user-event')).default.setup();
+    const user = userEvent.setup();
     const { container } = render(
       <InvestmentTable
         investments={[
@@ -230,7 +231,7 @@ describe('InvestmentTable mobile table view', () => {
 
 describe('InvestmentTable portfolio daily variation', () => {
   it('shows the aggregate daily amount and percent and opens the history modal', async () => {
-    const user = (await import('@testing-library/user-event')).default.setup();
+    const user = userEvent.setup();
     renderInvestmentTable([makeInvestment({
       position: { quantity: '2', averagePrice: '10' },
       quote: { currentPrice: 13, dailyChangePercent: 1 },
@@ -256,7 +257,7 @@ describe('InvestmentTable portfolio daily variation', () => {
     expect(within(dialog).getByText('R$ 6,00')).toBeInTheDocument();
     expect(within(dialog).getByRole('img', { name: /Portfolio value chart/ })).toBeInTheDocument();
     expect(within(dialog).getByText(/Uses current quantities for 1 of 1 stock holdings with available history/)).toBeInTheDocument();
-  });
+  }, 30_000);
 
   it('falls back to the latest historical daily variation when a held stock quote is missing', () => {
     renderInvestmentTable([makeInvestment({
@@ -282,7 +283,7 @@ describe('InvestmentTable portfolio daily variation', () => {
   });
 
   it('shows a no-history state when historical prices are unavailable', async () => {
-    const user = (await import('@testing-library/user-event')).default.setup();
+    const user = userEvent.setup();
     renderInvestmentTable([makeInvestment({
       id: 'no-history',
       position: { quantity: '2', averagePrice: '10' },
@@ -291,10 +292,10 @@ describe('InvestmentTable portfolio daily variation', () => {
     const summary = screen.getAllByRole('region', { name: /portfolio variation/i })[0]!;
     await user.click(within(summary).getAllByRole('button')[0]!);
     expect(await screen.findByText('No portfolio price history available.')).toBeInTheDocument();
-  });
+  }, 30_000);
 
   it('shows history for available stocks when another stock has no historical prices', async () => {
-    const user = (await import('@testing-library/user-event')).default.setup();
+    const user = userEvent.setup();
     renderInvestmentTable([
       makeInvestment({
         position: { quantity: '2', averagePrice: '10' },
@@ -313,5 +314,5 @@ describe('InvestmentTable portfolio daily variation', () => {
     expect(within(dialog).getByRole('img', { name: /Portfolio value chart/ })).toBeInTheDocument();
     expect(within(dialog).getByText(/Uses current quantities for 1 of 2 stock holdings with available history/)).toBeInTheDocument();
     expect(within(dialog).queryByText('No portfolio price history available.')).not.toBeInTheDocument();
-  });
+  }, 30_000);
 });

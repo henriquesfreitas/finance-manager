@@ -15,7 +15,7 @@ export default defineConfig({
     setupFiles: ['./src/__tests__/setup.ts'],
     include: ['src/__tests__/**/*.test.{ts,tsx}'],
     // UI tests can take longer to render in the resource-constrained production test container.
-    testTimeout: 15_000,
+    testTimeout: 30_000,
     pool: 'vmForks',        // forks pool crashes with Vite 8 in node_modules; vmForks works correctly
     fileParallelism: false, // run serially to avoid module-cache collisions
     coverage: {
