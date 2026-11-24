@@ -25,6 +25,7 @@ const TREASURY_PRODUCTS = [
   { name: 'Pre 2032',                slug: 'TESOURO-PREFIXADO-2032' },
   { name: 'Selic 2026',              slug: 'TESOURO-SELIC-2026' },
   { name: 'Selic 2029',              slug: 'TESOURO-SELIC-2029' },
+  { name: 'Selic 2031',              slug: 'TESOURO-SELIC-2031' },
   { name: 'Renda+ 2030',             slug: 'TESOURO-RENDA-APOSENTADORIA-2030' },
   { name: 'Renda+ 2035',             slug: 'TESOURO-RENDA-APOSENTADORIA-2035' },
   { name: 'Renda+ 2040',             slug: 'TESOURO-RENDA-APOSENTADORIA-2040' },
