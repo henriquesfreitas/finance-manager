@@ -36,6 +36,8 @@ RUN npm ci --omit=dev
 # Keep this after dependency installation so Prisma changes don't reinstall packages.
 COPY prisma ./prisma/
 COPY prisma.config.ts ./
+# Seed scripts import ../src/lib/create-prisma-client.js when run via tsx in deploy.sh.
+COPY src/lib/create-prisma-client.ts ./src/lib/create-prisma-client.ts
 RUN DATABASE_URL="postgresql://build:build@localhost:5432/build" npx prisma generate
 
 # Copy built output from builder
