@@ -72,6 +72,13 @@ type EditOrderFormValues = z.infer<typeof editOrderSchema>;
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
+/** Converts empty number inputs to null so optional Zod number fields validate cleanly. */
+function parseOptionalNumber(value: unknown): number | null {
+  if (value === '' || value === null || value === undefined) return null;
+  const parsed = Number(value);
+  return Number.isNaN(parsed) ? null : parsed;
+}
+
 /** Returns today's date as a "YYYY-MM-DD" string using local timezone. */
 function todayISOString(): string {
   const now = new Date();
@@ -283,14 +290,16 @@ function OrderForm({ investmentId, isTreasury, onSuccess }: OrderFormProps): Rea
       {/* Contracted Rate — only shown for treasury investments */}
       {isTreasury && selectedType === 'BUY' && (
         <div className="grid gap-1.5">
-          <Label htmlFor="order-rate">Contracted Rate (%)</Label>
+          <Label htmlFor="order-rate">
+            Contracted Rate (%) <span className="font-normal text-muted-foreground">(optional)</span>
+          </Label>
           <Input
             id="order-rate"
             type="number"
             step="0.01"
             placeholder="6.50"
             aria-invalid={!!errors.contractedRate}
-            {...register('contractedRate', { valueAsNumber: true })}
+            {...register('contractedRate', { setValueAs: parseOptionalNumber })}
           />
           {errors.contractedRate && (
             <p className="text-xs text-destructive" role="alert">
@@ -506,7 +515,7 @@ function EditOrderRow({
                 placeholder="Rate % (e.g. 6.50)"
                 aria-label="Contracted rate"
                 aria-invalid={!!errors.contractedRate}
-                {...register('contractedRate', { valueAsNumber: true })}
+                {...register('contractedRate', { setValueAs: parseOptionalNumber })}
               />
               {errors.contractedRate && (
                 <p className="text-xs text-destructive" role="alert">
